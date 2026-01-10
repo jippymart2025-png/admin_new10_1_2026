@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Notification Cache</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #c82333;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .info {
+            color: #17a2b8;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ffc107;
+            font-weight: bold;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔔 Notification System Cache Clearer</h1>
+        <p>This tool helps clear notification-related cache and localStorage data.</p>
+        
+        <div id="status"></div>
+        
+        <button onclick="clearNotificationCache()">Clear Notification Cache</button>
+        <button onclick="clearAllCache()">Clear All Cache</button>
+        <button onclick="checkStatus()">Check Current Status</button>
+        <button onclick="goToAdmin()">Go to Admin Panel</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+
+        function updateResults(content) {
+            document.getElementById('results').innerHTML = content;
+        }
+
+        function clearNotificationCache() {
+            try {
+                // Clear notification-related localStorage items
+                localStorage.removeItem('knownOrderIds');
+                localStorage.removeItem('knownOrderIdsTimestamp');
+                localStorage.removeItem('notificationSoundEnabled');
+                
+                // Clear session storage as well
+                sessionStorage.clear();
+                
+                updateStatus('✅ Notification cache cleared successfully!', 'success');
+                
+                const results = `
+                    <h3>Cleared Items:</h3>
+                    <ul>
+                        <li>knownOrderIds</li>
+                        <li>knownOrderIdsTimestamp</li>
+                        <li>notificationSoundEnabled</li>
+                        <li>All session storage</li>
+                    </ul>
+                `;
+                updateResults(results);
+                
+            } catch (error) {
+                updateStatus('❌ Error clearing cache: ' + error.message, 'warning');
+            }
+        }
+
+        function clearAllCache() {
+            try {
+                localStorage.clear();
+                sessionStorage.clear();
+                
+                updateStatus('✅ All cache cleared successfully!', 'success');
+                
+                const results = `
+                    <h3>Cleared All:</h3>
+                    <ul>
+                        <li>All localStorage data</li>
+                        <li>All sessionStorage data</li>
+                    </ul>
+                    <p><strong>Note:</strong> This will clear all stored preferences and settings.</p>
+                `;
+                updateResults(results);
+                
+            } catch (error) {
+                updateStatus('❌ Error clearing all cache: ' + error.message, 'warning');
+            }
+        }
+
+        function checkStatus() {
+            try {
+                const knownOrderIds = localStorage.getItem('knownOrderIds');
+                const timestamp = localStorage.getItem('knownOrderIdsTimestamp');
+                const soundEnabled = localStorage.getItem('notificationSoundEnabled');
+                
+                const results = `
+                    <h3>Current Cache Status:</h3>
+                    <pre>knownOrderIds: ${knownOrderIds || 'Not set'}</pre>
+                    <pre>knownOrderIdsTimestamp: ${timestamp || 'Not set'}</pre>
+                    <pre>notificationSoundEnabled: ${soundEnabled || 'Not set'}</pre>
+                    <pre>localStorage keys: ${Object.keys(localStorage).join(', ') || 'None'}</pre>
+                `;
+                updateResults(results);
+                
+                updateStatus('📊 Cache status checked', 'info');
+                
+            } catch (error) {
+                updateStatus('❌ Error checking status: ' + error.message, 'warning');
+            }
+        }
+
+        function goToAdmin() {
+            window.location.href = 'http://127.0.0.1:8001';
+        }
+
+        // Check status on page load
+        checkStatus();
+    </script>
+</body>
+</html>

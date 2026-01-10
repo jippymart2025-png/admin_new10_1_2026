@@ -1,0 +1,55 @@
+# Disable LiteSpeed WAF (Web Application Firewall) for API requests
+<IfModule LiteSpeed>
+    php_value modsecurity.enabled Off
+</IfModule>
+
+# Disable ModSecurity for LiteSpeed
+<IfModule mod_security.c>
+    SecRuleEngine Off
+</IfModule>
+
+<IfModule mod_headers.c>
+     # Enable CORS for all domains (or change "*" to a specific domain)
+     Header always set Access-Control-Allow-Origin "*"
+     Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+     Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+ </IfModule>
+
+ <IfModule mod_rewrite.c>
+
+     <IfModule mod_negotiation.c>
+         Options -MultiViews
+     </IfModule>
+
+     RewriteEngine On
+     
+     # Disable LiteSpeed WAF via environment variable
+     SetEnvIf Request_URI ".*" MODSEC_ENABLE=Off
+
+     # Force HTTPS header detection for proxied requests
+     RewriteCond %{HTTP:X-Forwarded-Proto} =https
+     RewriteRule .* - [E=HTTPS:on]
+
+     # Handle Authorization Header
+     RewriteCond %{HTTP:Authorization} .
+     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+     # Allow preflight OPTIONS requests to return OK
+     RewriteCond %{REQUEST_METHOD} OPTIONS
+     RewriteRule ^(.*)$ $1 [R=200,L]
+
+     RewriteCond %{REQUEST_FILENAME} -d [OR]
+     RewriteCond %{REQUEST_FILENAME} -f
+     RewriteRule ^ ^$1 [N]
+
+     RewriteCond %{REQUEST_URI} (\.\w+$) [NC]
+     RewriteRule ^(.*)$ public/$1
+
+     RewriteCond %{REQUEST_FILENAME} !-d
+     RewriteCond %{REQUEST_FILENAME} !-f
+     RewriteRule ^ server.php
+
+ </IfModule>
+
+# # Set PHP version (you already had this)
+# AddHandler application/x-httpd-php81 .php .php5 .php4 .php3
