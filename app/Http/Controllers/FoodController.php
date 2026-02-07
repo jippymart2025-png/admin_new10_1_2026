@@ -144,6 +144,7 @@ class FoodController extends Controller
             $query->where('vp.nonveg', 1);
         }
 
+
         $total = $query->count();
 
         if ($search !== '') {
