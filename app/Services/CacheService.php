@@ -127,7 +127,7 @@ class CacheService
         return null;
     }
 
-    private static function getTopRestaurants(int $limit = 5): array
+    private static function getTopRestaurants(int $limit = 8): array
     {
         try {
             $nameCol = self::firstExistingColumn('vendors', ['title','name']);
@@ -155,33 +155,42 @@ class CacheService
         }
     }
 
-    private static function getTopDrivers(int $limit = 5): array
+    private static function getTopDrivers(int $limit = 10): array
     {
         try {
-            $nameCol = self::firstExistingColumn('drivers', ['name','firstName']);
-            $photoCol = self::firstExistingColumn('drivers', ['photo','profile','profilePictureURL']);
-            $completedCol = self::firstExistingColumn('drivers', ['orderCompleted','orders_completed','completed']);
-            $dateCol = self::firstExistingColumn('drivers', ['updated_at','created_at','createdAt']);
-            $q = DB::table('drivers')->select(['id']);
-            if ($nameCol) $q->addSelect(DB::raw($nameCol.' as name'));
-            if ($photoCol) $q->addSelect(DB::raw($photoCol.' as photo'));
-            if ($completedCol) $q->addSelect(DB::raw('COALESCE('.$completedCol.',0) as orderCompleted'));
-            if ($dateCol) { $q->orderByDesc($dateCol); }
-            elseif ($completedCol) { $q->orderByDesc('orderCompleted'); }
-            else { $q->orderByDesc('id'); }
-            return $q->limit($limit)->get()->map(function($r){
-                return [
-                    'id' => $r->id,
-                    'name' => (string) ($r->name ?? ''),
-                    'photo' => $r->photo ?? null,
-                    'orderCompleted' => (int) ($r->orderCompleted ?? 0),
-                ];
-            })->all();
+            return DB::table('users as u')
+//                ->join('restaurant_orders as ro', 'ro.driverID', '=', 'u.firebase_id')
+                ->join('restaurant_orders as ro', function ($join) {
+                    $join->on('ro.driverID', '=', 'u.firebase_id')
+                        ->orOn('ro.driverID', '=', 'u.id');
+                })
+                ->where('u.role', 'driver')
+                ->where('ro.status', 'Order Completed')
+                ->select(
+                    'u.id',
+                    DB::raw("CONCAT(COALESCE(u.firstName,''),' ',COALESCE(u.lastName,'')) as name"),
+                    'u.profilePictureURL as photo',
+                    DB::raw('COUNT(ro.id) as orderCompleted')
+                )
+                ->groupBy('u.id','u.firstName','u.lastName','u.profilePictureURL')
+                ->orderByDesc('orderCompleted')
+                ->limit($limit)
+                ->get()
+                ->map(function ($r) {
+                    return [
+                        'id' => $r->id,
+                        'name' => $r->name,
+                        'photo' => $r->photo,
+                        'orderCompleted' => (int) $r->orderCompleted,
+                    ];
+                })
+                ->toArray();
         } catch (\Exception $e) {
-            Log::error('Top drivers error: '.$e->getMessage());
+            Log::error('Top drivers error: ' . $e->getMessage());
             return [];
         }
     }
+
 
     private static function getRecentOrders(int $limit = 10): array
     {
@@ -189,7 +198,7 @@ class CacheService
             $amountCol = self::firstExistingColumn('restaurant_orders', ['toPayAmount','grandTotal','total','amount','totalAmount']);
             $qtyCol = self::firstExistingColumn('restaurant_orders', ['productsCount','quantity','items_count']);
             $dateCol = self::firstExistingColumn('restaurant_orders', ['createdAt','updated_at','created_at','orderDate','date']);
-            
+
             // Join with vendors table to get vendor title
             $q = DB::table('restaurant_orders as ro')
                 ->leftJoin('vendors as v', 'v.id', '=', 'ro.vendorID')
@@ -197,11 +206,11 @@ class CacheService
                     'ro.id',
                     'v.title as vendor_name', // Get vendor title from vendors table
                 ]);
-            
+
             if ($amountCol) $q->addSelect(DB::raw('COALESCE(CAST(ro.'.$amountCol.' AS DECIMAL(16,2)),0) as amount'));
             if ($qtyCol) $q->addSelect(DB::raw('COALESCE(ro.'.$qtyCol.',0) as qty'));
             if ($dateCol) $q->addSelect(DB::raw('ro.'.$dateCol.' as created_at'));
-            
+
             // Order by createdAt (prioritized) or other date columns
             if ($dateCol === 'createdAt') {
                 // createdAt may be text/varchar, convert to datetime for proper sorting
@@ -211,7 +220,7 @@ class CacheService
             } else {
                 $q->orderByDesc('ro.id');
             }
-            
+
             return $q->limit($limit)->get()->map(function($r){
                 return [
                     'id' => $r->id,

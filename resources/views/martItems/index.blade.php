@@ -880,6 +880,7 @@
                 },
                 success: function(response) {
                     if (response.success) {
+                        $('#foodTable').DataTable().ajax.reload(null, false);
                         console.log('✅ Publish status updated successfully');
                     } else {
                         console.error('❌ Failed to update publish status');
@@ -907,6 +908,7 @@
                 },
                 success: function(response) {
                     if (response.success) {
+                        $('#foodTable').DataTable().ajax.reload(null, false);
                         console.log('✅ Availability status updated successfully');
                     } else {
                         console.error('❌ Failed to update availability status');

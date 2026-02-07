@@ -704,31 +704,51 @@
                     extend: 'collection',
                     text: '<i class="mdi mdi-cloud-download"></i> Export as',
                     className: 'btn btn-info',
+                    // buttons: [
+                    //     {
+                    //         extend: 'excelHtml5',
+                    //         text: 'Export Excel',
+                    //         exportOptions: {
+                    //             columns: ':visible:not(:first-child):not(:last-child)'
+                    //         },
+                    //         title: 'restaurants',
+                    //     },
+                    //     {
+                    //         extend: 'pdfHtml5',
+                    //         text: 'Export PDF',
+                    //         exportOptions: {
+                    //             columns: ':visible:not(:first-child):not(:last-child)'
+                    //         },
+                    //         title: 'restaurants',
+                    //     },
+                    //     {
+                    //         extend: 'csvHtml5',
+                    //         text: 'Export CSV',
+                    //         exportOptions: {
+                    //             columns: ':visible:not(:first-child):not(:last-child)'
+                    //         },
+                    //         title: 'restaurants',
+                    //     }
+                    // ]
                     buttons: [
                         {
-                            extend: 'excelHtml5',
-                            text: 'Export Excel',
-                            exportOptions: {
-                                columns: ':visible:not(:first-child):not(:last-child)'
-                            },
-                            title: 'restaurants',
-                        },
-                        {
-                            extend: 'pdfHtml5',
-                            text: 'Export PDF',
-                            exportOptions: {
-                                columns: ':visible:not(:first-child):not(:last-child)'
-                            },
-                            title: 'restaurants',
-                        },
-                        {
-                            extend: 'csvHtml5',
                             text: 'Export CSV',
-                            exportOptions: {
-                                columns: ':visible:not(:first-child):not(:last-child)'
-                            },
-                            title: 'restaurants',
-                        }
+                            action: function () {
+                                exportRestaurants('csv');
+                            }
+                        },
+                        {
+                            text: 'Export PDF',
+                            action: function () {
+                                exportRestaurants('pdf');
+                            }
+                        },
+                        {
+                            text: 'Export EXCEL',
+                            action: function () {
+                                exportRestaurants('excel');
+                            }
+                        },
                     ]
                 }
             ],
@@ -839,11 +859,11 @@
 
         // Display commission with styling like zones
         if (commissionValue !== null && commissionValue !== '' && !isNaN(commissionValue)) {
-            var formattedCommission = parseFloat(commissionValue).toFixed(decimal_degits);
+            var formattedCommission = parseFloat(commissionValue);
             if (currencyAtRight) {
-                adminCommissionDisplay = '<span class="badge badge-success py-2 px-3">' + formattedCommission + ' ' + '</span>';
+                adminCommissionDisplay = '<span class=" py-2 px-3">' + formattedCommission + '%' + ' ' + '</span>';
             } else {
-                adminCommissionDisplay = '<span class="badge badge-success py-2 px-3">' + ' ' + formattedCommission + '</span>';
+                adminCommissionDisplay = '<span class="py-2 px-3">' + ' ' + formattedCommission + '%' + '</span>';
             }
         } else {
             // No commission set
@@ -941,7 +961,7 @@
         var bestIconClass = isBest ? 'mdi-star' : 'mdi-star-outline';
         var bestColorClass = isBest ? 'text-warning' : 'text-muted';
         var bestTitle = isBest ? 'Mark as not best' : 'Mark as best';
-        
+
         bestHtml = `<a href="javascript:void(0)" class="toggle-best-btn" data-restaurant-id="${val.id}" data-restaurant-name="${val.title || 'Restaurant'}" data-current-best="${isBest ? 1 : 0}" title="${bestTitle}">
             <i class="mdi ${bestIconClass} ${bestColorClass}" style="font-size: 20px;"></i>
         </a>`;
@@ -952,7 +972,7 @@
         var isGst = val.gst === true || val.gst === 1 || val.gst === '1';
         var gstChecked = isGst ? 'checked' : '';
         var gstTitle = isGst ? 'Unaccept GST' : 'Accept GST';
-        
+
         gstHtml = `<label class="switch">
             <input type="checkbox" class="toggle-gst-switch" data-restaurant-id="${val.id}" data-restaurant-name="${val.title || 'Restaurant'}" data-current-gst="${isGst ? 1 : 0}" ${gstChecked} title="${gstTitle}">
             <span class="slider"></span>
@@ -964,7 +984,7 @@
         var isPublish = val.publish === true || val.publish === 1 || val.publish === '1';
         var publishChecked = isPublish ? 'checked' : '';
         var publishTitle = isPublish ? 'Unpublish restaurant' : 'Publish restaurant';
-        
+
         publishHtml = `<label class="switch">
             <input type="checkbox" class="toggle-publish-switch" data-restaurant-id="${val.id}" data-restaurant-name="${val.title || 'Restaurant'}" data-current-publish="${isPublish ? 1 : 0}" ${publishChecked} title="${publishTitle}">
             <span class="slider"></span>
@@ -1222,7 +1242,8 @@
                 success: function(response) {
                     if (response.success) {
                         var updated = response.updated || 0;
-                        var successMessage = `${updated} restaurant${updated === 1 ? '' : 's'} updated successfully.`;
+                        const action = isOpen ? 'opened' : 'closed';
+                        var successMessage = `${updated} restaurant${updated === 1 ? '' : 's'} ${action} updated successfully.`;
                         showNotification('success', successMessage);
                     } else {
                         showNotification('error', response.message || 'Unable to update restaurants.');
@@ -1282,7 +1303,7 @@
 
          function attemptImpersonation() {
              $.ajax({
-                 url: '{{ route("admin.impersonate.generate") }}',
+                 url: '{{ route("restaurants.impersonate") }}',
                  method: 'POST',
                  timeout: 10000, // 10 second timeout
                  data: {
@@ -1352,15 +1373,15 @@
      // Handle Publish toggle switch
      $(document).on('change', '.toggle-publish-switch', function(e) {
          e.preventDefault();
-         
+
          const $switch = $(this);
          const restaurantId = $switch.data('restaurant-id');
          const restaurantName = $switch.data('restaurant-name');
          const currentPublish = $switch.is(':checked');
-         
+
          // Disable switch during request
          $switch.prop('disabled', true);
-         
+
          $.ajax({
              url: '{{ url("restaurants") }}/' + restaurantId + '/toggle-publish',
              method: 'POST',
@@ -1372,9 +1393,9 @@
                      // Update UI
                      $switch.data('current-publish', response.publish ? 1 : 0);
                      $switch.attr('title', response.publish ? 'Unpublish restaurant' : 'Publish restaurant');
-                     
+
                      showNotification('success', response.message || (response.publish ? 'Restaurant published' : 'Restaurant unpublished'));
-                     
+
                      // Reload table to reflect changes
                      if ($.fn.dataTable.isDataTable('#storeTable')) {
                          $('#storeTable').DataTable().ajax.reload(null, false);
@@ -1403,15 +1424,15 @@
      // Handle GST toggle switch
      $(document).on('change', '.toggle-gst-switch', function(e) {
          e.preventDefault();
-         
+
          const $switch = $(this);
          const restaurantId = $switch.data('restaurant-id');
          const restaurantName = $switch.data('restaurant-name');
          const currentGst = $switch.is(':checked');
-         
+
          // Disable switch during request
          $switch.prop('disabled', true);
-         
+
          $.ajax({
              url: '{{ url("restaurants") }}/' + restaurantId + '/toggle-gst',
              method: 'POST',
@@ -1423,9 +1444,9 @@
                      // Update UI
                      $switch.data('current-gst', response.gst ? 1 : 0);
                      $switch.attr('title', response.gst ? 'Unaccept GST' : 'Accept GST');
-                     
+
                      showNotification('success', response.message || (response.gst ? 'GST accepted' : 'GST unaccepted'));
-                     
+
                      // Reload table to reflect changes
                      if ($.fn.dataTable.isDataTable('#storeTable')) {
                          $('#storeTable').DataTable().ajax.reload(null, false);
@@ -1454,18 +1475,18 @@
      // Handle best restaurant toggle
      $(document).on('click', '.toggle-best-btn', function(e) {
          e.preventDefault();
-         
+
          const $btn = $(this);
          const restaurantId = $btn.data('restaurant-id');
          const restaurantName = $btn.data('restaurant-name');
          const currentBest = $btn.data('current-best') == 1;
          const $icon = $btn.find('i');
-         
+
          // Show loading state
          const originalHtml = $icon.attr('class');
          $icon.attr('class', 'mdi mdi-loading mdi-spin text-primary');
          $btn.prop('disabled', true);
-         
+
          $.ajax({
              url: '{{ url("restaurants") }}/' + restaurantId + '/toggle-best',
              method: 'POST',
@@ -1479,13 +1500,13 @@
                      const newIconClass = isBest ? 'mdi-star' : 'mdi-star-outline';
                      const newColorClass = isBest ? 'text-warning' : 'text-muted';
                      const newTitle = isBest ? 'Mark as not best' : 'Mark as best';
-                     
+
                      $icon.attr('class', 'mdi ' + newIconClass + ' ' + newColorClass);
                      $btn.attr('title', newTitle);
                      $btn.data('current-best', isBest ? 1 : 0);
-                     
+
                      showNotification('success', response.message || (isBest ? 'Restaurant marked as best' : 'Restaurant unmarked as best'));
-                     
+
                      // Reload table to reflect changes
                      if ($.fn.dataTable.isDataTable('#storeTable')) {
                          $('#storeTable').DataTable().ajax.reload(null, false);
@@ -1580,5 +1601,16 @@
              }
          `)
          .appendTo('head');
+     function exportRestaurants(type) {
+        let params = {
+            search: $('.dataTables_filter input').val() || '',
+            zone: $('.zone_selector').val() || '',
+            restaurant_type: $('.restaurant_type_selector').val() || '',
+            business_model: $('.business_model_selector').val() || '',
+            type: type
+        };
+
+        window.location.href = '/restaurants/export?' + $.param(params);
+    }
 </script>
 @endsection

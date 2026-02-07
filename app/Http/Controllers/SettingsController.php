@@ -493,7 +493,7 @@ class SettingsController extends Controller
             'minimum_delivery_charges_within_km' => $fields['minimum_delivery_charges_within_km'] ?? null,
             'base_delivery_charge' => $fields['base_delivery_charge'] ?? 23,
             'free_delivery_distance_km' => $fields['free_delivery_distance_km'] ?? 5,
-            'per_km_charge_above_free_distance' => $fields['per_km_charge_above_free_distance'] ?? 7,
+            'per_km_charge_above_free_distance' => $fields['per_    km_charge_above_free_distance'] ?? 7,
             'item_total_threshold' => $fields['item_total_threshold'] ?? 199,
         ]);
     }

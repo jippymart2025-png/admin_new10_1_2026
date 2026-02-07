@@ -39,10 +39,13 @@
                                             <option value="Order Accepted">{{trans("lang.order_accepted")}}</option>
                                             <option value="Order Rejected">{{trans("lang.order_rejected")}}</option>
                                             <option value="Driver Pending">{{trans("lang.driver_pending")}}</option>
+                                            <option value="Driver Accepted">{{trans("lang.driver_accepted")}}</option>
                                             <option value="Driver Rejected">{{trans("lang.driver_rejected")}}</option>
                                             <option value="Order Shipped">{{trans("lang.order_shipped")}}</option>
                                             <option value="In Transit">{{trans("lang.in_transit")}}</option>
                                             <option value="Order Completed">{{trans("lang.order_completed")}}</option>
+                                            <option value="Refund Initiated">Refund Initiated</option>
+                                            <option value="Refund Completed">Refund Completed</option>
                                         </select>
                                     </div>
                                     <div class="select-box pl-3">
@@ -50,6 +53,13 @@
                                             <option value="" selected>{{trans("lang.order_type")}}</option>
                                             <option value="takeaway">{{trans("lang.order_takeaway")}}</option>
                                             <option value="delivery">{{trans("lang.delivery")}}</option>
+                                        </select>
+                                    </div>
+                                    <div class="select-box pl-3">
+                                        <select class="form-control payment_type_selector filteredRecords">
+                                            <option value="" selected>Payment_Type</option>
+                                            <option value="cod">Cash on Delivery</option>
+                                            <option value="razorpay">Razorpay</option>
                                         </select>
                                     </div>
                                     <div class="select-box pl-3">
@@ -175,26 +185,26 @@
                                                         <i class="mdi mdi-delete"></i> {{trans('lang.all')}}</a></label>
                                             </th>
                                             <?php } ?>
-                                            <th>{{trans('lang.order_id')}}</th>
+                                            <th style="text-align: center">{{trans('lang.order_id')}}</th>
                                             {{--                                            @if ($id == '')--}}
                                             {{--                                                <th>{{trans('lang.restaurant')}}</th>--}}
                                             {{--                                            @endif--}}
                                             @if ($id == '')
-                                                <th style="white-space:normal; max-width:150px;">{{trans('lang.restaurant')}}</th>
+                                                <th style="white-space:normal; max-width:150px; text-align: center">{{trans('lang.restaurant')}}</th>
                                             @endif
                                             @if (isset($_GET['userId']))
-                                                <th class="driverClass">{{trans('lang.driver_plural')}}</th>
+                                                <th class="driverClass" style="text-align: center">{{trans('lang.driver_plural')}}</th>
                                             @elseif (isset($_GET['driverId']))
-                                                <th>{{trans('lang.order_user_id')}}</th>
+                                                <th style="text-align: center">{{trans('lang.order_user_id')}}</th>
                                             @else
-                                                <th class="driverClass">{{trans('lang.driver_plural')}}</th>
-                                                <th>{{trans('lang.order_user_id')}}</th>
+                                                <th class="driverClass" style="text-align: center">{{trans('lang.driver_plural')}}</th>
+                                                <th style="text-align: center">{{trans('lang.order_user_id')}}</th>
                                             @endif
-                                            <th>{{trans('lang.date')}}</th>
-                                            <th>{{trans('lang.restaurants_payout_amount')}}</th>
+                                            <th style="text-align: center">{{trans('lang.date')}}</th>
+                                            <th style="text-align: center">{{trans('lang.restaurants_payout_amount')}}</th>
                                             {{--                                            <th>{{trans('lang.order_order_status_id')}}</th>--}}
                                             <th style="white-space:normal; max-width:120px;text-align:center">{{trans('lang.order_order_status_id')}}</th>
-                                            <th>{{trans('lang.actions')}}</th>
+                                            <th style="text-align: center">{{trans('lang.actions')}}</th>
                                         </tr>
                                         </thead>
                                         <tbody id="append_list1">
@@ -396,6 +406,11 @@
             minimumResultsForSearch: Infinity,
             allowClear: true
         });
+        $('.payment_type_selector').select2({
+            placeholder: 'Payment Type',
+            minimumResultsForSearch: Infinity,
+            allowClear: true
+        });
         $('select').on("select2:unselecting", function (e) {
             var self = $(this);
             setTimeout(function () {
@@ -571,9 +586,7 @@
                     {key: 'client', header: "{{trans('lang.order_user_id')}}"},
                     {key: 'status', header: "{{trans('lang.order_order_status_id')}}"},
                         {{--{ key: 'orderType', header: "{{trans('lang.order_type')}}" },--}}
-                    {
-                        key: 'amount', header: "{{trans('lang.amount')}}"
-                    },
+                    {key: 'amount', header: "{{trans('lang.amount')}}"},
                     {key: 'createdAt', header: "{{trans('lang.created_at')}}"},
                 ],
                 fileName: "{{trans('lang.order_table')}}",
@@ -599,6 +612,7 @@
                         d.status = $('.status_selector').val();
                         d.zone_id = $('.zone_selector').val();
                         d.order_type = $('.order_type_selector').val();
+                        d.payment_type = $('.payment_type_selector').val();
                         d._cache_bust = new Date().getTime(); // Cache busting
 
                         // Date range - check both preset and custom
@@ -698,6 +712,11 @@
                         targets: (getId != '' || driverID || userID && checkDeletePermission) ? [0, 7] : (getId != '' || driverID || userID) ? ((checkDeletePermission) ? [0, 7] : [6]) : (checkDeletePermission) ? [0, 8] : [7]
                     },
                     {
+                        // ✅ CENTER AMOUNT COLUMN
+                        targets: (checkDeletePermission ? 6 : 5),
+                        className: 'text-center'
+                    },
+                    {
                         // ✅ Restaurant Wrap Column
                         targets: (checkDeletePermission ? 2 : 1),
                         render: function (data) {
@@ -710,8 +729,13 @@
                         render: function (data) {
                             return `<div style="white-space:normal; max-width:120px; word-break:break-word; text-align:center;font-size:10px;">${data}</div>`;
                         }
+                    },
+                    {
+                        // Center action column (ALWAYS LAST)
+                        targets: -1,
+                        className: 'text-center',
+                        orderable: false
                     }
-
                 ],
                 "language": {
                     "zeroRecords": "{{trans("lang.no_record_found")}}",
@@ -729,7 +753,15 @@
                                 extend: 'excelHtml5',
                                 text: 'Export Excel',
                                 exportOptions: {
-                                    columns: ':visible:not(:first-child):not(:last-child)'
+                                    columns: ':visible:not(:first-child):not(:last-child)',
+                                    format: {
+                                        body: function (data) {
+                                            return data
+                                                .replace(/\(.*?\)/g, '')
+                                                .replace(/<[^>]*>/g, '')
+                                                .trim();
+                                        }
+                                    }
                                 },
                                 title: 'orders',
                             },
@@ -737,7 +769,15 @@
                                 extend: 'csvHtml5',
                                 text: 'Export CSV',
                                 exportOptions: {
-                                    columns: ':visible:not(:first-child):not(:last-child)'
+                                    columns: ':visible:not(:first-child):not(:last-child)',
+                                    format: {
+                                        body: function (data) {
+                                            return data
+                                                .replace(/\(.*?\)/g, '')
+                                                .replace(/<[^>]*>/g, '')
+                                                .trim();
+                                        }
+                                    }
                                 },
                                 title: 'orders',
                             },
@@ -745,7 +785,15 @@
                                 extend: 'pdfHtml5',
                                 text: 'Export PDF',
                                 exportOptions: {
-                                    columns: ':visible:not(:first-child):not(:last-child)'
+                                    columns: ':visible:not(:first-child):not(:last-child)',
+                                    format: {
+                                        body: function (data) {
+                                            return data
+                                                .replace(/\(.*?\)/g, '')
+                                                .replace(/<[^>]*>/g, '')
+                                                .trim();
+                                        }
+                                    }
                                 },
                                 title: 'orders',
                                 orientation: 'landscape',
@@ -822,29 +870,29 @@
         {{--    }--}}
         {{--});--}}
 
-        {{--// Single order delete--}}
-        {{--$(document).on("click","a[name='order-delete']", function(e) {--}}
-        {{--    e.preventDefault();--}}
-        {{--    var id = $(this).attr('id');--}}
-        {{--    if(confirm("{{trans('lang.confirm_delete')}}")) {--}}
-        {{--        $.ajax({--}}
-        {{--            url: '{{ route("orders.delete", ":id") }}'.replace(':id', id),--}}
-        {{--            type: 'DELETE',--}}
-        {{--            data: {--}}
-        {{--                _token: '{{ csrf_token() }}'--}}
-        {{--            },--}}
-        {{--            success: function(response) {--}}
-        {{--                if(response.success) {--}}
-        {{--                    $('#orderTable').DataTable().ajax.reload();--}}
-        {{--                } else {--}}
-        {{--                    alert('Error: ' + (response.message || 'Failed to delete order'));--}}
-        {{--                }--}}
-        {{--            },--}}
-        {{--            error: function() {--}}
-        {{--                alert('{{trans("lang.error_occurred")}}');--}}
-        {{--            }--}}
-        {{--        });--}}
-        {{--    }--}}
-        {{--});--}}
+        // Single order delete
+        $(document).on("click","a[name='order-delete']", function(e) {
+            e.preventDefault();
+            var id = $(this).attr('id');
+            if(confirm("{{trans('confirm_delete')}}")) {
+                $.ajax({
+                    url: '{{ route("orders.delete", ":id") }}'.replace(':id', id),
+                    type: 'DELETE',
+                    data: {
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function(response) {
+                        if(response.success) {
+                            $('#orderTable').DataTable().ajax.reload();
+                        } else {
+                            alert('Error: ' + (response.message || 'Failed to delete order'));
+                        }
+                    },
+                    error: function() {
+                        alert('{{trans("lang.error_occurred")}}');
+                    }
+                });
+            }
+        });
     </script>
 @endsection

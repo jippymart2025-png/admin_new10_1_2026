@@ -2304,7 +2304,7 @@ html {
   align-items: center;
   justify-content: center;
   margin-left: -18px;}
-.mini-sidebar .topbar .top-navbar .navbar-nav > .nav-item > .nav-link.sidebartoggler{transform: rotate(180deg);}  
+.mini-sidebar .topbar .top-navbar .navbar-nav > .nav-item > .nav-link.sidebartoggler{transform: rotate(180deg);}
 .topbar .dropdown-menu {
     box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
     -webkit-box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05);
@@ -5841,7 +5841,7 @@ ribbons page
 .res_password{
     font-size: 33px!important;
     height: 33px!important;
-  
+
 }
 
 /*******************
@@ -10810,6 +10810,13 @@ span.order_completed span {
     border-radius: 5px;
 }
 
+.order_canceled span, .table tr td.driver_rejected span {
+    background: red;
+    color: #fff;
+    padding: 3px 10px;
+    border-radius: 5px;
+}
+
 .table tr td.in_transit span, .table tr td.order_placed span, .table tr td.order_accepted span, .table tr td.order_shipped span, .table tr td.order_pending span, .table tr td.driver_pending span {
     background: orange;
     color: #fff;
@@ -10828,6 +10835,30 @@ span.order_completed span {
     padding: 3px 10px;
     border-radius: 5px;
 }
+.driver_accepted span{
+    background: #17a2b8;
+    color: #fff;
+    padding: 3px 10px;
+    font-size: 10px;
+    border-radius: 5px;
+    display: inline-block;
+}
+.refund_initiated {
+    background-color: #8e44ad;   /* purple */
+    color: #fff;
+    padding: 3px 10px;
+    font-size: 10px;
+    border-radius: 5px;
+}
+
+.refund_completed {
+    background-color: #16a085;   /* teal */
+    color: #fff;
+    padding: 3px 10px;
+    font-size: 10px;
+    border-radius: 5px;
+}
+
 .vendor_avtive.closed {
     color: red;
     font-weight: 600;
@@ -11663,7 +11694,7 @@ font-size: 14px;
   background: #e1ffe1;
 }
 .order-totals-items table.order-totals tr.final-rate td {
-  
+
   padding-left: 15px;
   padding-right: 15px;
   margin-bottom: 0;
@@ -11880,7 +11911,7 @@ color: #fff;cursor: pointer;}
 .select-box .select2-container--default .select2-selection--single .select2-selection__arrow{height: 40px;right: 15px;}
 .select-box .select2-container .select2-selection--single .select2-selection__rendered > span{padding-right: 0;
   padding-left: 10px;}
-.select2-container--default .select2-results__option--highlighted[aria-selected]{background-color: #0f0f0f !important;}  
+.select2-container--default .select2-results__option--highlighted[aria-selected]{background-color: #0f0f0f !important;}
 .select2-container--open .select2-dropdown{}
 .top-title-section .top-title-left h3{font-family:Urbanist;font-size: 22px;font-style: normal;font-weight: 600;line-height:30px;color:#0C111C;}
 .top-title-section .top-title-left .icon img{max-width: 32px}
@@ -11946,7 +11977,7 @@ table.dataTable.display tbody tr:hover > .sorting_1, table.dataTable.order-colum
 
 .card-box-with-icon .card-body .background-img{position: absolute;right: 0;bottom: 0;width: 76px;height: 73px;text-align: right;justify-content: center;align-items: center;
   display: flex;opacity: 0.2;}
-.card-box-with-icon .card-body .background-img img{width: 100%}  
+.card-box-with-icon .card-body .background-img img{width: 100%}
 .edit-form-group{margin-bottom: 15px}
 .edit-form-group label.control-label{color: #0C111C;font-size:14px;font-weight: 500;}
 .edit-form-group .form-control{border-radius:16px;background:#F9FAFB; padding: 16px;font-size:16px;font-weight: 400;color: #6B7280;border: 0;}
@@ -11983,7 +12014,7 @@ table.dataTable.display tbody tr:hover > .sorting_1, table.dataTable.order-colum
   height: 24px;margin: 0}
 .edit-form-group .form-check [type="radio"] + label::after{left: 4px;
   top: 4px;
-  border: 2px solid #fff;margin: 0}  
+  border: 2px solid #fff;margin: 0}
 .edit-form-group .form-check [type="radio"]:checked + label::before {background: #FF6839;border-color: #FF6839}
 
 .pricing-card-inner{border-radius:16px;border: 1px solid #E5E7EB;background:#FFF;padding: 24px 24px 150px 24px; height: 100%}
@@ -12790,7 +12821,7 @@ i.fa-info{background: #000;width: 25px; height: 25px;color: #fff !important;bord
 .pay-method-box .form-check{width: 85%;padding-left: 10px; padding-right: 0px; font-size: 16px;font-weight: 500;color: #0C111C;justify-content: space-between;
   display: flex;align-items: center;}
 .pay-method-box .form-check [type="radio"] + label::before{border: 2px solid #4B5563;width: 24px;height: 24px;margin: 0}
-.pay-method-box .form-check [type="radio"] + label::after{left: 4px;top: 4px;border: 2px solid #fff;margin: 0;background: #FF6839;}  
+.pay-method-box .form-check [type="radio"] + label::after{left: 4px;top: 4px;border: 2px solid #fff;margin: 0;background: #FF6839;}
 .pay-method-box .form-check [type="radio"]:checked + label::before {background: #FF6839;border-color: #FF6839}
 /*End - Subscription Plans CSS*/
 

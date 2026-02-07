@@ -72,7 +72,6 @@
             {{--                    </ul>--}}
             {{--                </div>--}}
             {{--            @endif--}}
-
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card border">
@@ -159,8 +158,7 @@
                                            cellspacing="0" width="100%">
                                         <thead>
                                         <tr>
-                                            <?php if (in_array('user.delete', json_decode(@session('user_permissions')
-                                                ,true))) { ?>
+                                            <?php if (in_array('user.delete', json_decode(@session('user_permissions'),true))) { ?>
                                             <th class="delete-all"><input type="checkbox" id="is_active"><label
                                                     class="col-3 control-label" for="is_active"><a id="deleteAll"
                                                                                                    class="do_not_delete"
@@ -175,7 +173,7 @@
                                             <th>{{trans('lang.date')}}</th>
                                             <th>{{trans('lang.active')}}</th>
                                             {{-- <th>{{trans('lang.wallet_transaction')}}</th> --}}
-                                            <!-- <th >{{trans('lang.role')}}</th> -->
+                                            {{-- <th >{{trans('lang.role')}}</th> --}}
                                             <th>{{trans('lang.actions')}}</th>
                                         </tr>
                                         </thead>
@@ -435,6 +433,8 @@
                 // Set predefined ranges
                 var startDate, endDate;
                 var now = moment();
+
+
 
                 if (selectedRange === 'last_24_hours') {
                     startDate = moment().subtract(24, 'hours');

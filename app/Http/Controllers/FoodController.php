@@ -2,19 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AppUser;
 use App\Models\VendorProduct;
 use App\Services\ActivityLogger;
+use App\Services\FirebaseStorageService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FoodController extends Controller
 {
-    public function __construct()
+    protected FirebaseStorageService $firebaseStorage;
+    public function __construct(FirebaseStorageService $firebaseStorage)
     {
         $this->middleware('auth');
+        $this->firebaseStorage = $firebaseStorage;
     }
 
     public function index($restaurantId = '')
@@ -137,6 +144,7 @@ class FoodController extends Controller
             $query->where('vp.nonveg', 1);
         }
 
+
         $total = $query->count();
 
         if ($search !== '') {
@@ -146,7 +154,7 @@ class FoodController extends Controller
                     ->orWhere(DB::raw('LOWER(vc.title)'), 'like', "%$search%")
                     ->orWhere('vp.price', 'like', "%$search%")
                     ->orWhere('vp.merchant_price', 'like', "%$search%")
-                    ->orWhere('vp.disPrice', 'like', "%$search%");
+                    ->orWhere('vp.vendorID', 'like', "%$search%");
             });
         }
 
@@ -955,5 +963,140 @@ class FoodController extends Controller
         }
 
         return ltrim($photo, '/');
+    }
+    private function exportFoodCSV($foods)
+    {
+        return new StreamedResponse(function () use ($foods) {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, [
+                'Food Name',
+                'Restaurant',
+                'Category',
+                'Price',
+                'Merchant Price',
+                'Discount Price',
+                'Type',
+                'Available',
+                'Published',
+                'Created At'
+            ]);
+
+            foreach ($foods as $food) {
+                fputcsv($handle, [
+                    $food->name,
+                    $food->restaurant_name,
+                    $food->category_name,
+                    $food->price,
+                    $food->merchant_price,
+                    $food->disPrice,
+                    $food->nonveg ? 'Non-Veg' : 'Veg',
+                    $food->isAvailable ? 'Yes' : 'No',
+                    $food->publish ? 'Yes' : 'No',
+                    $food->createdAt,
+                ]);
+            }
+
+            fclose($handle);
+        }, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="foods.csv"',
+        ]);
+    }
+
+//    private function exportFoodPDF($foods)
+//    {
+//        try {
+//            $pdf = Pdf::loadView('exports.foods-pdf', ['foods' => $foods])
+//                ->setPaper('A4', 'portrait')
+//                ->setOption('enable-local-file-access', true);
+//
+//            return $pdf->download('foods.pdf');
+//        } catch (\Exception $e) {
+//            \Log::error('PDF Export Error: ' . $e->getMessage());
+//            abort(500, 'Failed to generate PDF: ' . $e->getMessage());
+//        }
+//    }
+
+    private function exportFoodPDF($foods)
+    {
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView(
+            'exports.foods-pdf',
+            ['foods' => $foods]
+        )
+            ->setPaper('A4', 'landscape')
+            ->download('foods.pdf');
+    }
+
+
+
+    private function exportFoodExcel($foods)
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\FoodsExport($foods),
+            'foods.xlsx'
+        );
+    }
+
+    public function export(Request $request)
+    {
+        $query = DB::table('vendor_products as vp')
+            ->leftJoin('vendors as v', 'v.id', '=', 'vp.vendorID')
+            ->leftJoin('vendor_categories as vc', 'vc.id', '=', 'vp.categoryID')
+            ->select(
+                'vp.name',
+                'vp.price',
+                'vp.merchant_price',
+                'vp.disPrice',
+                'vp.nonveg',
+                'vp.isAvailable',
+                'vp.publish',
+                'vp.createdAt',
+                'v.title as restaurant_name',
+                'vc.title as category_name'
+            );
+
+        // Filters
+        if ($request->restaurantId) {
+            $query->where('vp.vendorID', $request->restaurantId);
+        }
+
+        if ($request->categoryId) {
+            $query->where('vp.categoryID', $request->categoryId);
+        }
+
+        if ($request->foodType === 'veg') {
+            $query->where('vp.nonveg', 0);
+        } elseif ($request->foodType === 'non-veg') {
+            $query->where('vp.nonveg', 1);
+        }
+
+        if ($request->search) {
+            $search = strtolower($request->search);
+            $query->where(function ($q) use ($search) {
+                $q->whereRaw('LOWER(vp.name) LIKE ?', ["%$search%"])
+                    ->orWhereRaw('LOWER(v.title) LIKE ?', ["%$search%"])
+                    ->orWhereRaw('LOWER(vc.title) LIKE ?', ["%$search%"]);
+            });
+        }
+
+
+
+        $foods = $query->orderByDesc('vp.createdAt')->get();
+
+        if ($request->type === 'pdf' && $foods->count() > 200) {
+            return response()->json([
+                'success' => false,
+                'message' => 'PDF export is limited to 200 records. Use Excel or CSV for full data.'
+            ], 422);
+        }
+
+
+        return match ($request->type) {
+            'csv'   => $this->exportFoodCSV($foods),
+            'pdf'   => $this->exportFoodPDF($foods),
+            'excel' => $this->exportFoodExcel($foods),
+            default => abort(404),
+        };
     }
 }

@@ -25,9 +25,9 @@ class HomeController extends Controller
     public function index()
     {
     	return view('home');
-        
+
     }
-    
+
     /**
      * Show the application dashboard.
      *
@@ -41,13 +41,13 @@ class HomeController extends Controller
     public function dashboard()
     {
         return view('dashboard');
-    }    
-    
+    }
+
     public function users()
     {
         return view('users');
     }
-    
+
     public function storeFirebaseService(Request $request){
 		if(!empty($request->serviceJson) && !Storage::disk('local')->has('firebase/credentials.json')){
 			Storage::disk('local')->put('firebase/credentials.json',file_get_contents(base64_decode($request->serviceJson)));

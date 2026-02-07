@@ -87,7 +87,7 @@
                             <div class="form-group row width-50">
                                 <label class="col-3 control-label">{{trans('lang.email')}}</label>
                                 <div class="col-7">
-                                    <input type="text" class="form-control user_email" disabled>
+                                    <input type="text" class="form-control user_email">
                                     <div class="form-text text-muted">{{trans('lang.user_email_help')}}</div>
                                 </div>
                             </div>
@@ -103,7 +103,7 @@
                                                 +<?php echo $valuecy->phoneCode; ?> {{$valuecy->countryName}}</option>
                                             <?php } ?>
                                         </select>
-                                        <input type="text" class="form-control user_phone" disabled onkeypress="return chkAlphabets2(event,'error2')">
+                                        <input type="text" class="form-control user_phone" onkeypress="return chkAlphabets2(event,'error2')">
                                         <div id="error2" class="err"></div>
                                     </div>
                                 </div>

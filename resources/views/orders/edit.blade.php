@@ -73,6 +73,9 @@
                                                         <option value="Driver Pending" id="driver_pending">
                                                             {{ trans('lang.driver_pending') }}
                                                         </option>
+                                                        <option value="Driver Accepted" id="driver_accepted">
+                                                            {{ trans('lang.driver_accepted') }}
+                                                        </option>
                                                         <option value="Driver Rejected" id="driver_rejected">
                                                             {{ trans('lang.driver_rejected') }}
                                                         </option>
@@ -84,6 +87,14 @@
                                                         </option>
                                                         <option value="Order Completed" id="order_completed">
                                                             {{ trans('lang.order_completed') }}
+                                                        </option>
+                                                        <!-- 🔁 Refund statuses -->
+                                                        <option value="Refund Initiated" id="refund_initiated">
+                                                            Refund Initiated
+                                                        </option>
+
+                                                        <option value="Refund Completed" id="refund_completed">
+                                                            Refund Completed
                                                         </option>
                                                     </select>
                                                 </div>
@@ -123,6 +134,36 @@
                                                     </button>
                                                 </div>
                                             </div>
+                                            <!-- Refund Transaction -->
+                                            <div class="form-group row width-100 mt-3">
+                                                <label class="col-3 control-label">
+                                                    Refund Transaction ID
+                                                </label>
+
+                                                <div class="col-7 d-flex">
+                                                    <input type="text"
+                                                           id="refund_transaction_id"
+                                                           name="refund_transaction_id"
+                                                           class="form-control mr-2"
+                                                           placeholder="Enter refund transaction ID">
+
+                                                    <button type="button"
+                                                            id="save_transaction_id"
+                                                            class="btn btn-primary">
+                                                        Save
+                                                    </button>
+                                                    @if(!empty($order->refund_transaction_id['refunded_at']))
+                                                        <div class="form-group row width-100">
+                                                            <span class="form-control-plaintext">
+                                                                 <strong>Refunded At:</strong>
+                                                                    {{ \Carbon\Carbon::parse($order->refund_transaction_id['refunded_at'])
+                                                                             ->setTimezone('Asia/Kolkata')
+                                                                           ->format('d M Y, h:i A') }}
+                                                                          </span>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -159,32 +200,37 @@
                                     </div>
                                 </div>
                             </div>
+                            @php
+                                $permissions = json_decode(session('user_permissions', '[]'), true);
+                            @endphp
                             <div class="order_addre-edit col-lg-5 col-md-12">
-                                <div class="card">
-                                    <div class="card-header bg-white">
-                                        <h3>{{ trans('lang.billing_details') }}</h3>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="address order_detail-top-box">
-                                            <p>
-                                                <strong>{{ trans('lang.name') }}: </strong><span
-                                                    id="billing_name"></span>
-                                            </p>
-                                            <p>
-                                                <strong>{{ trans('lang.address') }}: </strong>
-                                                <span id="billing_line1"></span>
-                                                <span id="billing_line2"></span>
-                                                <span id="billing_country"></span>
-                                            </p>
-                                            <p><strong>{{ trans('lang.email_address') }}:</strong>
-                                                <span id="billing_email"></span>
-                                            </p>
-                                            <p><strong>{{ trans('lang.phone') }}:</strong>
-                                                <span id="billing_phone"></span>
-                                            </p>
+                                @if(in_array('view-billing-details', $permissions))
+                                    <div class="card">
+                                        <div class="card-header bg-white">
+                                            <h3>{{ trans('lang.billing_details') }}</h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="address order_detail-top-box">
+                                                <p>
+                                                    <strong>{{ trans('lang.name') }}: </strong><span
+                                                        id="billing_name"></span>
+                                                </p>
+                                                <p>
+                                                    <strong>{{ trans('lang.address') }}: </strong>
+                                                    <span id="billing_line1"></span>
+                                                    <span id="billing_line2"></span>
+                                                    <span id="billing_country"></span>
+                                                </p>
+                                                <p><strong>{{ trans('lang.email_address') }}:</strong>
+                                                    <span id="billing_email"></span>
+                                                </p>
+                                                <p><strong>{{ trans('lang.phone') }}:</strong>
+                                                    <span id="billing_phone"></span>
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                @endif
                                 <div class="order_addre-edit driver_details_hide">
                                     <div class="card mt-4">
                                         <div class="card-header bg-white">
@@ -202,12 +248,12 @@
                                                 <p><strong>{{ trans('lang.phone') }}:</strong>
                                                     <span id="driver_phone"></span>
                                                 </p>
-                                                <p><strong>{{ trans('lang.car_name') }}:</strong>
-                                                    <span id="driver_carName"></span>
-                                                </p>
-                                                <p><strong>{{ trans('lang.car_number') }}:</strong>
-                                                    <span id="driver_carNumber"></span>
-                                                </p>
+{{--                                                <p><strong>{{ trans('lang.car_name') }}:</strong>--}}
+{{--                                                    <span id="driver_carName"></span>--}}
+{{--                                                </p>--}}
+{{--                                                <p><strong>{{ trans('lang.car_number') }}:</strong>--}}
+{{--                                                    <span id="driver_carNumber"></span>--}}
+{{--                                                </p>--}}
                                                 <p><strong>{{ trans('lang.zone') }}:</strong>
                                                     <span id="zone_name"></span>
                                                 </p>
@@ -417,11 +463,13 @@
         var orderData = @json($order);
         var currency = @json($currency ?? (object)[]);
         var availableDrivers = @json($availableDrivers ?? []);
+        var zoneDrivers = @json($zoneDrivers ?? []);
 
         // Currency settings
         var currentCurrency = currency?.symbol || '₹';
         var currencyAtRight = currency?.symbolAtRight || false;
         var decimal_degits = currency?.decimal_degits || 2;
+        var vendorType = (orderData.vendor_type || '').toLowerCase();
 
         // Order variables
         var driverId = orderData.driverID || '';
@@ -469,23 +517,43 @@
             window.firebase = { firestore: { FieldValue: { serverTimestamp: function(){ return new Date(); } }, Timestamp: { now: function(){ return { toDate: function(){ return new Date(); } }; } } } };
         }
 
-        // Load available drivers for manual assignment (from PHP)
+        {{--// Load available drivers for manual assignment (from PHP)--}}
+        {{--function loadAvailableDrivers() {--}}
+        {{--    $('#driver_selector').empty();--}}
+        {{--    $('#driver_selector').append('<option value="">{{ trans("lang.select_driver") }}</option>');--}}
+
+        {{--    if (availableDrivers && availableDrivers.length > 0) {--}}
+        {{--        availableDrivers.forEach(function(driverData) {--}}
+        {{--            var driverName = (driverData.firstName || '') + ' ' + (driverData.lastName || '');--}}
+        {{--            var driverPhone = driverData.phoneNumber || '';--}}
+        {{--            var displayText = driverName + ' (' + driverPhone + ')';--}}
+
+        {{--            $('#driver_selector').append($("<option></option>")--}}
+        {{--                .attr("value", driverData.id)--}}
+        {{--                .text(displayText));--}}
+        {{--        });--}}
+        {{--    }--}}
+        {{--}--}}
+
         function loadAvailableDrivers() {
             $('#driver_selector').empty();
             $('#driver_selector').append('<option value="">{{ trans("lang.select_driver") }}</option>');
 
-            if (availableDrivers && availableDrivers.length > 0) {
-                availableDrivers.forEach(function(driverData) {
+            if (zoneDrivers && zoneDrivers.length > 0) {
+                zoneDrivers.forEach(function(driverData) {
                     var driverName = (driverData.firstName || '') + ' ' + (driverData.lastName || '');
                     var driverPhone = driverData.phoneNumber || '';
                     var displayText = driverName + ' (' + driverPhone + ')';
 
-                    $('#driver_selector').append($("<option></option>")
-                        .attr("value", driverData.id)
-                        .text(displayText));
+                    $('#driver_selector').append(
+                        $('<option></option>')
+                            .val(driverData.id)
+                            .text(displayText)
+                    );
                 });
             }
         }
+
 
         // Initialize driver assignment functionality
         function initializeDriverAssignment() {
@@ -608,6 +676,31 @@
             });
         }
 
+        let _deliverySettingsCache = null;
+
+        async function getBaseDeliveryCharge() {
+            if (_deliverySettingsCache) {
+                return parseFloat(_deliverySettingsCache.base_delivery_charge || 0);
+            }
+
+            try {
+                const res = await fetch('{{ route("api.deliveryCharge.settings") }}', {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!res.ok) throw new Error('Failed to fetch delivery settings');
+
+                _deliverySettingsCache = await res.json();
+                console.log('🚚 Delivery settings loaded:', _deliverySettingsCache);
+
+                return parseFloat(_deliverySettingsCache.base_delivery_charge || 0);
+            } catch (e) {
+                console.error('❌ Delivery settings fetch failed, fallback used', e);
+                return 23; // absolute fallback safety
+            }
+        }
+
+
         $(document).ready(async function () {
             // Initialize driver assignment
             initializeDriverAssignment();
@@ -711,6 +804,18 @@
                 }
             }
 
+            // 🔁 Populate refund transaction if exists
+            if (order.refund_transaction_id && order.refund_transaction_id.refund_transaction_id) {
+
+                $('#refund_transaction_id')
+                    .val(order.refund_transaction_id.refund_transaction_id)
+                    .prop('disabled', true);
+
+                $('#save_transaction_id').hide();
+
+                console.log('💸 Refund transaction loaded:', order.refund_transaction_id);
+            }
+
             if(order.createdAt){
                 $('#createdAt').text(formatDateTime(order.createdAt));
                 console.log('📅 Formatted order date:', formatDateTime(order.createdAt));
@@ -801,16 +906,14 @@
             $('#order_shipped').show();
             $('#in_transit').show();
             $('#driver_pending').show();
+            $('#driver_accepted').show();
             $('#driver_rejected').show();
+
             if ((order.driver != '' && order.driver != undefined) && (order.takeAway == false)) {
-                $('#driver_carName').text(order.driver.carName);
-                $('#driver_carNumber').text(order.driver.carNumber);
-                $('#driver_email').html('<a href="mailto:' + order.driver.email + '">' + shortEmail(
-                    order.driver.email) + '</a>');
+                $('#driver_email').html('<a href="mailto:' + order.driver.email + '">' + shortEmail(order.driver.email) + '</a>');
                 $('#driver_firstName').text(order.driver.firstName);
                 $('#driver_lastName').text(order.driver.lastName);
                 $('#driver_phone').text(shortEditNumber(order.driver.phoneNumber));
-                // MySQL-based: use zone name joined in controller
                 var zoneName = order.zone_name || (order.driver && order.driver.zone) || '';
                 $("#zone_name").text(zoneName);
 
@@ -868,7 +971,9 @@
                 products.forEach(function (product) {
                     var name = product.name || '';
                     var qty = parseInt(product.quantity || 1);
-                    var unit = product.discountPrice && parseFloat(product.discountPrice) > 0 ? parseFloat(product.discountPrice) : parseFloat(product.price || 0);
+                    var unit = vendorType === 'mart'
+                        ? parseFloat(product.discountPrice || product.price || 0)
+                        : parseFloat(product.price || 0);
                     var extras_price = parseFloat(product.extras_price || 0) * qty;
                     var row_total = (unit * qty) + (isNaN(extras_price) ? 0 : extras_price);
                     total_price_local += row_total;
@@ -1022,10 +1127,14 @@
                 // 'restaurantorders rejected': 'Order Rejected',
                 // 'orders rejected': 'Order Rejected',
                 'driver pending': 'Driver Pending',
+                'driver accepted': 'Driver Accepted',
                 'driver rejected': 'Driver Rejected',
                 'order completed': 'Order Completed',
                 // 'restaurantorders completed': 'Order Completed',
-                'orders completed': 'Order Completed'
+                'orders completed': 'Order Completed',
+                // 🔁 Refund statuses
+                'refund initiated': 'Refund Initiated',
+                'refund completed': 'Refund Completed'
             };
 
             // Try exact match first
@@ -1103,11 +1212,18 @@
         $(".edit-form-btn").click(function () {
             var clientName = $(".client_name").val();
             var orderStatus = $("#order_status").val();
+            const refundTxnId = $('#refund_transaction_id').val().trim();
 
             if (old_order_status != orderStatus) {
                 // Update order status via Laravel route
                 console.log('🔄 Updating order status:', { orderId: id, oldStatus: old_order_status, newStatus: orderStatus });
-
+                // 🔒 refund validation only for refund completed
+                if (orderStatus === 'Refund Completed') {
+                    if (!refundTxnId) {
+                        alert('Please enter refund transaction ID');
+                        return;
+                    }
+                }
                 $.ajax({
                     type: 'POST',
                     url: '{{ route("orders.update.status", ":id") }}'.replace(':id', id),
@@ -1128,7 +1244,8 @@
                             <?php if (isset($_GET['eid']) && $_GET['eid'] != '') { ?>
                                 window.location.href = "{{ route('restaurants.orders', $_GET['eid']) }}";
                             <?php } else { ?>
-                                window.location.href = '{{ route('orders') }}';
+                            {{--window.location.href = '{{ route('orders') }}';--}}
+                            // window.location.reload();
                             <?php } ?>
                         } else {
                             alert('Error: ' + (response.message || 'Failed to update status'));
@@ -1675,15 +1792,19 @@
                         product.size + '</span></div>';
                 }
                 // HIERARCHY: 1. Promo price (handled by getPromotionalPrice), 2. discountPrice (>0), 3. price
-                var final_price = '';
-                if (val.discountPrice != 0 && val.discountPrice != "" && val.discountPrice != null && !isNaN(val
-                    .discountPrice) && parseFloat(val.discountPrice) > 0) {
-                    final_price = parseFloat(val.discountPrice);
-                    console.log('🎯 Using discountPrice (Hierarchy 2):', final_price);
-                } else {
-                    final_price = parseFloat(val.price);
-                    console.log('🎯 Using regular price (Hierarchy 3):', final_price);
-                }
+                // var final_price = '';
+                // if (val.discountPrice != 0 && val.discountPrice != "" && val.discountPrice != null && !isNaN(val
+                //     .discountPrice) && parseFloat(val.discountPrice) > 0) {
+                //     final_price = parseFloat(val.discountPrice);
+                //     console.log('🎯 Using discountPrice (Hierarchy 2):', final_price);
+                // } else {
+                //     final_price = parseFloat(val.price);
+                //     console.log('🎯 Using regular price (Hierarchy 3):', final_price);
+
+                var final_price = vendorType === 'mart'
+                    ? parseFloat(val.discountPrice || val.price || 0)
+                    : parseFloat(val.price || 0);
+
                 price_item = final_price.toFixed(decimal_degits);
                 totalProductPrice = parseFloat(price_item) * parseInt(val.quantity);
                 var extras_price = 0;
@@ -1722,11 +1843,17 @@
             // MySQL version: use product's own price info
             var base_price = 0;
             var product_id = (product.variant_info && product.variant_info.variant_id) ? product.variant_info.variant_id : product.id;
-            if (product.discountPrice && parseFloat(product.discountPrice) > 0) {
-                base_price = parseFloat(product.discountPrice);
-            } else if (product.price) {
-                base_price = parseFloat(product.price);
+            // if (product.discountPrice && parseFloat(product.discountPrice) > 0) {
+            //     base_price = parseFloat(product.discountPrice);
+            // } else if (product.price) {
+            //     base_price = parseFloat(product.price);
+            // }
+            if (vendorType === 'mart') {
+                base_price = parseFloat(product.discountPrice || product.price || 0);
+            } else {
+                base_price = parseFloat(product.price || 0);
             }
+
             var base_price_format = currencyAtRight
                 ? (parseFloat(base_price).toFixed(decimal_degits) + currentCurrency)
                 : (currentCurrency + parseFloat(base_price).toFixed(decimal_degits));
@@ -1834,9 +1961,13 @@
 
                 const quantity = parseInt(product.quantity) || 1;
                 // Use discountPrice only if it exists and is greater than 0, otherwise use price
-                const originalPrice = (product.discountPrice && parseFloat(product.discountPrice) > 0)
-                    ? parseFloat(product.price)
-                    : parseFloat(product.price);
+                // const originalPrice = (product.discountPrice && parseFloat(product.discountPrice) > 0)
+                //     ? parseFloat(product.price)
+                //     : parseFloat(product.price);
+                const originalPrice = vendorType === 'mart'
+                    ? parseFloat(product.discountPrice || product.price || 0)
+                    : parseFloat(product.price || 0);
+
                 const promotionalPrice = priceInfo.price;
 
                 if (priceInfo.isPromotional) {
@@ -1998,7 +2129,7 @@
             let charge = parseFloat(deliveryCharge);
 
             if (charge === 0) {
-                charge = 23; // default delivery charge when it's 0
+                charge = await getBaseDeliveryCharge();
             }
 
             gst = charge * (gstRate / 100);
@@ -2222,7 +2353,9 @@
                 var products = Array.isArray(order.products)? order.products: [];
                 var subtotal = 0;
                 products.forEach(function(p){
-                    var unit = (p.discountPrice && parseFloat(p.discountPrice)>0) ? parseFloat(p.discountPrice) : parseFloat(p.price||0);
+                    var unit = vendorType === 'mart'
+                        ? parseFloat(p.discountPrice || p.price || 0)
+                        : parseFloat(p.price || 0);
                     var qty = parseInt(p.quantity||1);
                     var extras = parseFloat(p.extras_price||0) * qty;
                     subtotal += (unit*qty) + (isNaN(extras)?0:extras);
@@ -2443,5 +2576,62 @@
             reviewhtml += '</div>';
             return reviewhtml;
         }
+        $('#save_transaction_id').on('click', function () {
+
+            const refundTxnId = $('#refund_transaction_id').val().trim();
+            const $btn1 = $('#save_transaction_id'); // ✅ FIX: define button
+
+            if (!refundTxnId) {
+                alert('Please enter refund transaction ID');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to save this refund transaction?')) {
+                return;
+            }
+
+            $btn1.prop('disabled', true).text('Saving...');
+
+            $.ajax({
+                url: '{{ route("orders.refund.transaction", ":id") }}'.replace(':id', id),
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    refund_transaction_id: refundTxnId
+                },
+                success: function (res) {
+                    if (res.success) {
+                        alert(res.message);
+
+                        // 🔒 Lock input
+                        $('#refund_transaction_id')
+                            .prop('disabled', true)
+                            .addClass('bg-light');
+
+                        // ✅ Hide save button
+                        $btn1.hide();
+
+                    //     // 🕒 Show refunded at (same line)
+                    //     if (res.refunded_at) {
+                    //         const refundedHtml = `
+                    //     <span class="form-control-plaintext ml-3 text-muted">
+                    //         <strong>Refunded At:</strong> ${res.refunded_at}
+                    //     </span>
+                    // `;
+                    //         $('#refund_transaction_id').after(refundedHtml);
+                    //     }
+
+                    } else {
+                        alert(res.message || 'Something went wrong');
+                        $btn1.prop('disabled', false).text('Save');
+                    }
+                },
+                error: function (xhr) {
+                    console.error(xhr);
+                    alert('Failed to save refund transaction');
+                    $btn1.prop('disabled', false).text('Save');
+                }
+            });
+        });
     </script>
 @endsection

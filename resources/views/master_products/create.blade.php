@@ -52,29 +52,26 @@
                                 Choose a Category to Create Master Product
                             </label>
                             <div class="row d-flex justify-content-end">
-                                <!-- LEFT: Search + Dropdown -->
-                                <div class="col-md-8 col-sm-12">
-                                    <input type="text"
-                                           id="category_search"
-                                           class="form-control mb-2"
-                                           placeholder="🔍 Search categories...">
+                           <div class="col-md-8 col-sm-12">
+                            <input type="text"
+                                   id="category_search"
+                                   class="form-control"
+                                   placeholder="🔍 Search category..."
+                                   autocomplete="off">
 
-                                    <select id="category_selector" class="form-control" required>
-                                        <option value="">-- Select Vendor Category --</option>
-                                        @foreach($vendorCategories as $category)
-                                            <option value="{{ $category->id }}"
-                                                {{ $selectedCategoryId == $category->id ? 'selected' : '' }}>
-                                                {{ $category->title }}
-                                            </option>
-                                        @endforeach
-                                    </select>
+                            <input type="hidden" name="categoryID" id="selected_category_id" required>
 
-                                    <small class="form-text text-muted mt-1">
-                                        Select a category first, then fill the form below
-                                    </small>
-                                </div>
+                            <div id="category_suggestions" class="list-group position-absolute w-100"
+                                 style="z-index:1000; display:none; max-height:220px; overflow-y:auto;">
+                            </div>
 
-                                <!-- RIGHT: Manage Button -->
+                            <small class="form-text text-muted mt-1">
+                                Start typing and select a category
+                            </small>
+                        </div>
+
+
+                        <!-- RIGHT: Manage Button -->
                                 <div class="col-md-4 mt-0 mt-md-0 text-md-right">
                                     <a href="{{ route('categories') }}"
                                        class="btn btn-primary btn-sm w-100 w-md-auto">
@@ -105,7 +102,13 @@
                                     <div class="form-group row">
                                         <label class="col-md-3 control-label">Product Name <span class="text-danger">*</span></label>
                                         <div class="col-md-9">
-                                            <input type="text" name="name" value="{{ old('name') }}" class="form-control" required maxlength="255">
+                                            <input
+                                                type="text"
+                                                id="product_name"
+                                                name="name"
+                                                class="form-control"
+                                                required
+                                            >
                                             <div class="form-text text-muted">Enter the product name (e.g., Chicken Dum Biryani)</div>
                                         </div>
                                     </div>
@@ -252,158 +255,379 @@
 {{--                                    </div>--}}
                                 </fieldset>
 
-                                <div class="form-group row mt-4">
-                                    <div class="col-md-12 text-center">
-                                        <button type="submit" class="btn btn-primary btn-lg">
-                                            <i class="mdi mdi-content-save"></i> Create Master Product
-                                        </button>
-                                        <a href="{{ route('master-products.index') }}" class="btn btn-secondary btn-lg">
-                                            Back
-                                        </a>
+
+                            </div>
+                        </div>
+                        <!-- Options Configuration -->
+                        <fieldset>
+                            <legend>Options Configuration</legend>
+
+                            <div class="form-check width-100">
+                                <input type="checkbox" class="has_options" id="has_options" name="has_options" value="1">
+                                <label class="col-3 control-label" for="has_options">
+                                    <strong>Enable Options for this item</strong>
+                                </label>
+                                <div class="form-text text-muted">
+                                    Enable this to create different variants/sizes for this item
+                                </div>
+                            </div>
+
+                            <div id="options_config" style="display:none;">
+                                <div class="alert alert-info">
+                                    <i class="mdi mdi-information-outline"></i>
+                                    <strong>Options will be stored as part of this item.</strong>
+                                    Each option can have its own price, image, and specifications.
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <!-- Options Management -->
+                        <!-- OPTIONS LIST -->
+                        <fieldset id="options_fieldset" class="mt-4" style="display:none;">
+                            <legend>Product Options</legend>
+
+                            <div class="options-list"></div>
+
+                            <div class="text-center mt-3">
+                                <button type="button" class="btn btn-primary" onclick="addNewOption()">
+                                    <i class="mdi mdi-plus"></i> Add Option
+                                </button>
+                            </div>
+                        </fieldset>
+
+                        <input type="hidden" name="options_data" id="options_data">
+
+
+                        <div class="form-group row mt-4">
+                            <div class="col-md-12 text-center">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="mdi mdi-content-save"></i> Create Master Product
+                                </button>
+                                <a href="{{ route('master-products.index') }}" class="btn btn-secondary btn-lg">
+                                    Back
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Option Template (Hidden) -->
+                    <div id="option_template" style="display:none;">
+                        <div class="option-item border rounded p-3 mb-3" data-option-id="">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">Option <span class="option-number"></span></h6>
+                                <button type="button" class="btn btn-sm btn-danger" onclick="removeOption(this)">
+                                    <i class="mdi mdi-delete"></i>
+                                </button>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label>Option Title</label>
+                                    <input type="text" class="form-control option-title" placeholder="e.g. Family Pack" required>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label>Option Subtitle</label>
+                                    <input type="text" class="form-control option-subtitle" placeholder="e.g. Serves 3–4">
+                                </div>
+                            </div>
+
+                            <div class="row mt-2">
+                                <div class="col-md-4">
+                                    <label>Price (₹)</label>
+                                    <input type="number" class="form-control option-price" min="0" required>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label>Original Price (₹)</label>
+                                    <input type="number" class="form-control option-original-price" min="0">
+                                </div>
+
+                                <div class="col-md-4 d-flex align-items-center mt-4">
+                                    <div class="form-check mr-3">
+                                        <input type="checkbox" class="form-check-input option-available" checked>
+                                        <label class="form-check-label">Available</label>
+                                    </div>
+
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input option-featured">
+                                        <label class="form-check-label">Featured</label>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </form>
+                    </div>
+                </div>
                 </div>
             </div>
-        </div>
-    </div>
 @endsection
-
 @section('scripts')
-<script>
-    $(document).ready(function() {
-        // Initialize category search
-        initCategorySearch();
+    <script>
+        /* ===============================
+           CATEGORY SELECTION LOGIC
+        ================================ */
+        $(document).ready(function () {
 
-        // Initialize: Show selected category if page loaded with one
-        @if($selectedCategory && $selectedCategoryId)
-            $('#selected_category_id').val('{{ $selectedCategoryId }}');
-            $('#selected_category_title').text('{{ $selectedCategory->title }}');
-            $('#selected_category_display').show();
-            $('#category_selector_display').hide();
-            $('#category_selector').val('{{ $selectedCategoryId }}');
+            initCategorySearch();
+
+            @if($selectedCategory && $selectedCategoryId)
             $('#form_category_id').val('{{ $selectedCategoryId }}');
             $('#product_form').show();
-        @endif
+            @endif
 
-        // Category selector change handler - AJAX call
-        $('#category_selector').on('change', function() {
-            var categoryId = $(this).val();
-            var categoryTitle = $(this).find('option:selected').text();
+            $('#category_selector').on('change', function () {
+                const categoryId = $(this).val();
+                const categoryTitle = $(this).find('option:selected').text();
 
-            if (categoryId && categoryId !== '') {
-                // Show loading state
-                var originalHtml = $('#category_selector_display').html();
-                $('#category_selector_display').html('<div class="text-center py-3"><i class="fa fa-spinner fa-spin"></i> Loading category...</div>');
+                if (!categoryId) {
+                    $('#product_form').slideUp();
+                    $('#form_category_id').val('');
+                    return;
+                }
 
-                // Make AJAX call to verify category and get details
                 $.ajax({
                     url: '{{ route("master-products.create") }}',
                     type: 'GET',
-                    data: {
-                        category_id: categoryId,
-                        ajax: true
-                    },
+                    data: { category_id: categoryId, ajax: true },
                     dataType: 'json',
-                    success: function(response) {
-                        // Update hidden fields
+                    success: function (res) {
                         $('#form_category_id').val(categoryId);
-                        $('#selected_category_id').val(categoryId);
-
-                        // Use category title from response or fallback to select option
-                        var displayTitle = (response.category && response.category.title)
-                            ? response.category.title
-                            : categoryTitle;
-
-                        $('#selected_category_title').text(displayTitle);
-
-                        // Show selected category display and hide selector
-                        $('#selected_category_display').slideDown();
-                        $('#category_selector_display').hide();
-
-                        // Show form
                         $('#product_form').slideDown();
                     },
-                    error: function(xhr, status, error) {
-                        console.error('Error loading category:', error);
-
-                        // Even on error, use the selected option's title
+                    error: function () {
                         $('#form_category_id').val(categoryId);
-                        $('#selected_category_id').val(categoryId);
-                        $('#selected_category_title').text(categoryTitle);
-
-                        // Show selected category display and hide selector
-                        $('#selected_category_display').slideDown();
-                        $('#category_selector_display').hide();
-
-                        // Show form
                         $('#product_form').slideDown();
-                    }
-                });
-            } else {
-                // Hide form if no category selected
-                $('#product_form').slideUp();
-                $('#selected_category_display').slideUp();
-                $('#category_selector_display').show();
-                $('#form_category_id').val('');
-                $('#selected_category_id').val('');
-            }
-        });
-
-        // Remove category button handler
-        $('#remove_category_btn').on('click', function() {
-            if (confirm('Are you sure you want to remove the selected category?')) {
-                // Clear selection
-                $('#category_selector').val('');
-                $('#form_category_id').val('');
-                $('#selected_category_id').val('');
-
-                // Hide selected category display and show selector
-                $('#selected_category_display').slideUp();
-                $('#category_selector_display').show();
-
-                // Hide form
-                $('#product_form').slideUp();
-            }
-        });
-
-        // Initialize category search function
-        function initCategorySearch() {
-            $('#category_search').on('keyup', function() {
-                var search = $(this).val().toLowerCase();
-                $('#category_selector option').each(function() {
-                    if ($(this).val() === "") {
-                        $(this).show();
-                        return;
-                    }
-                    var text = $(this).text().toLowerCase();
-                    if (text.indexOf(search) > -1) {
-                        $(this).show();
-                    } else {
-                        $(this).hide();
                     }
                 });
             });
+
+            $('#remove_category_btn').on('click', function () {
+                if (!confirm('Remove selected category?')) return;
+                $('#category_selector').val('');
+                $('#form_category_id').val('');
+                $('#product_form').slideUp();
+            });
+
+            function initCategorySearch() {
+                const categories = @json($vendorCategories);
+
+                $('#category_search').on('keyup', function () {
+                    const keyword = $(this).val().toLowerCase();
+                    const suggestions = $('#category_suggestions');
+
+                    suggestions.empty();
+
+                    if (!keyword) {
+                        suggestions.hide();
+                        return;
+                    }
+
+                    const matches = categories.filter(c =>
+                        c.title.toLowerCase().includes(keyword)
+                    );
+
+                    if (!matches.length) {
+                        suggestions.hide();
+                        return;
+                    }
+
+                    matches.forEach(cat => {
+                        suggestions.append(`
+            <button type="button"
+                    class="list-group-item list-group-item-action"
+                    data-id="${cat.id}"
+                    data-title="${cat.title}">
+                ${cat.title}
+            </button>
+        `);
+                    });
+
+                    suggestions.show();
+                });
+
+// Select category
+                $(document).on('click', '#category_suggestions button', function () {
+                    const id = $(this).data('id');
+                    const title = $(this).data('title');
+
+                    $('#category_search').val(title);
+                    $('#form_category_id').val(id);
+                    $('#category_suggestions').hide();
+
+                    // OPTIONAL: show product form
+                    $('#product_form').slideDown();
+                });
+
+// Hide dropdown when clicking outside
+                $(document).on('click', function (e) {
+                    if (!$(e.target).closest('#category_search, #category_suggestions').length) {
+                        $('#category_suggestions').hide();
+                    }
+                });
+
+            }
+
+            $('#master_product_form').on('submit', function (e) {
+                if (!$('#form_category_id').val()) {
+                    e.preventDefault();
+                    alert('Please select a category first');
+                }
+            });
+        });
+
+
+        /* ===============================
+           OPTIONS TOGGLE
+        ================================ */
+        $(document).ready(function () {
+            function toggleOptions() {
+                $('#has_options').is(':checked')
+                    ? $('#options_config, #options_fieldset').slideDown()
+                    : $('#options_config, #options_fieldset').slideUp();
+            }
+
+            toggleOptions();
+            $('#has_options').on('change', toggleOptions);
+        });
+
+
+        /* ===============================
+           OPTIONS ENGINE
+        ================================ */
+        // let optionsList = [];
+        // let optionCounter = 0;
+        //
+        // function addNewOption() {
+        //     optionCounter++;
+        //     const id = 'opt_' + Date.now();
+        //
+        //     const tpl = $('#option_template .option-item').clone();
+        //     tpl.attr('data-option-id', id);
+        //     tpl.find('.option-number').text(optionCounter);
+        //     tpl.find('.option-title').val($('#name').val());
+        //
+        //     $('.options-list').append(tpl.show());
+        //
+        //     optionsList.push({
+        //         id,
+        //         title: $('#name').val(),
+        //         unit_price: 0,
+        //         quantity: 0,
+        //         price: 0,
+        //         is_featured: false
+        //     });
+        //
+        //     bindOptionEvents(id);
+        //     updateOptionsSummary();
+        // }
+        //
+        // function removeOption(btn) {
+        //     const box = $(btn).closest('.option-item');
+        //     const id = box.data('option-id');
+        //     optionsList = optionsList.filter(o => o.id !== id);
+        //     box.remove();
+        //     updateOptionsSummary();
+        // }
+        //
+        // function bindOptionEvents(id) {
+        //     const el = $(`[data-option-id="${id}"]`);
+        //     const idx = optionsList.findIndex(o => o.id === id);
+        //
+        //     el.find('.option-unit-price, .option-quantity').on('input', function () {
+        //         const price = parseFloat(el.find('.option-unit-price').val()) || 0;
+        //         const qty = parseFloat(el.find('.option-quantity').val()) || 0;
+        //         const total = price * qty;
+        //
+        //         el.find('.option-total-price').val(total.toFixed(2));
+        //         optionsList[idx].unit_price = price;
+        //         optionsList[idx].quantity = qty;
+        //         optionsList[idx].price = total;
+        //
+        //         updateOptionsSummary();
+        //     });
+        // }
+        //
+        // function updateOptionsSummary() {
+        //     if (!optionsList.length) {
+        //         $('.options-summary').hide();
+        //         return;
+        //     }
+        //
+        //     const prices = optionsList.map(o => o.price).filter(p => p > 0);
+        //     if (!prices.length) return;
+        //
+        //     $('.options-summary').show();
+        //     $('.summary-content').html(
+        //         `Total Options: ${optionsList.length}`
+        //     );
+        // }
+        let optionsList = [];
+        let optionCounter = 0;
+
+        function addNewOption() {
+            optionCounter++;
+            const id = 'opt_' + Date.now();
+
+            const tpl = $('#option_template .option-item').clone();
+            tpl.attr('data-option-id', id);
+            tpl.find('.option-number').text(optionCounter);
+
+            $('.options-list').append(tpl.show());
+
+            optionsList.push({
+                id,
+                title: '',
+                subtitle: '',
+                price: 0,
+                original_price: 0,
+                is_available: true,
+                is_featured: false
+            });
+
+            bindOptionEvents(id);
         }
 
-        // Form validation
-        $('#master_product_form').on('submit', function(e) {
-            var categoryId = $('#form_category_id').val();
-            if (!categoryId) {
-                e.preventDefault();
-                alert('Please select a category first');
-                return false;
-            }
-        });
+        function removeOption(btn) {
+            const box = $(btn).closest('.option-item');
+            const id = box.data('option-id');
+            optionsList = optionsList.filter(o => o.id !== id);
+            box.remove();
+        }
 
-        // Handle non-veg checkbox - ensure veg is set when unchecked
-        $('#nonveg').on('change', function() {
-            // If non-veg is unchecked, the form will submit nonveg=0 (veg)
-            // If checked, nonveg=1 (non-veg)
+        function bindOptionEvents(id) {
+            const el = $(`[data-option-id="${id}"]`);
+            const idx = optionsList.findIndex(o => o.id === id);
+
+            el.find('.option-title').on('input', function () {
+                optionsList[idx].title = this.value;
+            });
+
+            el.find('.option-subtitle').on('input', function () {
+                optionsList[idx].subtitle = this.value;
+            });
+
+            el.find('.option-price').on('input', function () {
+                optionsList[idx].price = parseFloat(this.value) || 0;
+            });
+
+            el.find('.option-original-price').on('input', function () {
+                optionsList[idx].original_price = parseFloat(this.value) || 0;
+            });
+
+            el.find('.option-available').on('change', function () {
+                optionsList[idx].is_available = this.checked;
+            });
+
+            el.find('.option-featured').on('change', function () {
+                optionsList[idx].is_featured = this.checked;
+            });
+        }
+
+        /* ===============================
+           SERIALIZE OPTIONS
+        ================================ */
+        $('#master_product_form').on('submit', function () {
+            $('#options_data').val(JSON.stringify(optionsList));
         });
-    });
-</script>
+    </script>
 @endsection
-

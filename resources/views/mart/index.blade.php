@@ -28,7 +28,8 @@
                     <div class="d-flex top-title-right align-self-center">
                         <div class="select-box pl-3">
                             <select class="form-control mart_type_selector">
-                                <option value="">{{trans('lang.mart_type')}}</option>
+                                <option value="">Mart Type Selector</option>
+                                <option value="true">{{trans('lang.mart_type')}}</option>
                                 <option value="true">{{trans('lang.delivery')}}</option>
                             </select>
                         </div>
@@ -305,8 +306,8 @@
         minimumResultsForSearch: Infinity,
         allowClear: true
     });
-    $('.restaurant_type_selector').select2({
-        placeholder: "{{trans('lang.restaurant_type')}}",
+    $('.mart_type_selector').select2({
+        placeholder: "Mart Type Selector",
         minimumResultsForSearch: Infinity,
         allowClear: true
     });

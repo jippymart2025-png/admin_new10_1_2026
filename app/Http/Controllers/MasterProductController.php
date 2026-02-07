@@ -62,6 +62,21 @@ class MasterProductController extends Controller
 
         $categoryTitle = $this->getVendorCategoryTitle($data['categoryID']);
 
+        // ---------- OPTIONS HANDLING (SAME AS MART ITEMS) ----------
+        // ---------- OPTIONS HANDLING (FINAL CLEAN VERSION) ----------
+        $hasOptions = $request->boolean('has_options');
+
+        $optionsData = [];
+
+        if ($hasOptions && $request->filled('options_data')) {
+            $decoded = json_decode($request->input('options_data'), true);
+
+            if (is_array($decoded)) {
+                $optionsData = $decoded;
+            }
+        }
+
+
         $productData = [
             'categoryID' => $data['categoryID'],
             'categoryTitle' => $categoryTitle,
@@ -86,6 +101,10 @@ class MasterProductController extends Controller
             'is_recommended' => $data['is_recommended'] ?? false,
             'isAvailable' => $data['isAvailable'] ?? true,
             'publish' => $data['publish'] ?? true,
+            // ✅ OPTIONS (FINAL)
+            'has_options'     => $hasOptions,
+            'options_enabled' => $hasOptions,
+            'options'         => $hasOptions ? $optionsData : [],
         ];
 
         $product = MasterProducts::create($productData);
@@ -101,11 +120,20 @@ class MasterProductController extends Controller
         $product = MasterProducts::findOrFail($id);
         $vendorCategories = $this->getVendorCategories();
 
+        $options = [];
+        if (!empty($product->options)) {
+            $options = is_string($product->options)
+                ? json_decode($product->options, true)
+                : $product->options;
+        }
+
         return view('master_products.edit', [
             'product' => $product,
             'vendorCategories' => $vendorCategories,
+            'options' => $options, // ✅ ADD THIS
         ]);
     }
+
 
     public function update(Request $request, $id, ActivityLogger $logger)
     {
@@ -126,6 +154,44 @@ class MasterProductController extends Controller
         }
 
         $categoryTitle = $this->getVendorCategoryTitle($data['categoryID']);
+
+        // ---------- OPTIONS HANDLING (SAME AS MART ITEMS) ----------
+        $hasOptions = $request->boolean('has_options');
+        $optionsData = [];
+        $optionsCount = 0;
+        $minPrice = null;
+        $maxPrice = null;
+        $defaultOptionId = null;
+        $bestValueOption = null;
+        $savingsPercentage = null;
+
+        if ($hasOptions && $request->filled('options_data')) {
+            $optionsData = json_decode($request->input('options_data'), true);
+
+            if (is_array($optionsData) && count($optionsData) > 0) {
+                $optionsCount = count($optionsData);
+
+                $prices = array_values(array_filter(
+                    array_map(fn ($o) => intval($o['price'] ?? 0), $optionsData),
+                    fn ($p) => $p > 0
+                ));
+
+                if (!empty($prices)) {
+                    $minPrice = min($prices);
+                    $maxPrice = max($prices);
+                }
+
+                foreach ($optionsData as $opt) {
+                    if (!empty($opt['is_featured'])) {
+                        $defaultOptionId = $opt['id'] ?? null;
+                        break;
+                    }
+                }
+
+                $defaultOptionId ??= $optionsData[0]['id'] ?? null;
+            }
+        }
+
 
         $product->fill([
             'categoryID' => $data['categoryID'],
@@ -151,6 +217,17 @@ class MasterProductController extends Controller
             'is_recommended' => $data['is_recommended'] ?? false,
             'isAvailable' => $data['isAvailable'] ?? true,
             'publish' => $data['publish'] ?? true,
+            'has_options'        => $hasOptions,
+            'options_enabled'    => $hasOptions,
+            'options_toggle'     => $hasOptions,
+            'options_count'      => $optionsCount,
+            'options' => $hasOptions ? $optionsData : [],
+            'min_price'          => $minPrice,
+            'max_price'          => $maxPrice,
+            'price_range'        => ($minPrice && $maxPrice) ? "₹{$minPrice} - ₹{$maxPrice}" : null,
+            'default_option_id'  => $defaultOptionId,
+            'best_value_option'  => $bestValueOption,
+            'savings_percentage' => $savingsPercentage,
         ]);
 
         $product->save();
@@ -244,6 +321,9 @@ class MasterProductController extends Controller
                 'mp.is_recommended',
                 'mp.isAvailable',
                 'mp.publish',
+                // 🔴 ADD THESE ⬇⬇⬇
+                'mp.has_options',
+                'mp.options',
                 'vc.title as category_name'
             );
 
@@ -289,6 +369,14 @@ class MasterProductController extends Controller
         $products = $query->skip($start)->take($length)->get();
 
         $data = $products->map(function ($product) {
+
+            $options = [];
+            if (!empty($product->options)) {
+                $options = is_string($product->options)
+                    ? json_decode($product->options, true)
+                    : $product->options;
+            }
+
             return [
                 'id' => $product->id,
                 'name' => $product->name,
@@ -313,6 +401,16 @@ class MasterProductController extends Controller
                 'is_recommended' => (bool)$product->is_recommended,
                 'isAvailable' => (bool)($product->isAvailable ?? false),
                 'publish' => (bool)($product->publish ?? false),
+                // 🔴 ADD THESE ⬇⬇⬇
+                // ✅ ADD THESE
+                'has_options'   => (bool)$product->has_options,
+                'options_count' => count($options),
+//                'options'       => !empty($product->options)
+//                    ? (is_string($product->options)
+//                        ? json_decode($product->options, true)
+//                        : $product->options)
+//                    : [],
+
             ];
         });
 
@@ -476,6 +574,8 @@ class MasterProductController extends Controller
             'is_recommended' => 'sometimes|boolean',
             'publish' => 'sometimes|boolean',
             'isAvailable' => 'sometimes|boolean',
+            'has_options'  => 'sometimes|boolean',
+            'options_data' => 'nullable|string',
         ];
 
         if (!$isUpdate) {

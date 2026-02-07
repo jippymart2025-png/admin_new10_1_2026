@@ -16,6 +16,7 @@ use App\Models\SubscriptionPlan;
 use App\Models\Zone;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class RestaurantController extends Controller
 {
@@ -144,21 +145,6 @@ class RestaurantController extends Controller
 
             // Checkbox
             $row[] = '<input type="checkbox" class="is_open" dataId="'.$r->id.'">';
-
-            // Vendor name (if not filtering by specific vendor)
-//            if ($id == '' || $id == null) {
-//                $vendor = DB::table('vendors')->where('id', $r->user_id)->first();
-//                if ($vendor) {
-//                    // Try different possible column names for vendor name
-//                    $vendorName = $vendor->title ?? $vendor->name ?? $vendor->restaurant_name ?? 'Unknown Vendor';
-//                } else {
-//                    $vendorName = 'Unknown Vendor';
-//                }
-//
-//                // Format as clickable link (HTML will be rendered by DataTables)
-//                $vendorLink = '<a href="'.route('restaurants.view', $r->user_id).'">' . htmlspecialchars($vendorName, ENT_QUOTES, 'UTF-8') . '</a>';
-//                $row[] = $vendorLink;
-//            }
 
             if ($id == '' || $id == null) {
 
@@ -4477,5 +4463,155 @@ class RestaurantController extends Controller
                 'message' => 'Error fetching subscription plans: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    private function exportRestaurantsCSV($restaurants)
+    {
+        return new StreamedResponse(function () use ($restaurants) {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, [
+                'Restaurant Name',
+                'Phone',
+                'Location',
+                'Zone',
+                'Status',
+                'Open',
+                'Business Model',
+//                'Wallet Amount',
+                'Created At'
+            ]);
+
+            // 1️⃣ Zone ID → Zone Name map
+            $zoneMap = DB::table('zone')
+                ->pluck('name', 'id')
+                ->toArray();
+
+
+            foreach ($restaurants as $r) {
+                $createdAt = '';
+                if ($r->createdAt) {
+                    try {
+                        $createdAt = \Carbon\Carbon::parse(trim($r->createdAt, '"'))
+                            ->format('M d, Y h:i A');
+                    } catch (\Exception $e) {}
+                }
+
+                 // 🌍 Zone Name
+                $zoneName = $zoneMap[$r->zoneId] ?? 'Not Assigned';
+
+                // 📦 Business Model (from JSON column)
+                $businessModel = 'N/A';
+                if (!empty($r->subscription_plan)) {
+                    $plan = is_string($r->subscription_plan)
+                        ? json_decode($r->subscription_plan, true)
+                        : $r->subscription_plan;
+
+                    if (is_array($plan) && isset($plan['name'])) {
+                        $businessModel = $plan['name'];
+                    }
+                }
+
+                fputcsv($handle, [
+                    $r->title,
+                    $r->phonenumber,
+                    $r->location,
+                    $zoneName,
+                    ($r->reststatus ? 'Active' : 'Inactive'),
+                    ($r->isOpen ? 'Open' : 'Closed'),
+                    $businessModel,
+//                    $r->walletAmount,
+                    $createdAt
+                ]);
+            }
+
+            fclose($handle);
+        }, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="restaurants.csv"',
+        ]);
+    }
+
+
+    private function exportRestaurantsPDF($restaurants)
+    {
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView(
+            'exports.restaurants-pdf',
+            ['restaurants' => $restaurants]
+        )
+            ->setPaper('A4', 'landscape')
+            ->download('restaurants.pdf');
+    }
+
+
+    private function exportRestaurantsExcel($restaurants)
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\RestaurantsExport($restaurants),
+            'restaurants.xlsx'
+        );
+    }
+
+    public function export(Request $request)
+    {
+        $query = Vendor::query();
+
+        // Filters (same as listing)
+        if ($request->restaurant_type === 'true') {
+            $query->where('dine_in_active', '!=', '');
+        }
+
+        if ($request->zone) {
+            $query->where('zoneId', $request->zone);
+        }
+
+        if ($request->vType) {
+            $query->where('vType', $request->vType);
+        }
+
+        if ($request->business_model) {
+            $query->whereRaw(
+                "JSON_UNQUOTE(JSON_EXTRACT(subscription_plan, '$.name')) = ?",
+                [$request->business_model]
+            );
+        }
+
+        if ($request->start_date && $request->end_date) {
+            $start = date('Y-m-d', strtotime($request->start_date));
+            $end   = date('Y-m-d', strtotime($request->end_date));
+
+            $query->whereRaw(
+                "DATE(REPLACE(REPLACE(createdAt, '\"', ''), 'T', ' ')) BETWEEN ? AND ?",
+                [$start, $end]
+            );
+        }
+
+        if ($request->search) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%$search%")
+                    ->orWhere('location', 'like', "%$search%")
+                    ->orWhere('phonenumber', 'like', "%$search%");
+            });
+        }
+
+        $restaurants = $query
+            ->orderByRaw("REPLACE(REPLACE(createdAt, '\"', ''), 'T', ' ') DESC")
+            ->get();
+
+        // 🔴 PDF SAFETY LIMIT
+        if ($request->type === 'pdf' && $restaurants->count() > 500) {
+            return response()->json([
+                'success' => false,
+                'message' => 'PDF export is limited to 500 records. Please use Excel or CSV.'
+            ], 422);
+        }
+
+        return match ($request->type) {
+            'csv'   => $this->exportRestaurantsCSV($restaurants),
+            'pdf'   => $this->exportRestaurantsPDF($restaurants),
+            'excel' => $this->exportRestaurantsExcel($restaurants),
+            default => abort(404),
+        };
     }
 }

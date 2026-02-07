@@ -382,4 +382,76 @@ class MapController extends Controller
             return null;
         }
     }
+    public function getRestaurantMap(){
+        return view('map.restaurantMap');
+    }
+    /**
+     * Get live restaurant locations (latitude & longitude based)
+     */
+    public function getRestaurantData(Request $request)
+    {
+        try {
+            $cacheKey = "sql_live_restaurant_tracking_v2";
+
+            $restaurants = Cache::remember($cacheKey, 10, function () {
+
+                return DB::table('vendors')
+//                    ->where('publish', 1)
+                    ->whereNotNull('latitude')
+                    ->whereNotNull('longitude')
+                    ->select(
+                        'id',
+                        'title',
+                        'phonenumber',
+                        'latitude',
+                        'longitude',
+                        'isOpen',
+                        'zoneId'
+                    )
+                    ->get()
+                    ->map(function ($vendor) {
+
+                        if (!$vendor->latitude || !$vendor->longitude) {
+                            return null;
+                        }
+
+                        return [
+                            'id' => $vendor->id,
+                            'flag' => 'restaurant',
+                            'title' => $vendor->title,
+                            'phoneNumber' => $vendor->phonenumber,
+                            'isOpen' => (bool) $vendor->isOpen,
+                            'zoneId' => $vendor->zoneId,
+                            'location' => [
+                                'latitude' => (float) $vendor->latitude,
+                                'longitude' => (float) $vendor->longitude,
+                            ],
+                        ];
+                    })
+                    ->filter()
+                    ->values()
+                    ->toArray();
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Restaurant live tracking data fetched successfully',
+                'meta' => [
+                    'restaurant_count' => count($restaurants),
+                    'cache_ttl_seconds' => 10,
+                ],
+                'data' => $restaurants,
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Restaurant Tracking Error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching restaurant tracking data',
+                'data' => [],
+            ], 500);
+        }
+    }
+
 }

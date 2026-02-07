@@ -1,7 +1,9 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Models\Driver;
 use App\Models\ReviewAttribute;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -13,8 +15,6 @@ class OrderController extends Controller
 
     public function __construct()
     {
-//        $this->middleware('auth')->except('getLatestOrderId');
-//        $this->middleware('auth')->except('getOrder');
         $this->middleware('auth')->except([
             'getLatestOrderId',
             'getOrder'
@@ -87,6 +87,14 @@ class OrderController extends Controller
         $order->vendor = !empty($order->vendor) ? json_decode($order->vendor, true) : [];
         $order->specialDiscount = !empty($order->specialDiscount) ? json_decode($order->specialDiscount, true) : null;
         $order->calculatedCharges = $this->decodeJsonField($order->calculatedCharges ?? null);
+        $order->refund_transaction_id = !empty($order->refund_transaction_id) ? json_decode($order->refund_transaction_id, true) : null;
+        $vendorId = $order->vendorID;
+//        dd($vendorId);
+
+        $zoneId = DB::table('vendors')
+            ->where('id', $vendorId)
+            ->value('zoneId');
+//        dd($zoneId);
 
         // Load currency settings
         $currency = DB::table('currencies')
@@ -101,6 +109,26 @@ class OrderController extends Controller
 
         // Load available drivers if needed
         $availableDrivers = [];
+
+        $zoneDrivers = [];
+
+        if ($zoneId) {
+            $zoneDrivers  = User::where('role', 'driver')
+                ->where('zoneId', $zoneId)
+                ->where('active', 1)
+                ->get()
+                ->map(function ($user) {
+                    return [
+                        'id' => $user->id,
+                        'firstName' => $user->firstName,
+                        'lastName' => $user->lastName,
+                        'phoneNumber' => $user->phoneNumber,
+                    ];
+                });
+
+        }
+//        dd($availableDrivers);
+
         if (!empty($order->driverID)) {
             // Already has driver
         } else {
@@ -115,7 +143,7 @@ class OrderController extends Controller
         // Mirror mobile app billing logic for admin view
         $order->calculatedBillDetails = $this->calculateOrderBillDetails($order);
 
-        return view('orders.edit', compact('order', 'currency', 'zones', 'availableDrivers', 'id'));
+        return view('orders.edit', compact('order', 'currency', 'zones', 'availableDrivers', 'zoneDrivers','id'));
     }
 
     public function sendNotification(Request $request)
@@ -285,6 +313,7 @@ class OrderController extends Controller
                 'status' => (string) $request->input('status', ''),
                 'zone_id' => (string) $request->input('zone_id', ''),
                 'order_type' => (string) $request->input('order_type', ''),
+                'payment_type'=> (string) $request->input('payment_type', ''),
                 'date_from' => (string) $request->input('date_from', ''),
                 'date_to' => (string) $request->input('date_to', ''),
                 'search' => strtolower((string) data_get($request->input('search'), 'value', '')),
@@ -498,8 +527,21 @@ class OrderController extends Controller
                 // Date column
                 $rowCells[] = '<span class="dt-time">' . e($dateText) . '</span>';
 
-                // Amount column
-                $rowCells[] = '<span class="text-green">' . e($amountText) . '</span>';
+//                // Amount column
+//                $paymentMethod = strtolower(trim((string) ($row->payment_method ?? '')));
+//
+//                if ($paymentMethod === 'cod') {
+//                    // COD → show amount
+                    $rowCells[] = '<span class="text-green">' . e($amountText) . '</span>';
+//                } else {
+////                    // Online payment → show tick
+////                    $rowCells[] =
+////                        '<span class="text-green" title="Paid Online">' . e($amountText) .
+////                        '<small class="text-info font-weight-bold">(' . e($row->payment_method) . ')</small>' .
+////                        '</span>';
+////
+////                }
+//                <i class="fa fa-check-circle"></i>
 
                 // Order Type column
                 // $rowCells[] = e($orderTypeText);
@@ -1023,22 +1065,41 @@ class OrderController extends Controller
     private function getStatusClass($status)
     {
         $status = strtolower(trim((string) $status));
+
         $classMap = [
+            // Order placed
             'restaurantorders placed' => 'order_placed',
-            'orders placed' => 'order_placed',
-            'order placed' => 'order_placed',
+            'orders placed'           => 'order_placed',
+            'order placed'            => 'order_placed',
+
+            // Order accepted
             'restaurantorders accepted' => 'order_accepted',
-            'order accepted' => 'order_accepted',
+            'order accepted'             => 'order_accepted',
+
+            // Order rejected / canceled
             'restaurantorders rejected' => 'order_rejected',
-            'order rejected' => 'order_rejected',
-            'driver pending' => 'driver_pending',
+            'order rejected'            => 'order_rejected',
+            'order canceled'            => 'order_canceled',
+
+            // 🔁 Refund statuses
+            'refund initiated'          => 'refund_initiated',
+            'refund completed'          => 'refund_completed',
+
+            // Driver flow
+            'driver pending'  => 'driver_pending',
+            'driver accepted' => 'driver_accepted',
             'driver rejected' => 'driver_rejected',
+
+            // Shipping
             'restaurantorders shipped' => 'order_shipped',
-            'order shipped' => 'order_shipped',
-            'in transit' => 'in_transit',
+            'order shipped'            => 'order_shipped',
+            'in transit'               => 'in_transit',
+
+            // Completed
             'restaurantorders completed' => 'order_completed',
-            'order completed' => 'order_completed',
+            'order completed'             => 'order_completed',
         ];
+
         return $classMap[$status] ?? 'order_completed';
     }
 
@@ -1462,4 +1523,59 @@ class OrderController extends Controller
         return response()->json(['data' => $reviews]);
     }
 
+    public function saveRefundTransaction(Request $request, $id)
+    {
+        $request->validate([
+            'refund_transaction_id' => 'required|string'
+        ]);
+
+        $payload = [
+            'refund_transaction_id' => $request->refund_transaction_id,
+            'refunded_at' => now()->format('Y-m-d H:i:s')
+        ];
+
+        DB::table('restaurant_orders')
+            ->where('id', $id)
+            ->update([
+                'refund_transaction_id' => json_encode($payload)
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Refund transaction saved successfully'
+        ]);
+    }
+
+    public function destroy($id)
+    {
+        try {
+            // Check if order exists
+            $order = DB::table('restaurant_orders')->where('id', $id)->first();
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Order not found'
+                ], 404);
+            }
+
+            // Delete order
+            DB::table('restaurant_orders')->where('id', $id)->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order deleted successfully'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Order delete failed', [
+                'order_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong while deleting order'
+            ], 500);
+        }
+    }
 }

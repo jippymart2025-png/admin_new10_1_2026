@@ -302,12 +302,17 @@
                                                         {{ in_array('restaurants.view', $permissions) ? 'checked' : '' }}>
                                                     <label class="contol-label2"
                                                            for="restaurants-view">{{ trans('lang.view') }}</label>
-                                                    <input type="checkbox" id="restaurant-delete"
-                                                           value="restaurant.delete" name="restaurant[]"
+                                                    <input type="checkbox" id="restaurants-delete"
+                                                           value="restaurants.delete" name="restaurants[]"
                                                            class="permission"
-                                                        {{ in_array('restaurant.delete', $permissions) ? 'checked' : '' }}>
-                                                    <label class=" control-label2"
-                                                           for="restaurant-delete">{{ trans('lang.delete') }}</label>
+                                                        {{ in_array('restaurants.delete', $permissions) ? 'checked' : '' }}>
+                                                    <label class="contol-label2"
+                                                           for="restaurants-delete">{{ trans('lang.delete') }}</label>
+                                                    <input type="checkbox" id="restaurants-impersonate"
+                                                           value="restaurants.impersonate" name="restaurants[]"
+                                                           class="permission"
+                                                        {{ in_array('restaurants.impersonate', $permissions) ? 'checked' : '' }}>
+                                                    <label class="control-label2" for="restaurants-impersonate">Impersonate</label>
                                                 </td>
                                             </tr>
                                             <tr>
@@ -409,6 +414,21 @@
                                                         {{ in_array('report.index', $permissions) ? 'checked' : '' }}>
                                                     <label class="contol-label2"
                                                            for="report">{{ trans('lang.create') }}</label>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <strong>Settlement Reports</strong>
+                                                </td>
+                                                <td>
+                                                    <input type="checkbox"
+                                                           id="settlement-reports"
+                                                           value="settlement-reports"
+                                                           name="settlement-reports[]"
+                                                           class="permission"
+                                                    {{ in_array('settlement-reports', $permissions) ? 'checked' : '' }}>
+                                                    <label class="control-label2"
+                                                           for="settlement-reports">View</label>
                                                 </td>
                                             </tr>
                                             <tr>
@@ -781,6 +801,15 @@
                                                         {{ in_array('orders.delete', $permissions) ? 'checked' : '' }}>
                                                     <label class=" control-label2"
                                                            for="orders-delete">{{ trans('lang.delete') }}</label>
+                                                    {{-- ✅ NEW: Billing Details --}}
+                                                    <input type="checkbox" id="orders-billing"
+                                                           value="orders.view-billing"
+                                                           name="orders[]"
+                                                           class="permission"
+                                                        {{ in_array('view-billing-details', $permissions) ? 'checked' : '' }}>
+                                                    <label class="control-label2" for="orders-billing">
+                                                        {{ trans('lang.billing_details') }}
+                                                    </label>
                                                 </td>
                                             </tr>
                                             <tr>

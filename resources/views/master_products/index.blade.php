@@ -172,6 +172,7 @@
                                         <th>suggested Price</th>
                                         <th>Discount Price</th>
                                         <th>Category</th>
+                                        <th>Options</th>
                                         <th>Publish</th>
                                         <th>Available</th>
                                         <th>{{trans('lang.actions')}}</th>
@@ -414,6 +415,16 @@
                         }
                     },
                     {
+                        data: 'options_count',
+                        render: function (data, type, row) {
+                            if (!row.has_options || data === 0) {
+                                return '<span class="badge badge-secondary">No Options</span>';
+                            }
+
+                            return `<span class="badge badge-info">${data} Options</span>`;
+                        }
+                    },
+                    {
                         data: 'publish',
                         orderable: false,
                         render: function(data, type, row) {
@@ -445,7 +456,7 @@
                 columnDefs: [
                     {
                         orderable: false,
-                        targets: checkDeletePermission ? [0,5,6,7] : [4,5,6]
+                        targets: checkDeletePermission ? [0,5,6,7,8] : [4,5,6,7]
                     }
                 ],
                 "language": {
@@ -640,7 +651,7 @@
 
             $(document).on('click', '.delete-product', function() {
                 var id = $(this).data('id');
-                if(!confirm("{{ trans('lang.delete_alert') }}")) {
+                if(!confirm("Are you sure you want to delete this? This action cannot be undone.")) {
                     return;
                 }
 

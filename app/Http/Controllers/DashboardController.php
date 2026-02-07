@@ -11,19 +11,19 @@ class DashboardController extends Controller
     /**
      * Show the main dashboard page.
      */
-    public function index(Request $request)
-    {
-        try {
-            $forceRefresh = $request->boolean('refresh', false);
-            $stats = CacheService::getDashboardStats($forceRefresh);
-            Log::info('Dashboard stats retrieved', ['cached_at' => $stats['cached_at'] ?? 'Not cached']);
-
-            return view('home', compact('stats'));
-        } catch (\Exception $e) {
-            Log::error('Dashboard error: ' . $e->getMessage());
-            return view('home');
-        }
-    }
+//    public function index(Request $request)
+//    {
+//        try {
+//            $forceRefresh = $request->boolean('refresh', false);
+//            $stats = CacheService::getDashboardStats($forceRefresh);
+//            Log::info('Dashboard stats retrieved', ['cached_at' => $stats['cached_at'] ?? 'Not cached']);
+//
+//            return view('home', compact('stats'));
+//        } catch (\Exception $e) {
+//            Log::error('Dashboard error: ' . $e->getMessage());
+//            return view('home');
+//        }
+//    }
 
     /**
      * Fetch stats via AJAX.

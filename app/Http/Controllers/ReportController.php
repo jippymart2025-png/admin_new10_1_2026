@@ -335,8 +335,8 @@ class ReportController extends Controller
         $userReport = [];
         foreach ($users as $user) {
             $zoneIdFromAddress = $this->extractZoneFromShippingAddress($user->shippingAddress);
-            $zoneName = !empty($zoneIdFromAddress) && isset($zones[$zoneIdFromAddress]) 
-                ? $zones[$zoneIdFromAddress] 
+            $zoneName = !empty($zoneIdFromAddress) && isset($zones[$zoneIdFromAddress])
+                ? $zones[$zoneIdFromAddress]
                 : '-';
 
             $userReport[] = (object)[

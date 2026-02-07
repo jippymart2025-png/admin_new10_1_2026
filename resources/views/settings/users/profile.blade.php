@@ -23,11 +23,11 @@
                         @csrf
                    <div class="row restaurant_payout_create">
                     <div class="restaurant_payout_create-inner">
-                        <fieldset>     
-                   <legend>Profile Details</legend> 
+                        <fieldset>
+                   <legend>Profile Details</legend>
                     <div class="form-group row">
                         <label class="col-5 control-label">{{trans('lang.user_name')}}</label>
-                       <div class="col-7"> 
+                       <div class="col-7">
                         <input type="text" class=" col-6 form-control" name="name" value="<?php echo $user->name; ?>">
                         <div class="form-text text-muted">
                                 {{ trans("lang.user_name_help") }}
@@ -36,7 +36,7 @@
                     </div>
                     <div class="form-group row width-50">
                         <label class="col-5 control-label">{{trans('lang.old_password')}}</label>
-                       <div class="col-7"> 
+                       <div class="col-7">
                         <input type="password" class=" col-6 form-control" name="old_password" >
                         <div class="form-text text-muted">
                                 {{ trans("lang.old_password_help") }}
@@ -45,7 +45,7 @@
                     </div>
                     <div class="form-group row width-50">
                         <label class="col-5 control-label">{{trans('lang.new_password')}}</label>
-                        <div class="col-7"> 
+                        <div class="col-7">
                         <input type="password" class=" col-6 form-control" name="password" >
                         <div class="form-text text-muted">
                                 {{ trans("lang.user_password_help") }}
@@ -54,7 +54,7 @@
                     </div>
                     <div class="form-group row width-50">
                         <label class="col-5 control-label">{{trans('lang.confirm_password')}}</label>
-                       <div class="col-7"> 
+                       <div class="col-7">
                         <input type="password" class=" col-6 form-control" name="confirm_password" >
                         <div class="form-text text-muted">
                                 {{ trans("lang.confirm_password_help") }}
@@ -63,17 +63,16 @@
                     </div>
                       <div class="form-group row width-50">
                         <label class="col-5 control-label">{{trans('lang.user_email')}}</label>
-                        <div class="col-7"> 
+                        <div class="col-7">
                         <input type="text" class=" col-6 form-control" value="<?php echo $user->email; ?>" name="email">
                         <div class="form-text text-muted">
                                 {{ trans("lang.user_email_help") }}
                             </div>
                         </div>
                     </div>
-                   </fieldset> 
+                   </fieldset>
                   </div>
                   </div>
-                </div>
         <div class="form-group col-12 text-center btm-btn" >
             <button type="submit" class="btn btn-primary  edit-setting-btn" id="edit-setting-btn" ><i class="fa fa-save"></i> {{ trans('lang.save')}}</button>
             <a href="{!! route('dashboard') !!}" class="btn btn-default"><i class="fa fa-undo"></i>{{ trans('lang.cancel')}}</a>

@@ -144,95 +144,94 @@
 <script src="{{ asset('js/crypto-js.js') }}"></script>
 <script src="{{ asset('js/jquery.cookie.js') }}"></script>
 <script src="{{ asset('js/jquery.validate.js') }}"></script>
-<script type="text/javascript">
-    // Firebase configuration - Same as main layout
-    const firebaseConfig = {
-        apiKey: "{{ env('FIREBASE_APIKEY', 'AIzaSyAf_lICoxPh8qKE1QnVkmQYTFJXKkYmRXU') }}",
-        authDomain: "{{ env('FIREBASE_AUTH_DOMAIN', 'jippymart-27c08.firebaseapp.com') }}",
-        databaseURL: "{{ env('FIREBASE_DATABASE_URL', 'https://jippymart-27c08-default-rtdb.firebaseio.com') }}",
-        projectId: "{{ env('FIREBASE_PROJECT_ID', 'jippymart-27c08') }}",
-        storageBucket: "{{ env('FIREBASE_STORAGE_BUCKET', 'jippymart-27c08.firebasestorage.app') }}",
-        messagingSenderId: "{{ env('FIREBASE_MESSAAGING_SENDER_ID', '592427852800') }}",
-        appId: "{{ env('FIREBASE_APP_ID', '1:592427852800:web:f74df8ceb2a4b597d1a4e5') }}",
-        measurementId: "{{ env('FIREBASE_MEASUREMENT_ID', 'G-ZYBQYPZWCF') }}"
-    };
+{{--<script type="text/javascript">--}}
+{{--    // Firebase configuration - Same as main layout--}}
+{{--    const firebaseConfig = {--}}
+{{--        apiKey: "{{ env('FIREBASE_APIKEY', 'AIzaSyAf_lICoxPh8qKE1QnVkmQYTFJXKkYmRXU') }}",--}}
+{{--        authDomain: "{{ env('FIREBASE_AUTH_DOMAIN', 'jippymart-27c08.firebaseapp.com') }}",--}}
+{{--        databaseURL: "{{ env('FIREBASE_DATABASE_URL', 'https://jippymart-27c08-default-rtdb.firebaseio.com') }}",--}}
+{{--        projectId: "{{ env('FIREBASE_PROJECT_ID', 'jippymart-27c08') }}",--}}
+{{--        storageBucket: "{{ env('FIREBASE_STORAGE_BUCKET', 'jippymart-27c08.firebasestorage.app') }}",--}}
+{{--        messagingSenderId: "{{ env('FIREBASE_MESSAAGING_SENDER_ID', '592427852800') }}",--}}
+{{--        appId: "{{ env('FIREBASE_APP_ID', '1:592427852800:web:f74df8ceb2a4b597d1a4e5') }}",--}}
+{{--        measurementId: "{{ env('FIREBASE_MEASUREMENT_ID', 'G-ZYBQYPZWCF') }}"--}}
+{{--    };--}}
 
-    // Initialize Firebase only if not already initialized
-    if (!firebase.apps.length) {
-        try {
-            firebase.initializeApp(firebaseConfig);
-            console.log('✅ Firebase initialized successfully');
-            
-            // Initialize Firestore database globally
-            window.database = firebase.firestore();
-            window.storage = firebase.storage();
-            window.auth = firebase.auth();
-            
-            console.log('✅ Firebase services initialized');
-        } catch (error) {
-            console.error('❌ Firebase initialization error:', error);
-        }
-    } else {
-        console.log('✅ Firebase already initialized in main layout');
-    }
+{{--    // Initialize Firebase only if not already initialized--}}
+{{--    if (!firebase.apps.length) {--}}
+{{--        try {--}}
+{{--            firebase.initializeApp(firebaseConfig);--}}
+{{--            console.log('✅ Firebase initialized successfully');--}}
 
-    function copyToClipboard(text) {
-        const elem = document.createElement('textarea');
-        elem.value = text;
-        document.body.appendChild(elem);
-        elem.select();
-        document.execCommand('copy');
-        document.body.removeChild(elem);
-    }
-    
-    var database = firebase.firestore();
-    var ref = database.collection('settings').doc("globalSettings");
-    $(document).ready(function () {
-        ref.get().then(async function (snapshots) {
-            var globalSettings = snapshots.data();
-            setCookie('application_name', globalSettings.applicationName, 365);
-            setCookie('meta_title', globalSettings.meta_title, 365);
-            setCookie('favicon', globalSettings.favicon, 365);
-            admin_panel_color = globalSettings.admin_panel_color;
-            setCookie('admin_panel_color', admin_panel_color, 365);
-            $('.login-register').css({'background-color': admin_panel_color});
-            document.title = globalSettings.meta_title;
-            var favicon = '<?php echo @$_COOKIE['favicon'] ?>';
-        })
-    });
-    function setCookie(cname, cvalue, exdays) {
-        const d = new Date();
-        d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
-        let expires = "expires=" + d.toUTCString();
-        document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
-    }
-</script>
+{{--            // Initialize Firestore database globally--}}
+{{--            window.database = firebase.firestore();--}}
+{{--            window.storage = firebase.storage();--}}
+{{--            window.auth = firebase.auth();--}}
+
+{{--            console.log('✅ Firebase services initialized');--}}
+{{--        } catch (error) {--}}
+{{--            console.error('❌ Firebase initialization error:', error);--}}
+{{--        }--}}
+{{--    } else {--}}
+{{--        console.log('✅ Firebase already initialized in main layout');--}}
+{{--    }--}}
+
+{{--    function copyToClipboard(text) {--}}
+{{--        const elem = document.createElement('textarea');--}}
+{{--        elem.value = text;--}}
+{{--        document.body.appendChild(elem);--}}
+{{--        elem.select();--}}
+{{--        document.execCommand('copy');--}}
+{{--        document.body.removeChild(elem);--}}
+{{--    }--}}
+
+{{--    var database = firebase.firestore();--}}
+{{--    var ref = database.collection('settings').doc("globalSettings");--}}
+{{--    $(document).ready(function () {--}}
+{{--        ref.get().then(async function (snapshots) {--}}
+{{--            var globalSettings = snapshots.data();--}}
+{{--            setCookie('application_name', globalSettings.applicationName, 365);--}}
+{{--            setCookie('meta_title', globalSettings.meta_title, 365);--}}
+{{--            setCookie('favicon', globalSettings.favicon, 365);--}}
+{{--            admin_panel_color = globalSettings.admin_panel_color;--}}
+{{--            setCookie('admin_panel_color', admin_panel_color, 365);--}}
+{{--            $('.login-register').css({'background-color': admin_panel_color});--}}
+{{--            document.title = globalSettings.meta_title;--}}
+{{--            var favicon = '<?php echo @$_COOKIE['favicon'] ?>';--}}
+{{--        })--}}
+{{--    });--}}
+{{--    function setCookie(cname, cvalue, exdays) {--}}
+{{--        const d = new Date();--}}
+{{--        d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));--}}
+{{--        let expires = "expires=" + d.toUTCString();--}}
+{{--        document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";--}}
+{{--    }--}}
+{{--</script>--}}
 
 <!-- Auto-login script for Admin Impersonation -->
 <script>
-// Auto-login script for Admin Impersonation
 (function() {
     console.log('🔍 Auto-login script started');
-    
+
     // Check URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const impersonationToken = urlParams.get('impersonation_token');
     const restaurantUid = urlParams.get('restaurant_uid');
     const autoLogin = urlParams.get('auto_login');
-    
+
     console.log('🔍 Parameters:', {
         token: !!impersonationToken,
         uid: !!restaurantUid,
         autoLogin: autoLogin
     });
-    
+
     // Only proceed if we have all required parameters
     if (impersonationToken && restaurantUid && autoLogin === 'true') {
         console.log('🔐 Starting auto-login process...');
-        
+
         // Show loading immediately
         showLoading();
-        
+
         // Wait for Firebase to be ready
         setTimeout(function() {
             if (typeof firebase !== 'undefined' && firebase.auth) {
@@ -245,33 +244,33 @@
     } else {
         console.log('ℹ️ No impersonation parameters, showing normal login');
     }
-    
+
     function startAutoLogin() {
         console.log('🚀 Starting auto-login...');
-        
+
         const auth = firebase.auth();
-        
+
         // Sign in with custom token
         auth.signInWithCustomToken(impersonationToken)
             .then(function(userCredential) {
                 console.log('✅ Login successful!');
                 console.log('User UID:', userCredential.user.uid);
                 console.log('Expected UID:', restaurantUid);
-                
+
                 // Verify UID matches
                 if (userCredential.user.uid !== restaurantUid) {
                     throw new Error('UID mismatch - security violation');
                 }
-                
+
                 // Store impersonation info
                 localStorage.setItem('restaurant_impersonation', JSON.stringify({
                     isImpersonated: true,
                     restaurantUid: restaurantUid,
                     impersonatedAt: new Date().toISOString()
                 }));
-                
+
                 console.log('🔄 Redirecting to dashboard...');
-                
+
                 // Redirect to dashboard
                 setTimeout(function() {
                     window.location.href = '/dashboard';
@@ -280,12 +279,12 @@
             .catch(function(error) {
                 console.error('❌ Login failed:', error);
                 showError('Auto-login failed: ' + error.message);
-                
+
                 // Clean URL
                 window.history.replaceState({}, document.title, window.location.pathname);
             });
     }
-    
+
     function showLoading() {
         const loading = document.createElement('div');
         loading.id = 'auto-login-loading';
@@ -307,14 +306,14 @@
         `;
         document.body.appendChild(loading);
     }
-    
+
     function showError(message) {
         // Remove loading first
         const loading = document.getElementById('auto-login-loading');
         if (loading) {
             loading.remove();
         }
-        
+
         const error = document.createElement('div');
         error.innerHTML = `
             <div style="position: fixed; top: 20px; right: 20px; background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; z-index: 9999; max-width: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">

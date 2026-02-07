@@ -529,7 +529,26 @@
                         extend: 'collection',
                         text: '<i class="mdi mdi-cloud-download"></i> Export as',
                         className: 'btn btn-info',
-                        buttons: ['csv', 'excel', 'pdf']
+                        buttons: [
+                            {
+                                text: 'Export CSV',
+                                action: function () {
+                                    exportFoods('csv');
+                                }
+                            },
+                            {
+                                text: 'Export PDF',
+                                action: function () {
+                                    exportFoods('pdf');
+                                }
+                            },
+                            {
+                                text: 'Export EXCEL',
+                                action: function () {
+                                    exportFoods('excel');
+                                }
+                            },
+                        ]
                     }
                 ],
                 initComplete: function () {
@@ -580,6 +599,7 @@
                     },
                     success: function (response) {
                         if (response.success) {
+                            $('#foodTable').DataTable().ajax.reload(null,false);
                             console.log('Availability updated');
                         }
                     },
@@ -603,7 +623,7 @@
                     alert("{{trans('lang.select_delete_alert')}}");
                     return false;
                 }
-                if (!confirm("{{trans('lang.delete_alert')}}")) {
+                if (!confirm("Are you sure you want to delete this? This action cannot be undone.")) {
                     return false;
                 }
 
@@ -639,8 +659,8 @@
 
             $(document).on('click', '.delete-food', function () {
                 var id = $(this).data('id');
-                if (!confirm("{{ trans('lang.delete_alert') }}")) {
-                    return;
+                if (!confirm("Are you sure you want to delete this? This action cannot be undone.")) {
+                    return false;
                 }
 
                 $.ajax({
@@ -781,5 +801,16 @@
                 }
             });
         });
+        function exportFoods(type) {
+            let params = {
+                search: $('.dataTables_filter input').val(),
+                restaurantId: $('#restaurant_filter').val() || '',
+                categoryId: $('#category_filter').val() || '',
+                foodType: $('#food_type_filter').val() || '',
+                type: type
+            };
+
+            window.location.href = '/foods/export?' + $.param(params);
+        }
     </script>
 @endsection

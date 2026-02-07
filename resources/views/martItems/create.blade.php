@@ -261,7 +261,7 @@
                             <a href="{{ route('mart-items') }}" class="btn btn-secondary">Cancel</a>
                 </div>
                     </form>
-                    
+
                     <!-- Option Template (Hidden) -->
                     <div id="option_template" style="display:none;">
                         <div class="option-item" data-option-id="">
@@ -427,7 +427,7 @@
                                 <input type="checkbox" class="option-featured" id="option_featured_">
                                 <label class="form-check-label" for="option_featured_">Featured (Show first)</label>
                             </div>
-                            
+
                             <div class="validation-feedback"></div>
                         </div>
                     </div>
@@ -535,14 +535,14 @@
             optionCounter++;
             const optionId = 'option_' + Date.now() + '_' + optionCounter;
             const template = $('#option_template .option-item').clone();
-            
+
             template.attr('data-option-id', optionId);
             template.find('.option-number').text(optionCounter);
-            
+
             // Set option title from main item name
             const itemName = $('#name').val() || '';
             template.find('.option-title').val(itemName);
-            
+
             // Generate unique IDs for checkboxes
             const availableId = 'option_available_' + optionCounter;
             const featuredId = 'option_featured_' + optionCounter;
@@ -550,10 +550,10 @@
             template.find('.option-featured').attr('id', featuredId);
             template.find('.option-available').next('label').attr('for', availableId);
             template.find('.option-featured').next('label').attr('for', featuredId);
-            
+
             $('.options-list').append(template);
             template.show();
-            
+
             // Add to options list
             optionsList.push({
                 id: optionId,
@@ -573,7 +573,7 @@
                 is_available: true,
                 is_featured: false
             });
-            
+
             attachOptionEventListeners(optionId);
             updateOptionsSummary();
             updateDefaultOptionSelect();
@@ -583,13 +583,13 @@
         function removeOption(button) {
             const optionItem = $(button).closest('.option-item');
             const optionId = optionItem.data('option-id');
-            
+
             // Remove from array
             optionsList = optionsList.filter(opt => opt.id !== optionId);
-            
+
             // Remove from DOM
             optionItem.remove();
-            
+
             // Update option numbers
             updateOptionNumbers();
             updateOptionsSummary();
@@ -607,9 +607,9 @@
         function attachOptionEventListeners(optionId) {
             const optionItem = $(`[data-option-id="${optionId}"]`);
             const optionIndex = optionsList.findIndex(opt => opt.id === optionId);
-            
+
             if (optionIndex === -1) return;
-            
+
             // Option type change
             optionItem.find('.option-type').on('change', function() {
                 const type = $(this).val();
@@ -617,28 +617,28 @@
                 updateSmartSuggestions(optionId, type);
                 calculateOptionCalculations(optionId);
             });
-            
+
             // Unit change
             optionItem.find('.option-quantity-unit').on('change', function() {
                 const unit = $(this).val();
                 optionsList[optionIndex].quantity_unit = unit;
                 calculateOptionCalculations(optionId);
             });
-            
+
             // Unit price change
             optionItem.find('.option-unit-price').on('input', function() {
                 const price = parseFloat($(this).val()) || 0;
                 optionsList[optionIndex].unit_price = price;
                 calculateOptionCalculations(optionId);
             });
-            
+
             // Original unit price change
             optionItem.find('.option-original-unit-price').on('input', function() {
                 const price = parseFloat($(this).val()) || 0;
                 optionsList[optionIndex].original_unit_price = price;
                 calculateOptionCalculations(optionId);
             });
-            
+
             // Quantity change
             optionItem.find('.option-quantity').on('input', function() {
                 const qty = parseFloat($(this).val()) || 0;
@@ -646,19 +646,19 @@
                 calculateOptionCalculations(optionId);
                 validateOption(optionId);
             });
-            
+
             // Unit measure change
             optionItem.find('.option-unit-measure').on('input', function() {
                 const measure = parseFloat($(this).val()) || 100;
                 optionsList[optionIndex].unit_measure = measure;
                 calculateOptionCalculations(optionId);
             });
-            
+
             // Available checkbox
             optionItem.find('.option-available').on('change', function() {
                 const isChecked = $(this).is(':checked');
                 optionsList[optionIndex].is_available = isChecked;
-                
+
                 // Visual feedback
                 if (isChecked) {
                     optionItem.removeClass('option-disabled').addClass('option-enabled');
@@ -667,12 +667,12 @@
                 }
                 validateOption(optionId);
             });
-            
+
             // Featured checkbox
             optionItem.find('.option-featured').on('change', function() {
                 const isFeatured = $(this).is(':checked');
                 optionsList[optionIndex].is_featured = isFeatured;
-                
+
                 // Uncheck other featured options
                 if (isFeatured) {
                     $('.option-featured').not(this).prop('checked', false);
@@ -682,7 +682,7 @@
                             $(`[data-option-id="${opt.id}"]`).removeClass('option-featured-highlight');
                         }
                     });
-                    
+
                     // Visual feedback
                     optionItem.addClass('option-featured-highlight');
                 } else {
@@ -690,12 +690,12 @@
                 }
                 updateDefaultOptionSelect();
             });
-            
+
             // Image upload
             optionItem.find('.option-image-input').on('change', function(e) {
                 handleOptionImageUpload(e.target, optionId);
             });
-            
+
             // Listen for main item name changes to update all option titles
             $('#name').on('input', function() {
                 $('.option-title').val($(this).val());
@@ -705,7 +705,7 @@
                 updateOptionsSummary();
                 updateDefaultOptionSelect();
             });
-            
+
             // Initial calculations
             calculateOptionCalculations(optionId);
             updateSmartSuggestions(optionId, 'size');
@@ -715,19 +715,19 @@
         function calculateOptionCalculations(optionId) {
             const optionItem = $(`[data-option-id="${optionId}"]`);
             const optionIndex = optionsList.findIndex(opt => opt.id === optionId);
-            
+
             if (optionIndex === -1) return;
-            
+
             const unitPrice = parseFloat(optionItem.find('.option-unit-price').val()) || 0;
             const originalUnitPrice = parseFloat(optionItem.find('.option-original-unit-price').val()) || 0;
             const quantity = parseFloat(optionItem.find('.option-quantity').val()) || 0;
             const unitMeasure = parseFloat(optionItem.find('.option-unit-measure').val()) || 100;
             const quantityUnit = optionItem.find('.option-quantity-unit').val() || 'g';
-            
+
             // Calculate total prices
             const totalPrice = unitPrice * quantity;
             const originalTotalPrice = originalUnitPrice * quantity;
-            
+
             // Calculate discount
             let discountAmount = 0;
             let discountPercentage = 0;
@@ -735,32 +735,32 @@
                 discountAmount = originalTotalPrice - totalPrice;
                 discountPercentage = (discountAmount / originalTotalPrice) * 100;
             }
-            
+
             // Update calculated fields
             optionItem.find('.option-total-price').val(totalPrice.toFixed(2));
             optionItem.find('.option-original-total-price').val(originalTotalPrice.toFixed(2));
             optionItem.find('.option-discount-amount').val(discountAmount.toFixed(2));
             optionItem.find('.option-discount-percentage').val(discountPercentage.toFixed(2));
-            
+
             // Update savings display
             let savingsDisplay = '';
             if (discountAmount > 0) {
                 savingsDisplay = `Save ₹${discountAmount.toFixed(2)} (${discountPercentage.toFixed(1)}%)`;
             }
             optionItem.find('.option-savings-display').val(savingsDisplay);
-            
+
             // Auto-generate subtitle
             const formattedUnitMeasure = unitMeasure % 1 === 0 ? unitMeasure.toString() : unitMeasure.toFixed(2);
             const subtitle = `${formattedUnitMeasure}${quantityUnit} x ${quantity}`;
             optionItem.find('.option-subtitle').val(subtitle);
-            
+
             // Update options list
             optionsList[optionIndex].total_price = totalPrice;
             optionsList[optionIndex].original_total_price = originalTotalPrice;
             optionsList[optionIndex].discount_amount = discountAmount;
             optionsList[optionIndex].discount_percentage = discountPercentage;
             optionsList[optionIndex].subtitle = subtitle;
-            
+
             updateOptionsSummary();
         }
 
@@ -768,7 +768,7 @@
         function updateSmartSuggestions(optionId, optionType) {
             const optionItem = $(`[data-option-id="${optionId}"]`);
             const suggestions = optionItem.find('.smart-suggestions-display');
-            
+
             const typeDefaults = {
                 'size': { desc: 'Weight-based options', units: 'g, kg' },
                 'volume': { desc: 'Volume-based options', units: 'L, ml' },
@@ -778,7 +778,7 @@
                 'addon': { desc: 'Additional items', units: 'pcs, units' },
                 'variant': { desc: 'Product variants', units: 'pcs, units' }
             };
-            
+
             const defaults = typeDefaults[optionType] || typeDefaults['size'];
             suggestions.html(`<small class="text-muted">${defaults.desc}<br>Suggested units: ${defaults.units}</small>`);
         }
@@ -788,12 +788,12 @@
             const optionItem = $(`[data-option-id="${optionId}"]`);
             const optionIndex = optionsList.findIndex(opt => opt.id === optionId);
             const feedback = optionItem.find('.validation-feedback');
-            
+
             if (optionIndex === -1) return;
-            
+
             const option = optionsList[optionIndex];
             let warnings = [];
-            
+
             // Check quantity
             if (option.quantity === 0) {
                 warnings.push('Option automatically disabled due to zero quantity');
@@ -803,7 +803,7 @@
                     optionItem.removeClass('option-enabled').addClass('option-disabled');
                 }
             }
-            
+
             // Display warnings
             if (warnings.length > 0) {
                 let html = '<div class="alert alert-warning mt-2"><strong>Warnings:</strong><ul class="mb-0">';
@@ -825,12 +825,12 @@
                 reader.onload = function(e) {
                     const optionItem = $(`[data-option-id="${optionId}"]`);
                     const base64Image = e.target.result;
-                    
+
                     // Show preview
                     optionItem.find('.option-image-preview').html(
                         `<img src="${base64Image}" style="max-width: 100px; max-height: 100px; border-radius: 4px; margin-top: 10px;" class="img-thumbnail">`
                     );
-                    
+
                     // Store in options list (will be converted to URL on save)
                     const optionIndex = optionsList.findIndex(opt => opt.id === optionId);
                     if (optionIndex !== -1) {
@@ -906,7 +906,7 @@
                     is_featured: option.is_featured === true,
                     sort_order: index + 1
                 }));
-                
+
                 // Store in hidden input
                 $('#options_data').val(JSON.stringify(optionsData));
             });

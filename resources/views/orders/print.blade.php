@@ -20,6 +20,8 @@
             </div>
         </div>
         <div class="container-fluid">
+            <div class="row justify-content-center">
+                <div class="col-6 col-md-6 col-lg-5">
             <div class="card" id="printableArea" style="font-family: emoji;">
                 <div class="col-md-12">
                     <div class="print-top non-printable mt-3">
@@ -30,7 +32,7 @@
                     </div>
                     <hr class="non-printable">
                 </div>
-                <div class="col-12">
+                <div class="col-12 justify-content-md-center">
                     <div class="text-center pt-4 mb-3">
                         <h2 style="line-height: 1"><label class="storeName"></label></h2>
                         <h5 style="font-size: 20px;font-weight: lighter;line-height: 1">
@@ -42,16 +44,18 @@
                         </h5>
                     </div>
                     <span class="dashed-line"></span>
-                    <div class="row mt-3">
+                    <div class="row mt-3 px-4">
                         <div class="col-6">
                             <h5>{{trans('lang.order_id')}} : <label class="orderId"></label></h5>
-                        </div>
-                        <div class="col-6">
-                            <h5 style="font-weight: lighter">
+                            <h5>
+                                {{trans('lang.date')}} :
                                 <label class="orderDate"></label>
                             </h5>
                         </div>
-                        <div class="col-12">
+{{--                        <div class="col-6">--}}
+{{--                           --}}
+{{--                        </div>--}}
+                        <div class="col-6">
                             <h5>
                                 {{trans('lang.customer_name')}} :
                                 <label class="customerName"></label>
@@ -68,7 +72,8 @@
                     </div>
                     <h5 class="text-uppercase"></h5>
                     <span class="dashed-line"></span>
-                    <table class="table table-bordered mt-3" style="width: 92%">
+                    <div class="d-flex justify-content-center">
+                    <table class="table table-bordered mt-3" style="width: 70%">
                         <thead>
                         <tr>
                             <th>{{trans('lang.item')}}</th>
@@ -81,8 +86,9 @@
                         <tbody id="order_products">
                         </tbody>
                     </table>
+                    </div>
                     <span class="dashed-line"></span>
-                    <div class="row justify-content-md-end mb-3" style="width: 97%">
+                    <div class="row justify-content-md-center mb-3" style="width: 97%">
                         <div class="col-md-7 col-lg-7">
                             <table class="order-summary-table" style="width:100%; font-size:16px; margin-bottom:0;">
                                 <tr style="background:#eaffea;">
@@ -158,6 +164,8 @@
                         {{trans('lang.thank_you')}}
                     </h5>
                     <span class="dashed-line"></span>
+                </div>
+            </div>
                 </div>
             </div>
         </div>
@@ -664,37 +672,16 @@
 
                         var gst = 0;
 
-                        // Debug delivery charge
-                        console.log('=== fillPrintOrderSummary Debug ===');
-                        console.log('restaurantorders deliveryCharge:', order.deliveryCharge);
-                        console.log('Final deliveryCharge:', deliveryCharge);
-                        console.log('GST calculation logic:');
-                        console.log('- Delivery charge:', deliveryCharge);
-                        console.log('- GST rate:', gstRate + '%');
+
 
                         if (parseFloat(deliveryCharge) > 0) {
                             gst = parseFloat(deliveryCharge) * (gstRate / 100); // GST only when delivery charge is non-zero
                         }
 
                         var total_tax_amount = sgst + gst;
-                        console.log('GST calculation result:');
-                        console.log('- SGST (5% on subtotal):', sgst.toFixed(2));
-                        console.log('- GST (18% on delivery):', gst.toFixed(2));
-                        console.log('- Total tax amount:', total_tax_amount.toFixed(2));
 
                         // Calculate final total
                         var totalAmount = parseFloat(total_price) + parseFloat(total_tax_amount);
-                        console.log('Total after taxes:', totalAmount);
-                        console.log('Subtotal:', subtotal);
-                        console.log('Total price after discounts:', total_price);
-                        console.log('SGST:', sgst);
-                        console.log('GST:', gst);
-                        console.log('Total tax amount:', total_tax_amount);
-
-                        // Add delivery charge to total
-                        console.log('Delivery charge before adding:', deliveryCharge);
-                        console.log('Delivery charge type:', typeof deliveryCharge);
-                        console.log('Is delivery charge valid number?', intRegex.test(deliveryCharge) || floatRegex.test(deliveryCharge));
 
                         // Check if delivery charge is a valid number (either by regex or parseFloat)
                         var deliveryChargeNum = parseFloat(deliveryCharge);
@@ -708,9 +695,6 @@
 
                         // Add tip amount to total
                         var tip_amount = order.tip_amount;
-                        console.log('Tip amount before adding:', tip_amount);
-                        console.log('Tip amount type:', typeof tip_amount);
-                        console.log('Is tip amount valid number?', intRegex.test(tip_amount) || floatRegex.test(tip_amount));
 
                         // Check if tip amount is a valid number
                         var tipAmountNum = parseFloat(tip_amount);
@@ -969,17 +953,6 @@
                                     promotionalTotal: itemTotal,
                                     savings: savings
                                 });
-
-                                console.log('💰 ===== PROMOTIONAL ITEM CALCULATION (PRINT) =====');
-                                console.log('💰 Product:', product.name);
-                                console.log('💰 Original Price:', originalPrice);
-                                console.log('💰 Promotional Price:', promotionalPrice);
-                                console.log('💰 Quantity:', quantity);
-                                console.log('💰 Original Total:', originalTotal);
-                                console.log('💰 Promotional Total:', itemTotal);
-                                console.log('💰 Savings:', savings);
-                                console.log('💰 Running Promotional Subtotal:', promotionalSubtotal);
-                                console.log('💰 Running Promotional Savings:', promotionalSavings);
                             } else {
                                 const itemTotal = originalPrice * quantity;
                                 promotionalSubtotal += itemTotal;
@@ -991,22 +964,9 @@
                                     quantity: quantity,
                                     total: itemTotal
                                 });
-
-                                console.log('💰 ===== REGULAR ITEM CALCULATION (PRINT) =====');
-                                console.log('💰 Product:', product.name);
-                                console.log('💰 Price:', originalPrice);
-                                console.log('💰 Quantity:', quantity);
-                                console.log('💰 Total:', itemTotal);
-                                console.log('💰 Running Promotional Subtotal:', promotionalSubtotal);
                             }
                         }
 
-                        console.log('💰 ===== FINAL CALCULATION SUMMARY (PRINT) =====');
-                        console.log('💰 Original Subtotal:', originalSubtotal);
-                        console.log('💰 Promotional Subtotal:', promotionalSubtotal);
-                        console.log('💰 Total Promotional Savings:', promotionalSavings);
-                        console.log('💰 Promotional Items:', promotionalItems.length);
-                        console.log('💰 Regular Items:', regularItems.length);
 
                         return {
                             promotionalSubtotal: promotionalSubtotal,

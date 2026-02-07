@@ -201,7 +201,7 @@
                     </div>
                 </div>
             </div>
-            <div class="row daes-sec-sec mb-3">
+            <div class="row daes-sec-sec mb-2">
                 <div class="col-lg-6">
                     <div class="card">
                         <div class="card-header no-border d-flex justify-content-between">
@@ -274,6 +274,7 @@
                                         <th>{{trans('lang.restaurant')}}</th>
                                         <th>{{trans('lang.total_amount')}}</th>
                                         <th>{{trans('lang.quantity')}}</th>
+                                        <th>{{trans('lang.actions')}}</th>
                                     </tr>
                                     </thead>
                                     <tbody id="append_list_recent_order">
@@ -447,7 +448,8 @@
                         dBody.innerHTML = '';
                         drivers.forEach(function (d) {
                             const img = d.photo ? `<img src="${d.photo}" style="width:50px;height:50px;object-fit:cover">` : '';
-                            const viewUrl = `{{ route('drivers') }}`;
+                            const viewUrlTemplate = `{{ route('drivers.edit', ':id') }}`;
+                            const viewUrl = viewUrlTemplate.replace(':id', d.id);
                             dBody.insertAdjacentHTML('beforeend', `<tr>
                                 <td style="text-align:center">${img}</td>
                                 <td>${d.name || ''}</td>
@@ -460,13 +462,16 @@
                         const orders = data.recent_orders || [];
                         const oBody = document.getElementById('append_list_recent_order');
                         oBody.innerHTML = '';
+                        const orderEditRouteTemplate = `{{ route('orders.edit', '__ID__') }}`;
+
                         orders.forEach(function (o) {
-                            const viewUrl = `{{ route('orders') }}`;
+                            const viewUrl = orderEditRouteTemplate.replace('__ID__', o.id);
                             oBody.insertAdjacentHTML('beforeend', `<tr>
                                 <td style="text-align:center">${o.id}</td>
                                 <td>${o.vendor_name || ''}</td>
                                 <td>${parseFloat(o.amount||0).toFixed(2)}</td>
                                 <td>${o.qty || 0}</td>
+                                <td><a href="${viewUrl}"><i class="mdi mdi-eye"></i></td>
                             </tr>`);
                         });
 

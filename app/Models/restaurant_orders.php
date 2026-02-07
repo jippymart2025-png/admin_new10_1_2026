@@ -34,6 +34,7 @@ class restaurant_orders extends Model
         $orderDir = (string) ($params['order_dir'] ?? 'desc');
         $start = (int) ($params['start'] ?? 0);
         $length = (int) ($params['length'] ?? 10);
+        $paymentType = strtolower(trim((string) ($params['payment_type'] ?? '')));
 
         $query = DB::table('restaurant_orders as ro')
             ->leftJoin('vendors as v', 'v.id', '=', 'ro.vendorID')
@@ -49,12 +50,14 @@ class restaurant_orders extends Model
                 'ro.discount',
                 'ro.deliveryCharge',
                 'ro.tip_amount',
+                'ro.payment_method',
                 'ro.specialDiscount',
                 'ro.author',
                 'ro.authorID',
                 'ro.driver',
                 'ro.driverID',
                 'ro.promotion',
+                'ro.refund_transaction_id',
                 'v.id as vendor_id',
                 'v.title as vendor_title',
                 'v.vType as vendor_type',
@@ -75,6 +78,11 @@ class restaurant_orders extends Model
         if ($driverId !== '') $query->where('ro.driverID', $driverId);
         if ($status !== '' && strtolower($status) !== 'all') $query->where('ro.status', $status);
         if ($zoneId !== '') $query->where('v.zoneId', $zoneId);
+
+        // ✅ Payment Type Filter
+        if ($paymentType !== '') {
+            $query->whereRaw('LOWER(ro.payment_method) = ?', [$paymentType]);
+        }
 
         // ✅ Order Type
         if ($orderType === 'takeaway') {

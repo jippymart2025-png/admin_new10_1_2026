@@ -15,7 +15,6 @@
             </div>
         </div>
         <div>
-            <div class="card-body">
                 <div class="error_top" style="display:none"></div>
                 <div class="success_top" style="display:none"></div>
                 <form action="{{ route('role.store') }}" method="post" id="roleForm">
@@ -273,11 +272,15 @@
                                                                class="permission">
                                                         <label class=" control-label2"
                                                                for="restaurants-view">{{ trans('lang.view') }}</label>
-                                                        <input type="checkbox" id="restaurant-delete"
-                                                               value="restaurant.delete" name="restaurant[]"
+                                                        <input type="checkbox" id="restaurants-delete"
+                                                               value="restaurants.delete" name="restaurants[]"
                                                                class="permission">
                                                         <label class=" control-label2"
-                                                               for="restaurant-delete">{{ trans('lang.delete') }}</label>
+                                                               for="restaurants-delete">{{ trans('lang.delete') }}</label>
+                                                        <input type="checkbox" id="restaurants-impersonate"
+                                                               value="restaurants.impersonate" name="restaurants[]"
+                                                               class="permission">
+                                                        <label class="control-label2" for="restaurants-impersonate">Impersonate</label>
                                                     </td>
                                                 </tr>
                                                 <tr>
@@ -367,6 +370,20 @@
                                                                name="reports[]" class="permission">
                                                         <label class="control-label2"
                                                                for="report">{{ trans('lang.create') }}</label>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>
+                                                        <strong>Settlement Reports</strong>
+                                                    </td>
+                                                    <td>
+                                                        <input type="checkbox"
+                                                               id="settlement-reports"
+                                                               value="settlement-reports"
+                                                               name="settlement-reports[]"
+                                                               class="permission">
+                                                        <label class="control-label2"
+                                                               for="settlement-reports">View</label>
                                                     </td>
                                                 </tr>
                                                 <tr>
@@ -685,6 +702,14 @@
                                                                name="orders[]" class="permission">
                                                         <label class=" control-label2"
                                                                for="orders-delete">{{ trans('lang.delete') }}</label>
+                                                        {{-- ✅ NEW: Billing Details --}}
+                                                        <input type="checkbox" id="orders-billing"
+                                                               value="orders.view-billing"
+                                                               name="orders[]"
+                                                               class="permission">
+                                                        <label class="control-label2" for="orders-billing">
+                                                            {{ trans('lang.billing_details') }}
+                                                        </label>
                                                     </td>
                                                 </tr>
                                                 <tr>
@@ -857,7 +882,7 @@
                                                 </tr>
                                                 <tr>
                                                     <td>
-                                                        <strong>{{ trans('lang.restaurants_payout_plural') }}</label>
+                                                        <strong>{{ trans('lang.restaurants_payout_plural') }}</strong>
                                                     </td>
                                                     <td>
                                                         <input type="checkbox" id="restaurant-payouts-list"
@@ -1340,7 +1365,6 @@
                             </fieldset>
                         </div>
                     </div>
-            </div>
             <div class="form-group col-12 text-center btm-btn">
                 <button type="button" class="btn btn-primary save-form-btn"><i class="fa fa-save"></i>
                     {{ trans('lang.save') }}
@@ -1348,7 +1372,6 @@
                 <a href="{{ url('role') }}" class="btn btn-default"><i class="fa fa-undo"></i>{{ trans('lang.cancel') }}</a>
             </div>
             <form>
-        </div>
         @endsection
         @section('scripts')
             <script>

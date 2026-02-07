@@ -15,6 +15,8 @@ class VerifyCsrfToken extends Middleware
         'payments/razorpay/*',
         'payments/*',
         'api/*',
-        'api/activity-logs/log'
+        'api/activity-logs/log',
+        'admin/impersonate/generate-token',
     ];
+
 }

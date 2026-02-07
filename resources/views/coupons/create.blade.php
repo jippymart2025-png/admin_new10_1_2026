@@ -34,7 +34,7 @@
                             </div>
                             <div class="form-group row width-50">
                                 <label class="col-3 control-label">{{trans('lang.coupon_discount_type')}}</label>
-                                <div class="col-7">x
+                                <div class="col-7">
                                     <select id="coupon_discount_type" class="form-control">
                                         <option value="Fix Price" selected>{{trans('lang.coupon_fixed')}}</option>
                                         <option value="Percentage">{{trans('lang.coupon_percent')}}</option>

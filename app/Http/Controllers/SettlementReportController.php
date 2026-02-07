@@ -95,6 +95,44 @@ END
 
     }
 
+    private function getWeeksForYear(int $year): array
+    {
+        $weeks = [];
+
+        // First Monday of the year
+        $date = Carbon::create($year, 1, 1)->startOfWeek(Carbon::MONDAY);
+
+        // Ensure first week belongs to this year
+        if ($date->year < $year) {
+            $date->addWeek();
+        }
+
+        $weekNumber = 1;
+
+        while ($date->year === $year) {
+            $start = $date->copy();
+            $end   = $date->copy()->endOfWeek(Carbon::SUNDAY);
+
+            $weeks[] = [
+                'label' => sprintf(
+                    '%d-W%02d (%s - %s)',
+                    $year,
+                    $weekNumber,
+                    $start->format('d M'),
+                    $end->format('d M')
+                ),
+                'week_code' => $year . '-W' . str_pad($weekNumber, 2, '0', STR_PAD_LEFT) . '-V',
+                'start_date' => $start->toDateString(),
+                'end_date' => $end->toDateString(),
+            ];
+
+            $date->addWeek();
+            $weekNumber++;
+        }
+
+        return $weeks;
+    }
+
     /**
      * Get completed order statuses
      */
@@ -187,7 +225,7 @@ END
     /**
      * Calculate settlement amount for an order with correct promotion and commission logic
      * GOLDEN RULE: Commission NEVER applies to promotional items
-     * 
+     *
      * COMMISSION PLAN RULE: If plan_name = "Commission Plan" → DO NOT deduct commission
      * Commission Plan means commission is handled elsewhere (subscription/fixed), not per-order deduction
      *
@@ -348,7 +386,11 @@ END
 
         $weeks = $query->orderBy('week_start_date', 'desc')->get();
 
-        return view('reports.merchantSettlement', compact('weeks'));
+        $year = (int) request('year', now()->year);
+        $weeks2026 = $this->getWeeksForYear($year);
+
+
+        return view('reports.merchantSettlement', compact('weeks','weeks2026'));
     }
 
     /*
@@ -672,7 +714,7 @@ END
                 $commission = 0; // No commission deduction if no plan
                 $planName = 'Commission Plan';
             }
-            
+
             // COMMISSION PLAN RULE: If plan_name = "Commission Plan" (case-insensitive) → DO NOT deduct commission
             // Handles all case variations: "Commission Plan", "COMMISSION PLAN", "commission plan", etc.
             $isCommissionPlan = !empty($planName) && strtolower(trim((string)$planName)) === 'commission plan';
@@ -998,7 +1040,7 @@ END
                 $commission = 0; // No commission deduction if no plan
                 $planName = 'Commission Plan';
             }
-            
+
             // COMMISSION PLAN RULE: If plan_name = "Commission Plan" (case-insensitive) → DO NOT deduct commission
             // Handles all case variations: "Commission Plan", "COMMISSION PLAN", "commission plan", etc.
             $isCommissionPlan = !empty($planName) && strtolower(trim((string)$planName)) === 'commission plan';
@@ -1641,7 +1683,7 @@ END
                 $commission = 0; // No commission deduction if no plan
                 $planName = 'Commission Plan';
             }
-            
+
             // COMMISSION PLAN RULE: If plan_name = "Commission Plan" (case-insensitive) → DO NOT deduct commission
             // Handles all case variations: "Commission Plan", "COMMISSION PLAN", "commission plan", etc.
             $isCommissionPlan = !empty($planName) && strtolower(trim((string)$planName)) === 'commission plan';

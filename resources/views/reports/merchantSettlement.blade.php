@@ -65,6 +65,33 @@
                 </div>
             </div>
 
+            <div class="card mt-2 p-2">
+                <div class="form-group mb-0">
+                    <label for="week_selector"><strong>Select Settlement Week ({{ request('year', now()->year) }})</strong></label>
+                    <div class="d-flex mb-2">
+                    <select id="year_selector" class="form-control mr-2 w-25">
+                        @for ($y = now()->year - 2; $y <= now()->year + 1; $y++)
+                            <option value="{{ $y }}" {{ request('year', now()->year) == $y ? 'selected' : '' }}>
+                                {{ $y }}
+                            </option>
+                        @endfor
+                    </select>
+                    <select id="week_selector" class="form-control">
+                        <option value="">-- Select Week --</option>
+
+                        @foreach($weeks2026 as $week)
+                            <option
+                                value="{{ $week['start_date'] }}|{{ $week['end_date'] }}"
+                                data-week-code="{{ $week['week_code'] }}"
+                            >
+                                {{ $week['label'] }}
+                            </option>
+                        @endforeach
+                    </select>
+                    </div>
+                </div>
+            </div>
+
             {{-- WEEK SUMMARY --}}
             <div id="week-summary" class="card mb-4" style="display: none;">
                 <div class="card-body">
@@ -184,7 +211,17 @@
                     }
                 });
             });
+            document.getElementById('week_selector').addEventListener('change', function () {
+                if (!this.value) return;
 
+                const [start, end] = this.value.split('|');
+
+                document.getElementById('start_date').value = start;
+                document.getElementById('end_date').value = end;
+
+                // Auto trigger filter
+                document.getElementById('filter-btn').click();
+            });
             console.log('All weeks:', allWeeks);
 
             // Test if date inputs are found
@@ -633,7 +670,7 @@
 
                 $('#vendors-container').html(html);
                 console.log('✓ Vendors displayed successfully');
-                
+
                 // Auto-expand all vendor cards after displaying
                 setTimeout(function() {
                     $('.vendor-card').each(function(index) {
@@ -641,7 +678,7 @@
                         const toggleBtn = vendorCard.find('.toggle-orders');
                         const ordersBox = vendorCard.find('.orders-container');
                         const formBox = vendorCard.find('.settlement-form');
-                        
+
                         // Stagger the expansion slightly to avoid overwhelming the server
                         setTimeout(function() {
                             // Only expand if not already loaded
@@ -867,7 +904,7 @@
 
                     // Get GST status from vendor card data attribute
                     const isGstAccepted = parseInt(vendorCard.data('gst') || 0) === 1;
-                    
+
                     // Get plan name from vendor card data attribute
                     // COMMISSION PLAN RULE: If plan_name = "Commission Plan" (case-insensitive) → DO NOT deduct commission
                     // Handles all case variations: "Commission Plan", "COMMISSION PLAN", "commission plan", etc.
@@ -886,7 +923,7 @@
                         // GOLDEN RULE: restaurant_orders.promotion = 1 is the source of truth
                         // If order.promotion = 1 → treat ALL items as promotional
                         const orderHasPromotion = parseInt(o.promotion || 0) === 1;
-                        
+
                         // Separate items into promotional (has_promotion = true) and non-promotional
                         let merchantPriceTotal = 0;  // Non-promotional items ONLY
                         let promotionPriceTotal = 0; // Promotional items ONLY
@@ -912,10 +949,10 @@
                                 // promotions.promo = 1 AND restaurant_orders.promotion = 1
                                 // Use the price from order JSON (frozen at order time)
                                 // Otherwise, always use merchant_price
-                                
+
                                 let isPromotional = false;
                                 let usePromoPrice = false;
-                                
+
                                 if (orderHasPromotion && item.has_promotion === true && item.promo_accepted === true) {
                                     // BOTH conditions true: promotions.promo = 1 AND order.promotion = 1
                                     // Use the price from order JSON (item.promotion_price which comes from item.price in JSON)
@@ -927,11 +964,11 @@
                                     isPromotional = false;
                                     usePromoPrice = false;
                                 }
-                                
+
                                 // MERCHANT PRICE column: ALWAYS add base merchant_price (for display)
                                 // This shows the base price from vendor_products table, regardless of whether promotion was used
                                 merchantPriceTotal += (merchantPrice * qty);
-                                
+
                                 if (isPromotional && usePromoPrice) {
                                     // Promotional item - use price from order JSON (frozen at order time)
                                     // This goes to PROMOTION PRICE column
@@ -945,7 +982,7 @@
                         // For display: MERCHANT PRICE column should ALWAYS show only merchant_price from vendor_products
                         // This is the base price, regardless of whether promotion was used or not
                         const merchantPriceDisplay = merchantPriceTotal; // Show only merchant_price (NOT merchant + promotion)
-                        
+
                         // Accumulate totals for header display
                         totalMerchantPriceAllOrders += merchantPriceTotal;
 
@@ -957,12 +994,12 @@
                         //       But for settlement, we need to separate based on promotion rules
                         let merchantBase = 0;  // For settlement: non-promotional items
                         let promotionBase = 0;  // For settlement: promotional items (promo = 1 AND order.promotion = 1)
-                        
+
                         // Recalculate bases for settlement (separate from display totals)
                         items.forEach(item => {
                             const qty = parseInt(item.quantity || 1);
                             const merchantPrice = parseFloat(item.merchant_price ?? item.price ?? 0);
-                            
+
                             if (orderHasPromotion && item.has_promotion === true && item.promo_accepted === true) {
                                 // Promotional item - use promo price for settlement
                                 const promotionPrice = parseFloat(item.promotion_price ?? item.price ?? 0);
@@ -972,7 +1009,7 @@
                                 merchantBase += (merchantPrice * qty);
                             }
                         });
-                        
+
                         const totalBase = merchantBase + promotionBase;
 
                         // ✅ GST % display
@@ -1010,7 +1047,7 @@
 
                         // STEP 3: Round final value
                         settlementAmount = Math.round(settlementAmount);
-                        
+
                         // Accumulate settlement for total
                         totalSettlementAllOrders += settlementAmount;
 
@@ -1037,13 +1074,13 @@
                             promotionPriceDisplay = `₹${merchantPriceDisplay.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
                             promotionPriceCellClass = 'style="background-color: #ffebee;"'; // Light red background
                         }
-                        
+
                         // TOTAL PRICE = Sum of what's displayed in PROMOTION PRICE column
                         // This matches what's shown in the PROMOTION PRICE column for each order
                         // If promotional (hasAnyPromotion && promotionPriceTotal > 0): use promotionPriceTotal
                         // Else: use merchantPriceDisplay (merchant_price)
-                        const promotionPriceColumnValue = (hasAnyPromotion && promotionPriceTotal > 0) 
-                            ? promotionPriceTotal 
+                        const promotionPriceColumnValue = (hasAnyPromotion && promotionPriceTotal > 0)
+                            ? promotionPriceTotal
                             : merchantPriceDisplay;
                         totalPriceAllOrders += promotionPriceColumnValue;
 
@@ -1084,41 +1121,41 @@
                     if (promotionPriceHeader.length) {
                         promotionPriceHeader.text(`₹${totalPromotionPriceAllOrders.toLocaleString('en-IN', {minimumFractionDigits: 2})}`);
                     }
-                    
+
                     // Update header with total price (merchant + promotion) from all orders
                     const totalPriceHeader = vendorCard.find('.text-info:has(small:contains("TOTAL PRICE")) h5');
                     if (totalPriceHeader.length) {
                         totalPriceHeader.text(`₹${totalPriceAllOrders.toLocaleString('en-IN', {minimumFractionDigits: 2})}`);
                     }
-                    
+
                     // Update header with total settlement (sum of all individual order settlements)
                     // This ensures the total matches the sum of individual rows
                     const settlementHeader = vendorCard.find('.text-success:has(small:contains("SETTLEMENT")) h5');
                     if (settlementHeader.length) {
                         settlementHeader.text(`₹${totalSettlementAllOrders.toLocaleString('en-IN', {minimumFractionDigits: 2})}`);
                     }
-                    
+
                     // Update global "To Settle" header (sum of all vendors' settlements)
                     // Get current total from header, subtract old vendor total, add new vendor total
                     const currentToSettleText = $('#summary-settlement').text().replace(/[₹,]/g, '');
                     const currentToSettle = parseFloat(currentToSettleText) || 0;
-                    
+
                     // Get old vendor settlement from vendor card (if exists)
                     const oldVendorSettlementText = vendorCard.data('vendor-settlement-total') || '0';
                     const oldVendorSettlement = parseFloat(oldVendorSettlementText) || 0;
-                    
+
                     // Calculate new total: current - old + new
                     const newToSettle = currentToSettle - oldVendorSettlement + totalSettlementAllOrders;
-                    
+
                     // Update "To Settle" header
                     $('#summary-settlement').text(newToSettle.toLocaleString('en-IN', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
                     }));
-                    
+
                     // Store vendor settlement total for future updates
                     vendorCard.data('vendor-settlement-total', totalSettlementAllOrders);
-                    
+
                     ordersBox.html(html).addClass('loaded').slideDown();
                     formBox.slideDown();
                     btn.html('<i class="mdi mdi-chevron-up"></i>');
@@ -1226,11 +1263,11 @@
 
                 // Get amounts from the card
                 const merchantPriceText = vendorCard.find('.mr-3:has(small:contains("MERCHANT PRICE")) h5').text().replace(/[₹,]/g, '');
-                
+
                 // Get settlement amount - prefer the calculated sum from orders if available
                 // Check if orders have been loaded and settlement has been recalculated
                 let settlementText = vendorCard.find('.text-success:has(small:contains("SETTLEMENT")) h5').text().replace(/[₹,]/g, '');
-                
+
                 // If orders are loaded, recalculate settlement from individual order rows
                 const ordersTable = vendorCard.find('.orders-container table tbody');
                 if (ordersTable.length && ordersTable.find('tr').length > 0) {
@@ -1244,7 +1281,7 @@
                     });
                     settlementText = recalculatedSettlement.toFixed(2);
                 }
-                
+
                 const profitText = vendorCard.find('.text-info:has(small:contains("JIPPY PROFIT")) h5').text().replace(/[₹,]/g, '');
 
                 const totalMerchantPrice = parseFloat(merchantPriceText) || 0;
@@ -1362,7 +1399,7 @@
                     const vendorCard = $(this);
                     const statusBadge = vendorCard.find('.badge-warning, .badge-success').first();
                     const statusText = statusBadge.text().trim();
-                    
+
                     if (statusText === 'Pending') {
                         hasPendingVendors = true;
                         return false; // Break loop
@@ -1510,6 +1547,10 @@
 
             // Trigger filter form submit to reload data with status filter
             $('#filter-form').submit();
+        });
+        document.getElementById('year_selector').addEventListener('change', function () {
+            const year = this.value;
+            window.location.href = `?year=${year}`;
         });
     </script>
 @endsection

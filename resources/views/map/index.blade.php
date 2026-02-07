@@ -3,7 +3,7 @@
 <div class="page-wrapper">
     <div class="row page-titles">
         <div class="col-md-5 align-self-center">
-            <h3 class="text-themecolor">{{trans('lang.live_tracking')}}</h3>
+            <h3 class="text-themecolor">{{trans('lang.live_tracking')}} - Driver</h3>
         </div>
         <div class="col-md-7 align-self-center">
             <ol class="breadcrumb">
@@ -28,7 +28,7 @@
                         </div>
                     </div>
                     <div class="col-lg-8">
-                        <div id="map" style="height:450px"></div>
+                        <div id="map" style="height:600px"></div>
                         <div id="legend">
                             <h3>{{trans('lang.legend')}}</h3>
                         </div>
@@ -60,9 +60,6 @@
     @section('scripts')
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script type="text/javascript">
-        // ✅ SQL API VERSION - No Firebase!
-        console.log('✅ Live Tracking using SQL API');
-
         var map;
         var marker;
         var markers = [];

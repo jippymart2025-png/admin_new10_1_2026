@@ -479,7 +479,6 @@
         }
     </style>
     <?php } ?>
-
 </head>
 <body>
 
@@ -2463,6 +2462,7 @@
 
 {{--    })(); // IIFE end--}}
 {{--</script>--}}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="text/javascript">
     /*
        Real-time MySQL Order Listener
@@ -2662,153 +2662,151 @@
 
     })();
 </script>
-
 @yield('scripts')
 <!-- Auto-login script for Admin Impersonation -->
-<script>
-    // Auto-login function for Admin Impersonation
-    function initializeImpersonationAutoLogin() {
-        console.log('🔍 Auto-login script started');
+{{--<script>--}}
+{{--    // Auto-login function for Admin Impersonation--}}
+{{--    function initializeImpersonationAutoLogin() {--}}
+{{--        console.log('🔍 Auto-login script started');--}}
 
-        // Check URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const impersonationToken = urlParams.get('impersonation_token');
-        const restaurantUid = urlParams.get('restaurant_uid');
-        const autoLogin = urlParams.get('auto_login');
+{{--        // Check URL parameters--}}
+{{--        const urlParams = new URLSearchParams(window.location.search);--}}
+{{--        const impersonationToken = urlParams.get('impersonation_token');--}}
+{{--        const restaurantUid = urlParams.get('restaurant_uid');--}}
+{{--        const autoLogin = urlParams.get('auto_login');--}}
 
-        console.log('🔍 Parameters:', {
-            token: !!impersonationToken,
-            uid: !!restaurantUid,
-            autoLogin: autoLogin
-        });
+{{--        console.log('🔍 Parameters:', {--}}
+{{--            token: !!impersonationToken,--}}
+{{--            uid: !!restaurantUid,--}}
+{{--            autoLogin: autoLogin--}}
+{{--        });--}}
 
-        // Only proceed if we have all required parameters
-        if (impersonationToken && restaurantUid && autoLogin === 'true') {
-            console.log('🔐 Starting auto-login process...');
+{{--        // Only proceed if we have all required parameters--}}
+{{--        if (impersonationToken && restaurantUid && autoLogin === 'true') {--}}
+{{--            console.log('🔐 Starting auto-login process...');--}}
 
-            // Show loading immediately
-            showImpersonationLoading();
+{{--            // Show loading immediately--}}
+{{--            showImpersonationLoading();--}}
 
-            // Wait for Firebase to be ready
-            setTimeout(function() {
-                if (typeof firebase !== 'undefined' && firebase.auth) {
-                    startImpersonationAutoLogin();
-                } else {
-                    console.error('❌ Firebase not available');
-                    showImpersonationError('Firebase not loaded. Please refresh the page.');
-                }
-            }, 2000); // Wait for Firebase to be ready
-        } else {
-            console.log('ℹ️ No impersonation parameters, showing normal page');
-        }
+{{--            // Wait for Firebase to be ready--}}
+{{--            setTimeout(function() {--}}
+{{--                if (typeof firebase !== 'undefined' && firebase.auth) {--}}
+{{--                    startImpersonationAutoLogin();--}}
+{{--                } else {--}}
+{{--                    console.error('❌ Firebase not available');--}}
+{{--                    showImpersonationError('Firebase not loaded. Please refresh the page.');--}}
+{{--                }--}}
+{{--            }, 2000); // Wait for Firebase to be ready--}}
+{{--        } else {--}}
+{{--            console.log('ℹ️ No impersonation parameters, showing normal page');--}}
+{{--        }--}}
 
-        function startImpersonationAutoLogin() {
-            console.log('🚀 Starting auto-login...');
+{{--        function startImpersonationAutoLogin() {--}}
+{{--            console.log('🚀 Starting auto-login...');--}}
 
-            const auth = firebase.auth();
+{{--            const auth = firebase.auth();--}}
 
-            // Sign in with custom token
-            auth.signInWithCustomToken(impersonationToken)
-                .then(function(userCredential) {
-                    console.log('✅ Login successful!');
-                    console.log('User UID:', userCredential.user.uid);
-                    console.log('Expected UID:', restaurantUid);
+{{--            // Sign in with custom token--}}
+{{--            auth.signInWithCustomToken(impersonationToken)--}}
+{{--                .then(function(userCredential) {--}}
+{{--                    console.log('✅ Login successful!');--}}
+{{--                    console.log('User UID:', userCredential.user.uid);--}}
+{{--                    console.log('Expected UID:', restaurantUid);--}}
 
-                    // Verify UID matches
-                    if (userCredential.user.uid !== restaurantUid) {
-                        throw new Error('UID mismatch - security violation');
-                    }
+{{--                    // Verify UID matches--}}
+{{--                    if (userCredential.user.uid !== restaurantUid) {--}}
+{{--                        throw new Error('UID mismatch - security violation');--}}
+{{--                    }--}}
 
-                    // Store impersonation info
-                    localStorage.setItem('restaurant_impersonation', JSON.stringify({
-                        isImpersonated: true,
-                        restaurantUid: restaurantUid,
-                        impersonatedAt: new Date().toISOString()
-                    }));
+{{--                    // Store impersonation info--}}
+{{--                    localStorage.setItem('restaurant_impersonation', JSON.stringify({--}}
+{{--                        isImpersonated: true,--}}
+{{--                        restaurantUid: restaurantUid,--}}
+{{--                        impersonatedAt: new Date().toISOString()--}}
+{{--                    }));--}}
 
-                    console.log('🔄 Impersonation successful, cleaning URL...');
+{{--                    console.log('🔄 Impersonation successful, cleaning URL...');--}}
 
-                    // Clean URL and show success
-                    setTimeout(function() {
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                        showImpersonationSuccess();
-                    }, 1000);
-                })
-                .catch(function(error) {
-                    console.error('❌ Login failed:', error);
-                    showImpersonationError('Auto-login failed: ' + error.message);
+{{--                    // Clean URL and show success--}}
+{{--                    setTimeout(function() {--}}
+{{--                        window.history.replaceState({}, document.title, window.location.pathname);--}}
+{{--                        showImpersonationSuccess();--}}
+{{--                    }, 1000);--}}
+{{--                })--}}
+{{--                .catch(function(error) {--}}
+{{--                    console.error('❌ Login failed:', error);--}}
+{{--                    showImpersonationError('Auto-login failed: ' + error.message);--}}
 
-                    // Clean URL
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                });
-        }
+{{--                    // Clean URL--}}
+{{--                    window.history.replaceState({}, document.title, window.location.pathname);--}}
+{{--                });--}}
+{{--        }--}}
 
-        function showImpersonationLoading() {
-            const loading = document.createElement('div');
-            loading.id = 'impersonation-loading';
-            loading.innerHTML = `
-                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; justify-content: center; align-items: center;">
-                    <div style="background: white; padding: 30px; border-radius: 10px; text-align: center; max-width: 400px;">
-                        <div style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
-                        <h3>🔐 Admin Impersonation</h3>
-                        <p>Logging you in as restaurant owner...</p>
-                        <p style="font-size: 12px; color: #666;">Please wait while we authenticate you.</p>
-                    </div>
-                </div>
-                <style>
-                    @keyframes spin {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(360deg); }
-                    }
-                </style>
-            `;
-            document.body.appendChild(loading);
-        }
+{{--        function showImpersonationLoading() {--}}
+{{--            const loading = document.createElement('div');--}}
+{{--            loading.id = 'impersonation-loading';--}}
+{{--            loading.innerHTML = `--}}
+{{--                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; justify-content: center; align-items: center;">--}}
+{{--                    <div style="background: white; padding: 30px; border-radius: 10px; text-align: center; max-width: 400px;">--}}
+{{--                        <div style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>--}}
+{{--                        <h3>🔐 Admin Impersonation</h3>--}}
+{{--                        <p>Logging you in as restaurant owner...</p>--}}
+{{--                        <p style="font-size: 12px; color: #666;">Please wait while we authenticate you.</p>--}}
+{{--                    </div>--}}
+{{--                </div>--}}
+{{--                <style>--}}
+{{--                    @keyframes spin {--}}
+{{--                        0% { transform: rotate(0deg); }--}}
+{{--                        100% { transform: rotate(360deg); }--}}
+{{--                    }--}}
+{{--                </style>--}}
+{{--            `;--}}
+{{--            document.body.appendChild(loading);--}}
+{{--        }--}}
 
-        function showImpersonationSuccess() {
-            // Remove loading first
-            const loading = document.getElementById('impersonation-loading');
-            if (loading) {
-                loading.remove();
-            }
+{{--        function showImpersonationSuccess() {--}}
+{{--            // Remove loading first--}}
+{{--            const loading = document.getElementById('impersonation-loading');--}}
+{{--            if (loading) {--}}
+{{--                loading.remove();--}}
+{{--            }--}}
 
-            const success = document.createElement('div');
-            success.innerHTML = `
-                <div style="position: fixed; top: 20px; right: 20px; background: #d4edda; color: #155724; padding: 15px; border-radius: 5px; z-index: 9999; max-width: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    <strong>✅ Impersonation Successful!</strong><br>
-                    You are now logged in as the restaurant owner.
-                    <button onclick="this.parentElement.parentElement.remove()" style="float: right; background: none; border: none; font-size: 18px; cursor: pointer; margin-left: 10px;">&times;</button>
-                </div>
-            `;
-            document.body.appendChild(success);
+{{--            const success = document.createElement('div');--}}
+{{--            success.innerHTML = `--}}
+{{--                <div style="position: fixed; top: 20px; right: 20px; background: #d4edda; color: #155724; padding: 15px; border-radius: 5px; z-index: 9999; max-width: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">--}}
+{{--                    <strong>✅ Impersonation Successful!</strong><br>--}}
+{{--                    You are now logged in as the restaurant owner.--}}
+{{--                    <button onclick="this.parentElement.parentElement.remove()" style="float: right; background: none; border: none; font-size: 18px; cursor: pointer; margin-left: 10px;">&times;</button>--}}
+{{--                </div>--}}
+{{--            `;--}}
+{{--            document.body.appendChild(success);--}}
 
-            // Auto-remove after 5 seconds
-            setTimeout(() => {
-                if (success.parentNode) {
-                    success.remove();
-                }
-            }, 5000);
-        }
+{{--            // Auto-remove after 5 seconds--}}
+{{--            setTimeout(() => {--}}
+{{--                if (success.parentNode) {--}}
+{{--                    success.remove();--}}
+{{--                }--}}
+{{--            }, 5000);--}}
+{{--        }--}}
 
-        function showImpersonationError(message) {
-            // Remove loading first
-            const loading = document.getElementById('impersonation-loading');
-            if (loading) {
-                loading.remove();
-            }
+{{--        function showImpersonationError(message) {--}}
+{{--            // Remove loading first--}}
+{{--            const loading = document.getElementById('impersonation-loading');--}}
+{{--            if (loading) {--}}
+{{--                loading.remove();--}}
+{{--            }--}}
 
-            const error = document.createElement('div');
-            error.innerHTML = `
-                <div style="position: fixed; top: 20px; right: 20px; background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; z-index: 9999; max-width: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    <strong>❌ Auto-login Failed:</strong><br>
-                    ${message}
-                    <button onclick="this.parentElement.parentElement.remove()" style="float: right; background: none; border: none; font-size: 18px; cursor: pointer; margin-left: 10px;">&times;</button>
-                </div>
-            `;
-            document.body.appendChild(error);
-        }
-    }
-</script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{{--            const error = document.createElement('div');--}}
+{{--            error.innerHTML = `--}}
+{{--                <div style="position: fixed; top: 20px; right: 20px; background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; z-index: 9999; max-width: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">--}}
+{{--                    <strong>❌ Auto-login Failed:</strong><br>--}}
+{{--                    ${message}--}}
+{{--                    <button onclick="this.parentElement.parentElement.remove()" style="float: right; background: none; border: none; font-size: 18px; cursor: pointer; margin-left: 10px;">&times;</button>--}}
+{{--                </div>--}}
+{{--            `;--}}
+{{--            document.body.appendChild(error);--}}
+{{--        }--}}
+{{--    }--}}
+{{--</script>--}}
 </body>
 </html>

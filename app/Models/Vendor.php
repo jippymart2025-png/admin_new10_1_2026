@@ -64,4 +64,11 @@ class Vendor extends Model
     {
         return $this->hasMany(AppUser::class, 'vendorID', 'id');
     }
+
+    public function drivers()
+    {
+        return User::where('role', 'driver')
+            ->whereColumn('users.zoneId', 'vendors.zoneId');
+    }
+
 }

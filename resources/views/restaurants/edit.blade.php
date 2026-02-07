@@ -73,7 +73,7 @@
                                                 <!-- options populated dynamically -->
                                             </select>
                                             <div class="form-text text-muted">
-                                                {{ trans("lang.restaurant_cuisines_help") }} (Hold Ctrl/Cmd to select multiple)
+                                                'Please select the vendor category' (Hold Ctrl/Cmd to select multiple)
                                             </div>
                                         </div>
                                     </div>
@@ -1021,7 +1021,7 @@
 
         function populateCategorySelect(categories) {
             const $select = $('#restaurant_cuisines');
-            $select.empty().append('<option value="">Select Cuisines</option>');
+            $select.empty().append('<option value="">Select Categories</option>');
             categories.forEach(category => {
                 $select.append($('<option></option>').attr('value', category.id).text(category.title));
             });
@@ -1056,7 +1056,9 @@
             // Store vType from loaded data
             currentVType = restaurant.vType || 'restaurant';
 
-            if (restaurant.vendorCuisineID) {
+            if (Array.isArray(restaurant.vendorCuisineID)) {
+                $('#restaurant_vendor_cuisines').val(restaurant.vendorCuisineID).trigger('change');
+            } else if (restaurant.vendorCuisineID) {
                 $('#restaurant_vendor_cuisines').val(restaurant.vendorCuisineID).trigger('change');
             }
 
@@ -1405,7 +1407,7 @@
                 errors.push('Please select the vendor cuisine.');
             }
             if (!categoryIDs.length || (categoryIDs.length === 1 && categoryIDs[0] === '')) {
-                errors.push("{{ trans('lang.restaurant_cuisine_error') }}");
+                errors.push('Please select the vendor category.');
             }
             if (!phonenumber) {
                 errors.push("{{ trans('lang.restaurant_phone_error') }}");

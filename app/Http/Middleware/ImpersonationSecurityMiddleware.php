@@ -25,6 +25,16 @@ class ImpersonationSecurityMiddleware
      */
     public function handle(Request $request, Closure $next)
     {
+        // ✅ RESET rate limit if this is a valid impersonation request
+        if ($request->routeIs('restaurants.impersonate')) {
+            $adminId = auth()->id();
+            $ip = $request->ip();
+
+            Cache::forget("impersonation_admin_{$adminId}");
+            Cache::forget("impersonation_ip_{$ip}");
+            Cache::forget("impersonation_global");
+        }
+
         // Rate limiting for impersonation requests
         $this->applyRateLimit($request);
 
@@ -47,7 +57,7 @@ class ImpersonationSecurityMiddleware
 
         // Multiple rate limit keys for comprehensive protection
         $rateLimits = [
-            "impersonation_admin_{$adminId}" => ['max' => 100, 'window' => 3600], // 10/hour per admin
+            "impersonation_admin_{$adminId}" => ['max' => 10, 'window' => 3600], // 10/hour per admin
             "impersonation_ip_{$ip}" => ['max' => 20, 'window' => 3600],        // 20/hour per IP
             "impersonation_global" => ['max' => 100, 'window' => 3600]          // 100/hour global
         ];
@@ -82,7 +92,7 @@ class ImpersonationSecurityMiddleware
     private function validateRequestOrigin(Request $request)
     {
         $allowedOrigins = [
-            'admin.jippymart.in',
+            'web.jippymart.in',
             'localhost', // For development
             '127.0.0.1'  // For development
         ];

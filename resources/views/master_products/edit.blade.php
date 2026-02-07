@@ -170,19 +170,101 @@
                                     </div>
                                     <div class="form-text text-muted">If unchecked, item will be considered as Veg</div>
                                 </fieldset>
+                            </div>
+                        </div>
 
-                                <div class="form-group row mt-4">
-                                    <div class="col-md-12 text-center">
-                                        <button type="submit" class="btn btn-primary btn-lg">
-                                            <i class="mdi mdi-content-save"></i> Update Master Product
-                                        </button>
-                                        <a href="{{ route('master-products.index') }}" class="btn btn-secondary btn-lg">
-                                            Back
-                                        </a>
+                        <!-- Options Configuration -->
+                        <fieldset>
+                            <legend>Options Configuration</legend>
+
+                            <div class="form-check width-100">
+                                <input type="checkbox" class="has_options" id="has_options" name="has_options" value="1" {{ old('has_options', $product->has_options) ? 'checked' : '' }}>
+                                <label class="col-3 control-label" for="has_options">
+                                    <strong>Enable Options for this item</strong>
+                                </label>
+                                <div class="form-text text-muted">
+                                    Enable this to create different variants/sizes for this item
+                                </div>
+                            </div>
+
+                            <div id="options_config" style="display:none;">
+                                <div class="alert alert-info">
+                                    <i class="mdi mdi-information-outline"></i>
+                                    <strong>Options will be stored as part of this item.</strong>
+                                    Each option can have its own price, image, and specifications.
+                                </div>
+                            </div>
+                        </fieldset>
+                        <fieldset id="options_fieldset" style="display:none;">
+                            <legend>Product Options</legend>
+
+                            <div class="options-list"></div>
+
+                            <div class="text-center mt-3">
+                                <button type="button" class="btn btn-primary" onclick="addNewOption()">
+                                    <i class="mdi mdi-plus"></i> Add Option
+                                </button>
+                            </div>
+                        </fieldset>
+                        <!-- Options Management -->
+                        <div id="option_template" style="display:none;">
+                            <div class="option-item border rounded p-3 mb-3" data-option-id="">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="mb-0">Option <span class="option-number"></span></h6>
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeOption(this)">
+                                        <i class="mdi mdi-delete"></i>
+                                    </button>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label>Option Title</label>
+                                        <input type="text" class="form-control option-title" placeholder="e.g. Family Pack">
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label>Option Subtitle</label>
+                                        <input type="text" class="form-control option-subtitle" placeholder="e.g. Serves 3–4">
+                                    </div>
+                                </div>
+
+                                <div class="row mt-2">
+                                    <div class="col-md-4">
+                                        <label>Price (₹)</label>
+                                        <input type="number" class="form-control option-price" min="0">
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label>Original Price (₹)</label>
+                                        <input type="number" class="form-control option-original-price" min="0">
+                                    </div>
+
+                                    <div class="col-md-4 d-flex align-items-center mt-4">
+                                        <div class="form-check mr-3">
+                                            <input type="checkbox" class="form-check-input option-available" checked>
+                                            <label class="form-check-label">Available</label>
+                                        </div>
+
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input option-featured">
+                                            <label class="form-check-label">Featured</label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        <div class="form-group row mt-4">
+                            <div class="col-md-12 text-center">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="mdi mdi-content-save"></i> Update Master Product
+                                </button>
+                                <a href="{{ route('master-products.index') }}" class="btn btn-secondary btn-lg">
+                                    Back
+                                </a>
+                            </div>
+                        </div>
+                        <!-- Hidden input for options data -->
+                        <input type="hidden" name="options_data" id="options_data" value="">
                     </form>
                 </div>
             </div>
@@ -191,109 +273,124 @@
 @endsection
 
 @section('scripts')
-<script>
-    $(document).ready(function() {
-        // Initialize category search
-        initCategorySearch();
+    <script>
+        /* =========================
+           STATE
+        ========================= */
+        let optionsList = @json($options ?? []);
+        let optionCounter = 0;
 
-        // Category selector change handler - AJAX call
-        $('#category_selector').on('change', function() {
-            var categoryId = $(this).val();
-            var categoryTitle = $(this).find('option:selected').text();
-            
-            if (categoryId && categoryId !== '') {
-                // Show loading state
-                $('#category_selector_display').html('<div class="text-center py-3"><i class="fa fa-spinner fa-spin"></i> Loading category...</div>');
-                
-                // Make AJAX call to verify category and get details
-                $.ajax({
-                    url: '{{ route("master-products.create") }}',
-                    type: 'GET',
-                    data: {
-                        category_id: categoryId,
-                        ajax: true
-                    },
-                    dataType: 'json',
-                    success: function(response) {
-                        // Update hidden field
-                        $('#form_category_id').val(categoryId);
-                        $('#selected_category_id').val(categoryId);
-                        
-                        // Use category title from response or fallback to select option
-                        var displayTitle = (response.category && response.category.title) 
-                            ? response.category.title 
-                            : categoryTitle;
-                        
-                        $('#selected_category_title').text(displayTitle);
-                        
-                        // Show selected category display and hide selector
-                        $('#selected_category_display').slideDown();
-                        $('#category_selector_display').hide();
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Error loading category:', error);
-                        
-                        // Even on error, use the selected option's title
-                        $('#form_category_id').val(categoryId);
-                        $('#selected_category_id').val(categoryId);
-                        $('#selected_category_title').text(categoryTitle);
-                        
-                        // Show selected category display and hide selector
-                        $('#selected_category_display').slideDown();
-                        $('#category_selector_display').hide();
-                    }
-                });
-            } else {
-                // Show selector if no category selected
-                $('#selected_category_display').slideUp();
-                $('#category_selector_display').show();
-                $('#form_category_id').val('');
-                $('#selected_category_id').val('');
+        /* =========================
+           TOGGLE
+        ========================= */
+        $(document).ready(function () {
+
+            function toggleOptions() {
+                if ($('#has_options').is(':checked')) {
+                    $('#options_config').show();
+                    $('#options_fieldset').show();
+                } else {
+                    $('#options_config').hide();
+                    $('#options_fieldset').hide();
+                }
+            }
+
+            toggleOptions();
+            $('#has_options').on('change', toggleOptions);
+
+            if (optionsList.length > 0) {
+                $('#has_options').prop('checked', true);
+                toggleOptions();
+                renderExistingOptions();
             }
         });
 
-        // Remove/Change category button handler
-        $('#remove_category_btn').on('click', function() {
-            // Show selector to change category
-            $('#selected_category_display').slideUp();
-            $('#category_selector_display').slideDown();
-        });
+        /* =========================
+           RENDER EXISTING
+        ========================= */
+        function renderExistingOptions() {
+            $('.options-list').html('');
+            optionCounter = 0;
 
-        // Initialize category search function
-        function initCategorySearch() {
-            $('#category_search').on('keyup', function() {
-                var search = $(this).val().toLowerCase();
-                $('#category_selector option').each(function() {
-                    if ($(this).val() === "") {
-                        $(this).show();
-                        return;
-                    }
-                    var text = $(this).text().toLowerCase();
-                    if (text.indexOf(search) > -1) {
-                        $(this).show();
-                    } else {
-                        $(this).hide();
-                    }
-                });
+            optionsList.forEach(option => {
+                optionCounter++;
+
+                const tpl = $('#option_template .option-item').clone();
+                tpl.attr('data-option-id', option.id);
+                tpl.find('.option-number').text(optionCounter);
+
+                tpl.find('.option-title').val(option.title || '');
+                tpl.find('.option-subtitle').val(option.subtitle || '');
+                tpl.find('.option-price').val(option.price || 0);
+                tpl.find('.option-original-price').val(option.original_price || 0);
+                tpl.find('.option-available').prop('checked', option.is_available);
+                tpl.find('.option-featured').prop('checked', option.is_featured);
+
+                $('.options-list').append(tpl.show());
+                bindOptionEvents(option.id);
             });
         }
 
-        // Form validation
-        $('#master_product_form').on('submit', function(e) {
-            var categoryId = $('#form_category_id').val();
-            if (!categoryId) {
-                e.preventDefault();
-                alert('Please select a category first');
-                return false;
-            }
-        });
+        /* =========================
+           ADD / REMOVE
+        ========================= */
+        function addNewOption() {
+            optionCounter++;
+            const id = 'opt_' + Date.now();
 
-        // Handle non-veg checkbox - ensure veg is set when unchecked
-        $('#nonveg').on('change', function() {
-            // If non-veg is unchecked, the form will submit nonveg=0 (veg)
-            // If checked, nonveg=1 (non-veg)
+            const tpl = $('#option_template .option-item').clone();
+            tpl.attr('data-option-id', id);
+            tpl.find('.option-number').text(optionCounter);
+
+            $('.options-list').append(tpl.show());
+
+            optionsList.push({
+                id,
+                title: '',
+                subtitle: '',
+                price: 0,
+                original_price: 0,
+                is_available: true,
+                is_featured: false
+            });
+
+            bindOptionEvents(id);
+        }
+
+        function removeOption(btn) {
+            const box = $(btn).closest('.option-item');
+            const id = box.data('option-id');
+            optionsList = optionsList.filter(o => o.id !== id);
+            box.remove();
+        }
+
+        /* =========================
+           EVENTS
+        ========================= */
+        function bindOptionEvents(id) {
+            const el = $(`[data-option-id="${id}"]`);
+            const idx = optionsList.findIndex(o => o.id === id);
+
+            el.find('.option-title').on('input', e => optionsList[idx].title = e.target.value);
+            el.find('.option-subtitle').on('input', e => optionsList[idx].subtitle = e.target.value);
+            el.find('.option-price').on('input', e => optionsList[idx].price = parseFloat(e.target.value) || 0);
+            el.find('.option-original-price').on('input', e => optionsList[idx].original_price = parseFloat(e.target.value) || 0);
+            el.find('.option-available').on('change', e => optionsList[idx].is_available = e.target.checked);
+
+            el.find('.option-featured').on('change', function () {
+                if (this.checked) {
+                    $('.option-featured').not(this).prop('checked', false);
+                    optionsList.forEach(o => o.is_featured = false);
+                    optionsList[idx].is_featured = true;
+                }
+            });
+        }
+        /* =====================================
+         SUBMIT SERIALIZATION
+      ===================================== */
+        $('#master_product_form').on('submit', function () {
+            $('#options_data').val(JSON.stringify(optionsList));
         });
-    });
-</script>
+    </script>
+
 @endsection
-

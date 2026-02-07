@@ -20,14 +20,29 @@
         @endif
         @if(in_array('god-eye', $role_has_permission))
             <li>
-                <a class="waves-effect waves-dark" href="{!! url('map') !!}" aria-expanded="false">
+                <a class="has-arrow waves-effect waves-dark" href="#" aria-expanded="false">
                     <i class="mdi mdi-home-map-marker"></i>
-                    <span class="hide-menu">{{trans('lang.god_eye')}}</span>
+                    <span class="hide-menu">{{ trans('lang.god_eye') }}</span>
                 </a>
+                <ul aria-expanded="false" class="collapse">
+                    {{-- Driver Tracking (existing map) --}}
+                    <li>
+                        <a href="{!! url('map') !!}">
+                            {{ trans('lang.driver_tracking') }}
+                        </a>
+                    </li>
+
+                    {{-- Restaurant Tracking (new map) --}}
+                    <li>
+                        <a href="{!! url('restaurant-map') !!}">
+                            {{ trans('lang.restaurant_tracking') }}
+                        </a>
+                    </li>
+                </ul>
             </li>
         @endif
         @if(in_array('zone', $role_has_permission) || in_array('zone-bonus-settings', $role_has_permission))
-            <li class="nav-subtitle"><span class="nav-subtitle-span">{{trans('lang.zone_management')}}</span></li>
+            <li class="nav-subtitle"><span class="nav-subtitle-span">zone management</span></li>
         @endif
         @if(in_array('zone', $role_has_permission) || in_array('zone-bonus-settings', $role_has_permission))
             <li>
@@ -156,26 +171,40 @@
                 </ul>
             </li>
         @endif
-        @if(in_array('reports', $role_has_permission))
-            <li class="nav-subtitle"><span class="nav-subtitle-span">{{trans('lang.report_and_analytics')}}</span></li>
-            <li><a class="has-arrow waves-effect waves-dark" href="#" aria-expanded="false">
-                    <i class="mdi mdi-calendar-check"></i>
-                    <span class="hide-menu">{{trans('lang.report_plural')}}</span>
-                </a>
-                <ul aria-expanded="false" class="collapse">
-                    <li><a href="{!! url('/report/sales') !!}">{{trans('lang.reports_sale')}}</a></li>
-                    <li><a href="{!! url('/reports/user/data') !!}">User Order Reports</a></li>
-                </ul>
-            <li><a class="has-arrow waves-effect waves-dark" href="#" aria-expanded="false">
-                    <i class="mdi mdi-calendar-check"></i>
-                    <span class="hide-menu">Settlement Reports</span>
-                </a>
-                <ul aria-expanded="false" class="collapse">
-                    <li><a href="{!! url('/settlements') !!}">MerchantSettlement Sheet</a></li>
-                    <li><a href="{!! url('/driverSettlements') !!}">DriverSettlement Sheet</a></li>
-                </ul>
+        @if(in_array('reports', $role_has_permission) || in_array('settlement-reports', $role_has_permission))
+            <li class="nav-subtitle">
+                <span class="nav-subtitle-span">{{ trans('lang.report_and_analytics') }}</span>
             </li>
+
+            {{-- Reports --}}
+            @if(in_array('reports', $role_has_permission))
+                <li>
+                    <a class="has-arrow waves-effect waves-dark" href="#">
+                        <i class="mdi mdi-calendar-check"></i>
+                        <span class="hide-menu">{{ trans('lang.report_plural') }}</span>
+                    </a>
+                    <ul class="collapse">
+                        <li><a href="{{ url('/report/sales') }}">{{ trans('lang.reports_sale') }}</a></li>
+                        <li><a href="{{ url('/reports/user/data') }}">User Order Reports</a></li>
+                    </ul>
+                </li>
+            @endif
+
+            {{-- Settlement Reports --}}
+            @if(in_array('settlement-reports', $role_has_permission))
+                <li>
+                    <a class="has-arrow waves-effect waves-dark" href="#">
+                        <i class="mdi mdi-bank"></i>
+                        <span class="hide-menu">Settlement Reports</span>
+                    </a>
+                    <ul class="collapse">
+                        <li><a href="{{ url('/settlements') }}">Merchant Settlement</a></li>
+                        <li><a href="{{ url('/driverSettlements') }}">Driver Settlement</a></li>
+                    </ul>
+                </li>
+            @endif
         @endif
+
         @if(in_array('category', $role_has_permission) || in_array('foods', $role_has_permission) || in_array('item-attribute', $role_has_permission) || in_array('review-attribute', $role_has_permission) || in_array('cuisines', $role_has_permission) || in_array('menu-periods', $role_has_permission) || $user->role_id == 1)
             <li class="nav-subtitle"><span class="nav-subtitle-span">{{trans('lang.menu_and_food_management')}}</span>
             </li>
@@ -265,6 +294,7 @@
                 </a>
             </li>
         @endif
+        @if(in_array('subscription-plans', $role_has_permission))
         <li class="nav-subtitle"><span class="nav-subtitle-span">{{trans('lang.business_setup')}}</span></li>
         <li><a class="has-arrow waves-effect waves-dark" href="#" aria-expanded="false">
                 <i class="mdi mdi-credit-card"></i>
@@ -277,7 +307,8 @@
                 </li>
             </ul>
         </li>
-        @if(in_array('orders', $role_has_permission) || in_array('gift-cards', $role_has_permission) || in_array('coupons', $role_has_permission) || in_array('documents', $role_has_permission) || in_array('catering', $role_has_permission))
+        @endif
+    @if(in_array('orders', $role_has_permission) || in_array('gift-cards', $role_has_permission) || in_array('coupons', $role_has_permission) || in_array('documents', $role_has_permission) || in_array('catering', $role_has_permission))
             <li class="nav-subtitle"><span
                     class="nav-subtitle-span">{{trans('lang.order_and_promotions_management')}}</span></li>
         @endif

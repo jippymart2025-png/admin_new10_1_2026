@@ -233,7 +233,7 @@ class UserController extends Controller
             return Redirect()->back()->with(['message' => $error]);
         }
 
-        $user = User::find($id);
+        $user = admin_users::find($id);
         if ($user) {
             $user->name = $name;
             $user->email = $email;
@@ -946,7 +946,7 @@ class UserController extends Controller
             // ✅ INSERT INTO WALLET TABLE
             DB::table('wallet')->insert([
                 'id' => Str::uuid()->toString(),
-                'user_id' => $driver->firebase_id,          // 🔥 CORRECT
+                'user_id' => $driver->firebase_id,
                 'amount' => $amount,
                 'isTopUp' => $amount >= 0 ? 1 : 0,
                 'payment_method' => 'Wallet',
