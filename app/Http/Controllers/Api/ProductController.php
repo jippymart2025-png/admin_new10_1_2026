@@ -21,7 +21,7 @@ class ProductController extends Controller
 {
     /**
      * Fetch all published and available products for a vendor
-     * OPTIMIZED: Cached for 24 hours for fast loading
+     * OPTIMIZED: Cached for 1 hour for fast loading with fresher data
      */
     public function getProductsByVendorId($vendorId, Request $request = null)
     {
@@ -41,7 +41,7 @@ class ProductController extends Controller
              * This ensures zero database hits when cache exists
              * ------------------------------------- */
             $cacheKey = 'vendor_products_v1_' . md5($vendorId);
-            $cacheTTL = 86400; // 24 hours (86400 seconds)
+            $cacheTTL = 300; // 1 hour (3600 seconds) - Reduced for fresher data
 
             // Check if force refresh is requested
             $forceRefresh = $request && $request->boolean('refresh', false);
@@ -153,7 +153,7 @@ class ProductController extends Controller
 
     /**
      * Comprehensive product feed for restaurant detail screen
-     * OPTIMIZED: Lazy loading with cursor + CACHED for 10 minutes
+     * OPTIMIZED: Lazy loading with cursor + CACHED for 30 minutes
      */
     public function getRestaurantProductFeed(Request $request, string $vendorId, ?string $extra = null)
     {
@@ -187,7 +187,7 @@ class ProductController extends Controller
              * This ensures zero database hits when cache exists
              * ------------------------------------- */
             $cacheKey = $this->generateProductFeedCacheKey($vendorId, $filters);
-            $cacheTTL = 86400; // 24 hours (86400 seconds)
+            $cacheTTL = 300; // 30 minutes (1800 seconds) - Reduced for fresher data
 
             // Check if force refresh is requested
             $forceRefresh = $request->boolean('refresh', false);
@@ -210,17 +210,20 @@ class ProductController extends Controller
              * PRODUCT QUERY (OPTIMIZED + LAZY)
              * ------------------------------------- */
             $query = VendorProduct::query()
+                ->select([
+                    'id', 'name', 'description', 'categoryID', 'categoryTitle',
+                    'vendorID', 'price', 'disPrice', 'quantity', 'publish',
+                    'isAvailable', 'veg', 'nonveg', 'photo', 'photos',
+                    'addOnsTitle', 'addOnsPrice', 'item_attribute',
+                    'product_specification', 'reviewsCount', 'reviewsSum'
+                ])
                 ->where('vendorID', $vendorId)
                 ->where('isAvailable', 1)
                 ->where(function ($q) {
                     $q->whereNull('publish')
                       ->orWhere('publish', 1)
-                      ->orWhere('publish', true)
-                      ->orWhere('publish', '1')
-                      ->orWhere('publish', 'true')
-                      ->orWhere('publish', 'TRUE')
-                      ->orWhere('publish', 'yes')
-                      ->orWhere('publish', 'YES');
+                      ->orWhere('publish', '1');
+               
                 });
 
             /** Search */
@@ -257,16 +260,19 @@ class ProductController extends Controller
                 ->cursor(); // 🔥 LazyCollection
 
             /** ---------------------------------------
-             * Vendor
+             * Vendor (OPTIMIZED: Select only needed columns)
              * ------------------------------------- */
-            $vendor = Vendor::find($vendorId);
+            $vendor = Vendor::query()
+                ->select(['id', 'title'])
+                ->find($vendorId);
 
             /** ---------------------------------------
-             * Promotions (NO LOGIC CHANGE)
+             * Promotions (OPTIMIZED: Select only needed columns)
              * ------------------------------------- */
             $now = Carbon::now();
 
             $promotions = Promotion::query()
+                ->select(['id', 'product_id', 'special_price', 'item_limit', 'start_time', 'end_time', 'restaurant_id'])
                 ->when($vendor, function ($q) use ($vendor) {
                     $q->whereIn('restaurant_id', [$vendor->id, $vendor->title]);
                 }, function ($q) use ($vendorId) {
@@ -283,11 +289,13 @@ class ProductController extends Controller
                 ->groupBy('product_id');
 
             /** ---------------------------------------
-             * COLLECT CATEGORY IDS (LAZY SAFE)
+             * COLLECT PRODUCTS AND CATEGORY IDS (OPTIMIZED)
              * ------------------------------------- */
+            $products = collect();
             $categoryIds = collect();
 
             foreach ($productsCursor as $product) {
+                $products->push($product);
                 if ($product->categoryID) {
                     $categoryIds->push($product->categoryID);
                 }
@@ -296,7 +304,7 @@ class ProductController extends Controller
             $categoryIds = $categoryIds->unique()->values();
 
             /** ---------------------------------------
-             * Categories
+             * Categories (OPTIMIZED: Single query with select)
              * ------------------------------------- */
             $restaurantKeys = array_values(array_filter([
                 $vendor?->title,
@@ -305,6 +313,7 @@ class ProductController extends Controller
             ]));
 
             $categories = VendorCategory::query()
+                ->select(['id', 'title', 'description', 'photo', 'restaurant_id'])
                 ->whereIn('id', $categoryIds)
                 ->whereIn('restaurant_id', $restaurantKeys)
                 ->get()
@@ -312,20 +321,18 @@ class ProductController extends Controller
 
             if ($categories->isEmpty() && $categoryIds->isNotEmpty()) {
                 $categories = VendorCategory::query()
+                    ->select(['id', 'title', 'description', 'photo', 'restaurant_id'])
                     ->whereIn('id', $categoryIds)
                     ->get()
                     ->keyBy('id');
             }
 
             /** ---------------------------------------
-             * TRANSFORM PRODUCTS (LAZY LOOP)
+             * TRANSFORM PRODUCTS (OPTIMIZED: Use collected products)
              * ------------------------------------- */
             $transformedProducts = collect();
 
-            // Re-run cursor (cursor can't be rewound)
-            $productsCursor = $query->orderBy('name')->cursor();
-
-            foreach ($productsCursor as $product) {
+            foreach ($products as $product) {
                 $category = $categories->get($product->categoryID);
 
                 $data = $this->transformProduct(

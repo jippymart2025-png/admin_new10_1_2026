@@ -13,6 +13,8 @@ use Carbon\Carbon;
 
 class RestaurantController extends Controller
 {
+    /** Cache TTL: 24 hours for restaurant lists (zone/position changes rarely) */
+    private const RESTAURANT_CACHE_TTL = 60; // 1 minute
     /**
      * Get Nearest Restaurants (Stream/Real-time)
      * OPTIMIZED: Cached for 5 minutes + Lazy loading
@@ -27,9 +29,18 @@ class RestaurantController extends Controller
      * - user_id (optional): For subscription filtering
      * - refresh (optional): Force refresh cache (bypass cache)
      */
+    /**
+     * Get Best Restaurants (curated/featured)
+     * OPTIMIZED: Same patterns as nearest - cache, batch subscriptions, vType filter
+     * GET /api/restaurants/best
+     *
+     * Query Parameters:
+     * - zone_id (required): Zone ID
+     * - user_id (optional): For subscription filtering
+     * - refresh (optional): Force refresh cache
+     */
     public function bestrestaurants(Request $request)
     {
-        // Validate request
         $validator = Validator::make($request->all(), [
             'zone_id' => 'required|string',
             'user_id' => 'nullable|string',
@@ -45,25 +56,81 @@ class RestaurantController extends Controller
 
         $zoneId = $request->input('zone_id');
         $userId = $request->input('user_id');
+        $forceRefresh = $request->boolean('refresh', false);
 
         try {
-            $restaurants = Vendor::query()
+            /** ---------------------------------------
+             * CACHE: Check cache FIRST - zero DB hits when cache exists
+             * ------------------------------------- */
+            $cacheKey = $this->generateBestRestaurantsCacheKey($zoneId);
+
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
+
+            /** ---------------------------------------
+             * Build query - same filters as nearest (vType, publish)
+             * ------------------------------------- */
+            $query = Vendor::query()
+                ->select('vendors.*')
                 ->where('zoneId', $zoneId)
                 ->where('best', 1)
                 ->where(function ($q) {
                     $q->where('publish', true)->orWhereNull('publish');
-                })
-                ->get();
+                });
 
-            $formattedData = $restaurants->map(function ($restaurant) use ($userId) {
-                return $this->formatRestaurantResponse($restaurant, $userId);
-            });
+            // Type filter (exclude marts) - same as nearest
+            static $hasVTypeColumn = null;
+            if ($hasVTypeColumn === null) {
+                $hasVTypeColumn = DB::getSchemaBuilder()->hasColumn('vendors', 'vType');
+            }
+            if ($hasVTypeColumn) {
+                $query->where(function ($q) {
+                    $q->where('vType', 'restaurant')
+                        ->orWhere('vType', 'food')
+                        ->orWhereNull('vType');
+                })->where('vType', '!=', 'mart');
+            }
 
-            return response()->json([
+            $query->orderBy('title', 'asc');
+            $restaurants = $query->get();
+
+            // Batch fetch subscriptions (fixes N+1)
+            $subscriptionsMap = $this->batchFetchSubscriptions($restaurants->pluck('id')->toArray());
+
+            // Format, filter by subscription, sort closed to bottom - same as nearest
+            $data = $restaurants->lazy()
+                ->map(fn ($r) => $this->formatRestaurantResponse($r, $userId, $subscriptionsMap))
+                ->filter(fn ($r) => $this->isSubscriptionValid($r))
+                ->values();
+
+            $sortedData = $data->sortBy(function ($r, $index) {
+                return [$r['isOpen'] ? 0 : 1, $index];
+            })->values()->all(); // Convert lazy collection to array for caching
+
+            $openCount = collect($sortedData)->filter(fn ($r) => isset($r['isOpen']) && $r['isOpen'] === true)->count();
+
+            $response = [
                 'success' => true,
-                'count' => $formattedData->count(),
-                'data' => $formattedData,
-            ]);
+                'count' => count($sortedData),
+                'openCount' => $openCount,
+                'data' => $sortedData,
+            ];
+
+            try {
+                Cache::put($cacheKey, $response, self::RESTAURANT_CACHE_TTL);
+            } catch (\Throwable $cacheError) {
+                Log::warning('Failed to cache best restaurants response', [
+                    'zone_id' => $zoneId,
+                    'cache_key' => $cacheKey,
+                    'error' => $cacheError->getMessage(),
+                ]);
+            }
+
+            return response()->json($response);
 
         } catch (\Exception $e) {
             Log::error('Fetch Best Restaurants Error: ' . $e->getMessage(), [
@@ -78,7 +145,7 @@ class RestaurantController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
-    } // ✅ THIS brace was missing
+    }
 
 
 
@@ -125,7 +192,6 @@ class RestaurantController extends Controller
                 $isDining,
                 $filter
             );
-            $cacheTTL = 86400; // 24 hours (86400 seconds)
 
             // Check if force refresh is requested
             $forceRefresh = $request->boolean('refresh', false);
@@ -236,10 +302,10 @@ class RestaurantController extends Controller
             // Always sort closed restaurants to bottom while preserving current order
             $sortedData = $data->sortBy(function ($r, $index) {
                 return [$r['isOpen'] ? 0 : 1, $index];
-            })->values();
+            })->values()->all(); // Convert lazy collection to array for caching
 
             // Count restaurants where isOpen is true
-            $openCount = $sortedData->filter(fn ($restaurant) => isset($restaurant['isOpen']) && $restaurant['isOpen'] === true)->count();
+            $openCount = collect($sortedData)->filter(fn ($restaurant) => isset($restaurant['isOpen']) && $restaurant['isOpen'] === true)->count();
 
             /** ---------------------------------------
              * RESPONSE: Build and cache response
@@ -248,14 +314,14 @@ class RestaurantController extends Controller
                 'success' => true,
                 'filter' => $filter,
                 'availableFilters' => ['distance','rating'],
-                'count' => $sortedData->count(),
+                'count' => count($sortedData),
                 'openCount' => $openCount,
                 'data' => $sortedData,
             ];
 
             // Cache the response
             try {
-                Cache::put($cacheKey, $response, $cacheTTL);
+                Cache::put($cacheKey, $response, self::RESTAURANT_CACHE_TTL);
             } catch (\Throwable $cacheError) {
                 Log::warning('Failed to cache nearest restaurants response', [
                     'zone_id' => $zoneId,
@@ -870,6 +936,14 @@ class RestaurantController extends Controller
     }
 
     /**
+     * Generate cache key for best restaurants (zone-only)
+     */
+    protected function generateBestRestaurantsCacheKey(string $zoneId): string
+    {
+        return "best_restaurants_{$zoneId}";
+    }
+
+    /**
      * Generate a unique cache key for nearest restaurants query
      * Rounds coordinates to reduce cache fragmentation while maintaining accuracy
      *
@@ -906,6 +980,23 @@ class RestaurantController extends Controller
         ]));
 
         return "nearest_restaurants_{$zoneId}_{$paramsHash}";
+    }
+
+    /**
+     * Clear cache for best restaurants (zone-level)
+     */
+    public function clearBestRestaurantsCache(?string $zoneId = null): bool
+    {
+        try {
+            if ($zoneId) {
+                Cache::forget($this->generateBestRestaurantsCacheKey($zoneId));
+            }
+            Log::info('Best restaurants cache cleared', ['zone_id' => $zoneId]);
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('Error clearing best restaurants cache', ['zone_id' => $zoneId, 'error' => $e->getMessage()]);
+            return false;
+        }
     }
 
     /**

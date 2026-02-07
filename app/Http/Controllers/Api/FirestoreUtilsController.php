@@ -7,6 +7,7 @@ use App\Models\Coupon;
 use App\Models\documents_verify;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -629,6 +630,20 @@ class FirestoreUtilsController extends Controller
                 ['id' => $request->id],
                 $data
             );
+
+            // Clear product feed cache for this vendor
+            try {
+                $cleared = $this->clearProductFeedCacheForVendor($request->vendorID);
+                Log::info('Cache invalidation triggered in setProduct', [
+                    'vendor_id' => $request->vendorID,
+                    'cache_cleared' => $cleared,
+                ]);
+            } catch (\Exception $cacheError) {
+                Log::error('Failed to clear cache in setProduct', [
+                    'vendor_id' => $request->vendorID,
+                    'error' => $cacheError->getMessage(),
+                ]);
+            }
 
             // ---------- JSON DECODE FOR RESPONSE ----------
             $responseData = $data;
@@ -2270,9 +2285,37 @@ class FirestoreUtilsController extends Controller
         try {
             $isAvailable = $request->input('isAvailable', false);
 
+            // Get vendor ID before update for cache clearing
+            $product = DB::table('vendor_products')
+                ->where('id', $productId)
+                ->first(['vendorID']);
+
+            if (!$product) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Product not found'
+                ], 404);
+            }
+
             DB::table('vendor_products')
                 ->where('id', $productId)
                 ->update(['isAvailable' => $isAvailable]);
+
+            // Clear product feed cache for this vendor
+            try {
+                $cleared = $this->clearProductFeedCacheForVendor($product->vendorID);
+                Log::info('Cache invalidation triggered in updateProductIsAvailable', [
+                    'vendor_id' => $product->vendorID,
+                    'product_id' => $productId,
+                    'cache_cleared' => $cleared,
+                ]);
+            } catch (\Exception $cacheError) {
+                Log::error('Failed to clear cache in updateProductIsAvailable', [
+                    'vendor_id' => $product->vendorID,
+                    'product_id' => $productId,
+                    'error' => $cacheError->getMessage(),
+                ]);
+            }
 
             return response()->json([
                 'success' => true,
@@ -2333,6 +2376,22 @@ class FirestoreUtilsController extends Controller
                 ->where('categoryID', $categoryId)
                 ->update(['isAvailable' => $isAvailable]);
 
+            // Clear product feed cache for this vendor
+            try {
+                $cleared = $this->clearProductFeedCacheForVendor($vendorId);
+                Log::info('Cache invalidation triggered in setAllProductsAvailabilityForCategory', [
+                    'vendor_id' => $vendorId,
+                    'category_id' => $categoryId,
+                    'cache_cleared' => $cleared,
+                ]);
+            } catch (\Exception $cacheError) {
+                Log::error('Failed to clear cache in setAllProductsAvailabilityForCategory', [
+                    'vendor_id' => $vendorId,
+                    'category_id' => $categoryId,
+                    'error' => $cacheError->getMessage(),
+                ]);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Products availability updated successfully'
@@ -2346,6 +2405,223 @@ class FirestoreUtilsController extends Controller
         }
     }
 
+    /**
+     * Generate a unique cache key for product feed based on vendor and filters
+     * Matches the pattern used in ProductController::generateProductFeedCacheKey()
+     *
+     * @param string $vendorId
+     * @param array $filters
+     * @return string
+     */
+    protected function generateProductFeedCacheKey(string $vendorId, array $filters): string
+    {
+        // Normalize filters for consistent cache keys (same as ProductController)
+        $filterHash = md5(json_encode([
+            'search' => $filters['search'] ?? null,
+            'is_veg' => $filters['is_veg'] ?? null,
+            'is_nonveg' => $filters['is_nonveg'] ?? null,
+            'offer_only' => $filters['offer_only'] ?? null,
+        ]));
+
+        return "product_feed_vendor_{$vendorId}_filters_{$filterHash}";
+    }
+
+    /**
+     * Clear all product feed cache entries for a specific vendor
+     * This invalidates all cache entries matching the pattern: product_feed_vendor_{vendorId}_filters_*
+     * Matches the implementation from ProductController::clearProductFeedCache()
+     *
+     * @param string $vendorId
+     * @return bool
+     */
+    protected function clearProductFeedCacheForVendor(string $vendorId): bool
+    {
+        try {
+            $cacheDriver = config('cache.default');
+            $cleared = 0;
+            $cachePrefix = config('cache.prefix', '');
+            $pattern = "product_feed_vendor_{$vendorId}_%";
+
+            if ($cacheDriver === 'database') {
+                // For database cache, delete all entries matching the pattern
+                // Laravel stores keys exactly as provided (Cache facade handles prefix internally)
+                try {
+                    // Try both with and without prefix to be safe
+                    $patterns = [$pattern];
+                    if (!empty($cachePrefix)) {
+                        $patterns[] = $cachePrefix . ':' . $pattern;
+                        $patterns[] = $cachePrefix . '_' . $pattern;
+                    }
+                    
+                    $deleted = DB::table('cache')
+                        ->where(function ($q) use ($patterns) {
+                            foreach ($patterns as $index => $pat) {
+                                if ($index === 0) {
+                                    $q->where('key', 'like', $pat);
+                                } else {
+                                    $q->orWhere('key', 'like', $pat);
+                                }
+                            }
+                        })
+                        ->delete();
+                    
+                    $cleared = $deleted;
+                    
+                    Log::info('Product feed cache cleared for vendor (database)', [
+                        'vendor_id' => $vendorId,
+                        'keys_cleared' => $cleared,
+                        'patterns_tried' => $patterns,
+                        'prefix' => $cachePrefix,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to clear vendor cache from database', [
+                        'vendor_id' => $vendorId,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+                }
+            } elseif ($cacheDriver === 'file') {
+                // For file cache, iterate through cache files
+                try {
+                    $cachePath = storage_path('framework/cache/data');
+                    if (is_dir($cachePath)) {
+                        $files = glob($cachePath . '/*');
+                        foreach ($files as $file) {
+                            if (is_file($file)) {
+                                $content = file_get_contents($file);
+                                // Check if file contains the vendor cache key pattern
+                                if (strpos($content, "product_feed_vendor_{$vendorId}_") !== false) {
+                                    unlink($file);
+                                    $cleared++;
+                                }
+                            }
+                        }
+                    }
+                    Log::info('Product feed cache cleared for vendor (file)', [
+                        'vendor_id' => $vendorId,
+                        'keys_cleared' => $cleared,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to clear vendor cache from files', [
+                        'vendor_id' => $vendorId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            } elseif ($cacheDriver === 'redis') {
+                // For Redis, try to use SCAN to find all matching keys
+                try {
+                    $redis = Cache::getStore()->getRedis();
+                    $connection = Cache::getStore()->connection();
+                    
+                    // Get the prefix that Laravel uses (Cache facade handles this automatically)
+                    $prefix = $cachePrefix ? $cachePrefix . ':' : '';
+                    $searchPattern = $prefix . "product_feed_vendor_{$vendorId}_*";
+                    
+                    // Use SCAN to find all matching keys (more efficient than KEYS)
+                    $cursor = 0;
+                    $allKeys = [];
+                    
+                    do {
+                        // SCAN returns [cursor, [keys...]]
+                        $result = $redis->scan($cursor, ['match' => $searchPattern, 'count' => 100]);
+                        if (is_array($result) && count($result) >= 2) {
+                            $cursor = $result[0];
+                            $keys = $result[1];
+                            if (!empty($keys)) {
+                                $allKeys = array_merge($allKeys, $keys);
+                            }
+                        } else {
+                            break;
+                        }
+                    } while ($cursor > 0);
+                    
+                    // Delete all found keys using Cache::forget (handles prefix automatically)
+                    foreach ($allKeys as $fullKey) {
+                        // Extract the actual cache key (remove prefix if present)
+                        $cacheKey = $prefix ? str_replace($prefix, '', $fullKey) : $fullKey;
+                        if (Cache::forget($cacheKey)) {
+                            $cleared++;
+                        }
+                    }
+                    
+                    // If SCAN didn't find keys, fall back to common filters
+                    if ($cleared === 0) {
+                        throw new \Exception('No keys found via SCAN, using fallback');
+                    }
+                    
+                    Log::info('Product feed cache cleared for vendor (redis)', [
+                        'vendor_id' => $vendorId,
+                        'keys_cleared' => $cleared,
+                        'pattern' => $searchPattern,
+                        'keys_found' => count($allKeys),
+                    ]);
+                } catch (\Exception $e) {
+                    // Fallback: Clear common filter combinations if SCAN fails or finds nothing
+                    Log::warning('Redis SCAN failed or found no keys, using fallback method', [
+                        'vendor_id' => $vendorId,
+                        'error' => $e->getMessage(),
+                    ]);
+                    
+                    // Generate comprehensive filter combinations
+                    $commonFilters = [
+                        ['search' => null, 'is_veg' => null, 'is_nonveg' => null, 'offer_only' => null],
+                        ['search' => null, 'is_veg' => true, 'is_nonveg' => null, 'offer_only' => null],
+                        ['search' => null, 'is_veg' => null, 'is_nonveg' => true, 'offer_only' => null],
+                        ['search' => null, 'is_veg' => null, 'is_nonveg' => null, 'offer_only' => true],
+                        ['search' => null, 'is_veg' => true, 'is_nonveg' => null, 'offer_only' => true],
+                        ['search' => null, 'is_veg' => null, 'is_nonveg' => true, 'offer_only' => true],
+                        ['search' => null, 'is_veg' => true, 'is_nonveg' => true, 'offer_only' => null],
+                        ['search' => null, 'is_veg' => true, 'is_nonveg' => true, 'offer_only' => true],
+                    ];
+
+                    foreach ($commonFilters as $filterSet) {
+                        $cacheKey = $this->generateProductFeedCacheKey($vendorId, $filterSet);
+                        if (Cache::forget($cacheKey)) {
+                            $cleared++;
+                        }
+                    }
+                    
+                    Log::info('Product feed cache cleared for vendor (redis fallback)', [
+                        'vendor_id' => $vendorId,
+                        'keys_cleared' => $cleared,
+                    ]);
+                }
+            } else {
+                // For Memcached or other drivers, clear common filter combinations
+                $commonFilters = [
+                    ['search' => null, 'is_veg' => null, 'is_nonveg' => null, 'offer_only' => null],
+                    ['search' => null, 'is_veg' => true, 'is_nonveg' => null, 'offer_only' => null],
+                    ['search' => null, 'is_veg' => null, 'is_nonveg' => true, 'offer_only' => null],
+                    ['search' => null, 'is_veg' => null, 'is_nonveg' => null, 'offer_only' => true],
+                    ['search' => null, 'is_veg' => true, 'is_nonveg' => null, 'offer_only' => true],
+                    ['search' => null, 'is_veg' => null, 'is_nonveg' => true, 'offer_only' => true],
+                ];
+
+                foreach ($commonFilters as $filterSet) {
+                    $cacheKey = $this->generateProductFeedCacheKey($vendorId, $filterSet);
+                    if (Cache::forget($cacheKey)) {
+                        $cleared++;
+                    }
+                }
+
+                Log::info('Product feed cache cleared for vendor (common filters)', [
+                    'vendor_id' => $vendorId,
+                    'keys_cleared' => $cleared,
+                    'driver' => $cacheDriver,
+                    'note' => 'Cleared common filter combinations. Use ?refresh=true in API call for immediate refresh',
+                ]);
+            }
+
+            return $cleared > 0;
+        } catch (\Throwable $e) {
+            Log::error('Error clearing product feed cache', [
+                'vendor_id' => $vendorId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return false;
+        }
+    }
 
 }
 

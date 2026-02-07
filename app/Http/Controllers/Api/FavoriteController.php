@@ -51,20 +51,19 @@ class FavoriteController extends Controller
 
                 // ✅ Decode relevant fields
                 $item->restaurantMenuPhotos = $safeDecode($item->restaurantMenuPhotos);
-                $item->photos       = $safeDecode($item->photos);
+                $item->photos = $safeDecode($item->photos);
                 $item->workingHours = $safeDecode($item->workingHours);
-                $item->filters      = $safeDecode($item->filters);
-                $item->coordinates  = $safeDecode($item->coordinates);
-                $item->lastAutoScheduleUpdate  = $safeDecode($item->lastAutoScheduleUpdate);
-
+                $item->filters = $safeDecode($item->filters);
+                $item->coordinates = $safeDecode($item->coordinates);
+                $item->lastAutoScheduleUpdate = $safeDecode($item->lastAutoScheduleUpdate);
 
 
                 // ✅ (optional) decode more fields if you have them
-                $item->categoryID       = $safeDecode($item->categoryID);
-                $item->categoryTitle    = $safeDecode($item->categoryTitle);
-                $item->specialDiscount  = $safeDecode($item->specialDiscount);
-                $item->adminCommission  = $safeDecode($item->adminCommission);
-                $item->g                = $safeDecode($item->g);
+                $item->categoryID = $safeDecode($item->categoryID);
+                $item->categoryTitle = $safeDecode($item->categoryTitle);
+                $item->specialDiscount = $safeDecode($item->specialDiscount);
+                $item->adminCommission = $safeDecode($item->adminCommission);
+                $item->g = $safeDecode($item->g);
 
                 return $item;
             });
@@ -210,11 +209,11 @@ class FavoriteController extends Controller
         // Insert or update favorite record including vendorID
         DB::table('favorite_item')->updateOrInsert(
             [
-                'user_id'    => $user->firebase_id, // use internal DB user id
+                'user_id' => $user->firebase_id, // use internal DB user id
                 'product_id' => $request->product_id,
             ],
             [
-                'store_id'  => $martItem->vendorID, // pulled from mart_items
+                'store_id' => $martItem->vendorID, // pulled from mart_items
             ]
         );
 
@@ -240,18 +239,17 @@ class FavoriteController extends Controller
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
 
-        $user = User::where('firebase_id', $request->firebase_id)->first();
-        if (!$user) {
-            return response()->json(['success' => false, 'message' => 'User not found'], 404);
-        }
-
-        $userIdValues = array_unique(array_filter([$user->firebase_id, $user->id]));
+        // Use firebase_id only
+        $userId = $request->firebase_id;
 
         DB::table('favorite_item')
-            ->whereIn('user_id', $userIdValues)
+            ->where('user_id', $userId)          // ✅ string only
             ->where('product_id', $request->product_id)
             ->delete();
 
-        return response()->json(['success' => true, 'message' => 'Item removed from favorites']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Item removed from favorites'
+        ]);
     }
 }

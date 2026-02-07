@@ -211,6 +211,7 @@ Route::post('/cache/flush/restaurants', [CacheController::class, 'flushRestauran
 Route::post('/cache/flush/settings', [CacheController::class, 'flushSettingsCache']);
 Route::post('/cache/flush/categories', [CacheController::class, 'flushCategoryCache']);
 Route::post('/cache/flush/menu-items', [CacheController::class, 'flushMenuItemsCache']);
+Route::post('/cache/flush/mart-items', [CacheController::class, 'flushMartItemsCache']);
 Route::post('/menu-items/banners/flush-cache', [MenuItemBannerController::class, 'flushCache']);
 Route::post('/cache/flush/all', [CacheController::class, 'flushAllCache']);
 Route::get('/cache/stats', [CacheController::class, 'getCacheStats']);

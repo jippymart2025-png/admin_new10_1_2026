@@ -488,37 +488,53 @@ class CacheController extends Controller
 
             $position = $request->input('position', 'all');
             $zoneId = $request->input('zone_id');
-            $flushAll = $request->boolean('all', !$position && !$zoneId);
+            $flushAll = $request->boolean('all', $position === 'all' && !$zoneId);
 
             $cleared = 0;
             $cacheDriver = config('cache.default');
+            $cachePrefix = config('cache.prefix', '');
+            $menuItemController = new \App\Http\Controllers\Api\MenuItemBannerController();
 
             if ($flushAll || ($position === 'all' && !$zoneId)) {
                 // Clear all menu item caches
                 try {
                     if ($cacheDriver === 'database') {
+                        $pattern = $cachePrefix ? "{$cachePrefix}_menu_items_%" : "menu_items_%";
                         $deleted = DB::table('cache')
-                            ->where('key', 'like', 'menu_items_%')
+                            ->where('key', 'like', $pattern)
                             ->delete();
                         $cleared = $deleted;
                     } elseif ($cacheDriver === 'file') {
-                        $cachePath = storage_path('framework/cache/data');
+                        $cachePath = config('cache.stores.file.path', storage_path('framework/cache/data'));
                         if (is_dir($cachePath)) {
                             $files = glob($cachePath . '/*');
                             foreach ($files as $file) {
                                 if (is_file($file)) {
-                                    $content = file_get_contents($file);
-                                    if (strpos($content, 'menu_items_') !== false) {
-                                        unlink($file);
-                                        $cleared++;
+                                    try {
+                                        $content = file_get_contents($file);
+                                        // Check if this file contains menu_items cache
+                                        if (strpos($content, 'menu_items_') !== false) {
+                                            unlink($file);
+                                            $cleared++;
+                                        }
+                                    } catch (\Exception $fileError) {
+                                        // Skip files that can't be read
                                     }
                                 }
                             }
                         }
                     } else {
-                        // For Redis/Memcached, flush all (or use pattern if supported)
-                        Cache::flush();
-                        $cleared = -1; // -1 means all cache cleared
+                        // For Redis/Memcached, try to clear common combinations
+                        $positions = ['top', 'middle', 'bottom', 'all'];
+                        $commonZones = [null, '', 'all'];
+                        foreach ($positions as $pos) {
+                            foreach ($commonZones as $zone) {
+                                $cacheKey = $menuItemController->generateMenuItemsCacheKey($pos, $zone);
+                                if (Cache::forget($cacheKey)) {
+                                    $cleared++;
+                                }
+                            }
+                        }
                     }
                 } catch (\Exception $e) {
                     Log::error('Error clearing menu items cache', [
@@ -527,10 +543,57 @@ class CacheController extends Controller
                 }
             } else {
                 // Clear specific cache entries
-                $menuItemController = new \App\Http\Controllers\Api\MenuItemBannerController();
-                $cacheKey = $menuItemController->generateMenuItemsCacheKey($position, $zoneId);
-                if (Cache::forget($cacheKey)) {
-                    $cleared = 1;
+                if ($position && $zoneId && $position !== 'all') {
+                    // Clear cache for specific position and zone
+                    $cacheKey = $menuItemController->generateMenuItemsCacheKey($position, $zoneId);
+                    if (Cache::forget($cacheKey)) {
+                        $cleared = 1;
+                    }
+                } elseif ($position && $position !== 'all') {
+                    // Clear all cache keys for a specific position (all zones)
+                    if ($cacheDriver === 'database') {
+                        $pattern = $cachePrefix ? "{$cachePrefix}_menu_items_{$position}_%" : "menu_items_{$position}_%";
+                        $deleted = DB::table('cache')
+                            ->where('key', 'like', $pattern)
+                            ->delete();
+                        $cleared = $deleted;
+                    } elseif ($cacheDriver === 'file') {
+                        $cachePath = config('cache.stores.file.path', storage_path('framework/cache/data'));
+                        if (is_dir($cachePath)) {
+                            $files = glob($cachePath . '/*');
+                            foreach ($files as $file) {
+                                if (is_file($file)) {
+                                    try {
+                                        $content = file_get_contents($file);
+                                        if (strpos($content, "menu_items_{$position}_") !== false) {
+                                            unlink($file);
+                                            $cleared++;
+                                        }
+                                    } catch (\Exception $fileError) {
+                                        // Skip files that can't be read
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // For Redis/Memcached, try to clear common zone combinations
+                        $commonZones = ['all', null, ''];
+                        foreach ($commonZones as $zone) {
+                            $cacheKey = $menuItemController->generateMenuItemsCacheKey($position, $zone);
+                            if (Cache::forget($cacheKey)) {
+                                $cleared++;
+                            }
+                        }
+                    }
+                } elseif ($zoneId) {
+                    // Clear cache for specific zone (all positions)
+                    $positions = ['top', 'middle', 'bottom', 'all'];
+                    foreach ($positions as $pos) {
+                        $cacheKey = $menuItemController->generateMenuItemsCacheKey($pos, $zoneId);
+                        if (Cache::forget($cacheKey)) {
+                            $cleared++;
+                        }
+                    }
                 }
             }
 
@@ -555,6 +618,149 @@ class CacheController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to flush menu items cache',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * Flush cache for mart items
+     * POST /api/cache/flush/mart-items
+     *
+     * Query Parameters (all optional):
+     * - all (optional): Clear all mart items caches (default: true)
+     */
+    public function flushMartItemsCache(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'all' => 'nullable|boolean',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $flushAll = $request->boolean('all', true);
+            $cleared = 0;
+            $cacheDriver = config('cache.default');
+            $cachePrefix = config('cache.prefix', '');
+
+            if ($flushAll) {
+                // Clear all mart items caches
+                try {
+                    if ($cacheDriver === 'database') {
+                        $pattern = $cachePrefix ? "{$cachePrefix}_mart_%" : "mart_%";
+                        $deleted = DB::table('cache')
+                            ->where('key', 'like', $pattern)
+                            ->delete();
+                        $cleared = $deleted;
+                    } elseif ($cacheDriver === 'file') {
+                        $cachePath = config('cache.stores.file.path', storage_path('framework/cache/data'));
+                        if (is_dir($cachePath)) {
+                            $files = glob($cachePath . '/*');
+                            foreach ($files as $file) {
+                                if (is_file($file)) {
+                                    try {
+                                        $content = file_get_contents($file);
+                                        // Check if this file contains mart items cache
+                                        if (strpos($content, 'mart_items_') !== false ||
+                                            strpos($content, 'mart_category_') !== false ||
+                                            strpos($content, 'mart_subcategories_') !== false ||
+                                            strpos($content, 'mart_search_') !== false ||
+                                            strpos($content, 'mart_featured_') !== false ||
+                                            strpos($content, 'mart_similar_') !== false ||
+                                            strpos($content, 'mart_vendors_') !== false) {
+                                            unlink($file);
+                                            $cleared++;
+                                        }
+                                    } catch (\Exception $fileError) {
+                                        // Skip files that can't be read
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // For Redis/Memcached, try to clear common cache keys
+                        $commonKeys = [
+                            'mart_items_trending_',
+                            'mart_items_featured_',
+                            'mart_items_on_sale_',
+                            'mart_items_search_',
+                            'mart_items_by_category_',
+                            'mart_items_by_category_only_',
+                            'mart_items_by_vendor_',
+                            'mart_items_by_section_',
+                            'mart_items_all_',
+                            'mart_items_by_brand_',
+                            'mart_items_unique_sections_',
+                            'mart_category_',
+                            'mart_category_home_',
+                            'mart_subcategories_by_parent_',
+                            'mart_subcategories_home_',
+                            'mart_search_subcategories_',
+                            'mart_search_categories_',
+                            'mart_featured_categories_',
+                            'mart_item_by_id_',
+                            'mart_similar_products_',
+                            'mart_vendors_',
+                        ];
+
+                        // Try to clear keys by pattern (Redis/Memcached specific)
+                        foreach ($commonKeys as $keyPrefix) {
+                            // Note: This is a simplified approach. For production, you might want to use
+                            // Redis SCAN or similar pattern matching if available
+                            try {
+                                // Try common variations
+                                for ($i = 0; $i < 100; $i++) {
+                                    $testKey = $keyPrefix . md5(json_encode(['test' => $i]));
+                                    if (Cache::forget($testKey)) {
+                                        $cleared++;
+                                    }
+                                }
+                            } catch (\Exception $e) {
+                                // Ignore individual key failures
+                            }
+                        }
+
+                        // Also try Cache::flush() if available
+                        try {
+                            Cache::flush();
+                            $cleared = -1; // -1 means all cache cleared
+                        } catch (\Exception $flushError) {
+                            // If flush fails, continue with individual key clearing
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Error clearing mart items cache', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $cleared === -1
+                    ? 'All mart items cache cleared successfully'
+                    : ($cleared > 0
+                        ? "Mart items cache cleared successfully ({$cleared} keys)"
+                        : 'No mart items cache entries found to clear'),
+                'cleared_count' => $cleared,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error flushing mart items cache: ' . $e->getMessage(), [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to flush mart items cache',
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\MartCategory;
 use App\Models\MartSubcategory;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
 use App\Models\MartItem;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class MartItemController extends Controller
@@ -97,6 +99,21 @@ class MartItemController extends Controller
                 $limit = 20;
             }
 
+            // Cache key based on request parameters
+            $cacheKey = 'mart_items_trending_' . md5(json_encode(['limit' => $limit]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
+
             // 🔥 Equivalent to Firestore query
             $items = MartItem::query()
                 ->where('isTrending', [true, 1, '1', 'true'])
@@ -107,20 +124,25 @@ class MartItemController extends Controller
                 ->limit($limit)
                 ->get();
 
-            if ($items->isEmpty()) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No trending items found',
-                    'data' => []
-                ]);
-            }
-
-            return response()->json([
+            $response = [
                 'status' => true,
                 'message' => 'Trending items fetched successfully',
                 'count' => $items->count(),
                 'data' => $items
-            ]);
+            ];
+
+            if ($items->isEmpty()) {
+                $response = [
+                    'status' => false,
+                    'message' => 'No trending items found',
+                    'data' => []
+                ];
+            }
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Failed to fetch trending mart items', [
                 'error' => $e->getMessage(),
@@ -150,6 +172,21 @@ class MartItemController extends Controller
 
             $limit = $this->normalizeLimit($request);
 
+            // Cache key based on request parameters
+            $cacheKey = 'mart_items_featured_' . md5(json_encode(['limit' => $limit]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
+
             $items = MartItem::query()
                 ->where('isFeature', $this->truthyValues)
                 ->where('isAvailable', $this->truthyValues)
@@ -159,20 +196,25 @@ class MartItemController extends Controller
                 ->limit($limit)
                 ->get();
 
-            if ($items->isEmpty()) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No featured items found',
-                    'data' => []
-                ]);
-            }
-
-            return response()->json([
+            $response = [
                 'status' => true,
                 'message' => 'Featured items fetched successfully',
                 'count' => $items->count(),
                 'data' => $items
-            ]);
+            ];
+
+            if ($items->isEmpty()) {
+                $response = [
+                    'status' => false,
+                    'message' => 'No featured items found',
+                    'data' => []
+                ];
+            }
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Failed to fetch featured mart items', [
                 'error' => $e->getMessage(),
@@ -202,6 +244,21 @@ class MartItemController extends Controller
 
             $limit = $this->normalizeLimit($request);
 
+            // Cache key based on request parameters
+            $cacheKey = 'mart_items_on_sale_' . md5(json_encode(['limit' => $limit]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
+
             $items = MartItem::query()
                 ->where('isAvailable', $this->truthyValues)
                 ->where('publish', $this->truthyValues)
@@ -222,20 +279,25 @@ class MartItemController extends Controller
                 ->values()
                 ->take($limit);
 
-            if ($items->isEmpty()) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No sale items found',
-                    'data' => []
-                ]);
-            }
-
-            return response()->json([
+            $response = [
                 'status' => true,
                 'message' => 'Sale items fetched successfully',
                 'count' => $items->count(),
                 'data' => $items
-            ]);
+            ];
+
+            if ($items->isEmpty()) {
+                $response = [
+                    'status' => false,
+                    'message' => 'No sale items found',
+                    'data' => []
+                ];
+            }
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Failed to fetch sale mart items', [
                 'error' => $e->getMessage(),
@@ -268,6 +330,21 @@ class MartItemController extends Controller
             $searchQuery = trim($request->get('searchQuery'));
             $searchLower = Str::lower($searchQuery);
 
+            // Cache key based on request parameters
+            $cacheKey = 'mart_items_search_' . md5(json_encode(['searchQuery' => $searchLower, 'limit' => $limit]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
+
             $items = MartItem::query()
                 ->where('isAvailable', $this->truthyValues)
                 ->where('publish', $this->truthyValues)
@@ -280,20 +357,25 @@ class MartItemController extends Controller
                 ->limit($limit)
                 ->get();
 
-            if ($items->isEmpty()) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No items matched your search',
-                    'data' => []
-                ]);
-            }
-
-            return response()->json([
+            $response = [
                 'status' => true,
                 'message' => 'Items search completed successfully',
                 'count' => $items->count(),
                 'data' => $items
-            ]);
+            ];
+
+            if ($items->isEmpty()) {
+                $response = [
+                    'status' => false,
+                    'message' => 'No items matched your search',
+                    'data' => []
+                ];
+            }
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Failed to search mart items', [
                 'error' => $e->getMessage(),
@@ -331,6 +413,27 @@ class MartItemController extends Controller
             $search = Str::lower((string) $request->get('search', ''));
             $isAvailable = $this->interpretBoolean($request->get('isAvailable'));
 
+            // Cache key based on request parameters
+            $cacheKey = 'mart_items_by_category_' . md5(json_encode([
+                'categoryId' => $categoryId,
+                'subcategoryId' => $subcategoryId,
+                'search' => $search,
+                'isAvailable' => $isAvailable,
+                'limit' => $limit
+            ]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
+
             $query = MartItem::query()
                 ->where('publish', $this->truthyValues)
                 ->where('categoryID', $categoryId);
@@ -359,14 +462,6 @@ class MartItemController extends Controller
                 ->limit($limit)
                 ->get();
 
-            if ($items->isEmpty()) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No items found for the requested category',
-                    'data' => []
-                ]);
-            }
-
             if ($search !== '') {
                 $items = $items->filter(function (MartItem $item) use ($search) {
                     $name = Str::lower($item->name ?? '');
@@ -376,12 +471,25 @@ class MartItemController extends Controller
                 })->values();
             }
 
-            return response()->json([
+            $response = [
                 'status' => true,
                 'message' => 'Category items fetched successfully',
                 'count' => $items->count(),
                 'data' => $items
-            ]);
+            ];
+
+            if ($items->isEmpty()) {
+                $response = [
+                    'status' => false,
+                    'message' => 'No items found for the requested category',
+                    'data' => []
+                ];
+            }
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Failed to fetch mart items by category', [
                 'error' => $e->getMessage(),
@@ -415,6 +523,25 @@ class MartItemController extends Controller
             $categoryId = $request->get('categoryId');
             $isAvailable = $this->interpretBoolean($request->get('isAvailable'));
 
+            // Cache key based on request parameters
+            $cacheKey = 'mart_items_by_category_only_' . md5(json_encode([
+                'categoryId' => $categoryId,
+                'isAvailable' => $isAvailable,
+                'limit' => $limit
+            ]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
+
             $query = MartItem::query()
                 ->where('publish', $this->truthyValues)
                 ->where('categoryID', $categoryId);
@@ -432,20 +559,25 @@ class MartItemController extends Controller
                 ->limit($limit)
                 ->get();
 
-            if ($items->isEmpty()) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No items found for the requested category',
-                    'data' => []
-                ]);
-            }
-
-            return response()->json([
+            $response = [
                 'status' => true,
                 'message' => 'Category items fetched successfully',
                 'count' => $items->count(),
                 'data' => $items
-            ]);
+            ];
+
+            if ($items->isEmpty()) {
+                $response = [
+                    'status' => false,
+                    'message' => 'No items found for the requested category',
+                    'data' => []
+                ];
+            }
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Failed to fetch mart items by category only', [
                 'error' => $e->getMessage(),
@@ -481,6 +613,26 @@ class MartItemController extends Controller
             $categoryId = $request->get('categoryId');
             $isAvailable = $this->interpretBoolean($request->get('isAvailable'));
 
+            // Cache key based on request parameters
+            $cacheKey = 'mart_items_by_vendor_' . md5(json_encode([
+                'vendorId' => $vendorId,
+                'categoryId' => $categoryId,
+                'isAvailable' => $isAvailable,
+                'limit' => $limit
+            ]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
+
             $query = MartItem::query()
                 ->where('publish', $this->truthyValues)
                 ->where('vendorID', $vendorId);
@@ -502,20 +654,25 @@ class MartItemController extends Controller
                 ->limit($limit)
                 ->get();
 
-            if ($items->isEmpty()) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No items found for the requested vendor',
-                    'data' => []
-                ]);
-            }
-
-            return response()->json([
+            $response = [
                 'status' => true,
                 'message' => 'Vendor items fetched successfully',
                 'count' => $items->count(),
                 'data' => $items
-            ]);
+            ];
+
+            if ($items->isEmpty()) {
+                $response = [
+                    'status' => false,
+                    'message' => 'No items found for the requested vendor',
+                    'data' => []
+                ];
+            }
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Failed to fetch mart items by vendor', [
                 'error' => $e->getMessage(),
@@ -547,6 +704,21 @@ class MartItemController extends Controller
             $limit = $this->normalizeLimit($request, 15, 100);
             $section = $request->get('section');
 
+            // Cache key based on request parameters
+            $cacheKey = 'mart_items_by_section_' . md5(json_encode(['section' => $section, 'limit' => $limit]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
+
             $items = MartItem::query()
                 ->where('publish', $this->truthyValues)
                 ->where('section', $section)
@@ -555,20 +727,25 @@ class MartItemController extends Controller
                 ->limit($limit)
                 ->get();
 
-            if ($items->isEmpty()) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No items found for the requested section',
-                    'data' => []
-                ]);
-            }
-
-            return response()->json([
+            $response = [
                 'status' => true,
                 'message' => 'Section items fetched successfully',
                 'count' => $items->count(),
                 'data' => $items
-            ]);
+            ];
+
+            if ($items->isEmpty()) {
+                $response = [
+                    'status' => false,
+                    'message' => 'No items found for the requested section',
+                    'data' => []
+                ];
+            }
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Failed to fetch mart items by section', [
                 'error' => $e->getMessage(),
@@ -608,6 +785,21 @@ class MartItemController extends Controller
 
             $limit = $this->normalizeLimit($request, 300, 500);
             $search = Str::lower((string) $request->get('search', ''));
+
+            // Cache key based on all request parameters
+            $cacheKey = 'mart_items_all_' . md5(json_encode($request->all()));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
 
             $query = MartItem::query();
 
@@ -661,12 +853,17 @@ class MartItemController extends Controller
                 })->values();
             }
 
-            return response()->json([
+            $response = [
                 'status' => true,
                 'message' => 'Mart items fetched successfully',
                 'count' => $items->count(),
                 'data' => $items
-            ]);
+            ];
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
 
         } catch (\Exception $e) {
             Log::error('Failed to fetch mart items', ['error' => $e->getMessage()]);
@@ -697,6 +894,21 @@ class MartItemController extends Controller
             $limit = $this->normalizeLimit($request, 20, 200);
             $brandId = $request->get('brandId');
 
+            // Cache key based on request parameters
+            $cacheKey = 'mart_items_by_brand_' . md5(json_encode(['brandId' => $brandId, 'limit' => $limit]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
+
             $items = MartItem::query()
                 ->where('isAvailable', $this->truthyValues)
                 ->where('publish', $this->truthyValues)
@@ -706,20 +918,25 @@ class MartItemController extends Controller
                 ->limit($limit)
                 ->get();
 
-            if ($items->isEmpty()) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No items found for the requested brand',
-                    'data' => []
-                ]);
-            }
-
-            return response()->json([
+            $response = [
                 'status' => true,
                 'message' => 'Brand items fetched successfully',
                 'count' => $items->count(),
                 'data' => $items
-            ]);
+            ];
+
+            if ($items->isEmpty()) {
+                $response = [
+                    'status' => false,
+                    'message' => 'No items found for the requested brand',
+                    'data' => []
+                ];
+            }
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Failed to fetch mart items by brand', [
                 'error' => $e->getMessage(),
@@ -749,6 +966,21 @@ class MartItemController extends Controller
 
             $limit = $this->normalizeLimit($request, 50, 500);
 
+            // Cache key based on request parameters
+            $cacheKey = 'mart_items_unique_sections_' . md5(json_encode(['limit' => $limit]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
+
             $sections = MartItem::query()
                 ->where('publish', $this->truthyValues)
                 ->limit($limit)
@@ -763,20 +995,25 @@ class MartItemController extends Controller
                 ->sort()
                 ->values();
 
-            if ($sections->isEmpty()) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No sections found',
-                    'data' => []
-                ]);
-            }
-
-            return response()->json([
+            $response = [
                 'status' => true,
                 'message' => 'Sections fetched successfully',
                 'count' => $sections->count(),
                 'data' => $sections
-            ]);
+            ];
+
+            if ($sections->isEmpty()) {
+                $response = [
+                    'status' => false,
+                    'message' => 'No sections found',
+                    'data' => []
+                ];
+            }
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Failed to fetch unique mart item sections', [
                 'error' => $e->getMessage(),
@@ -809,26 +1046,46 @@ class MartItemController extends Controller
                 $limit = 20;
             }
 
+            // Cache key based on request parameters
+            $cacheKey = 'mart_category_' . md5(json_encode(['limit' => $limit]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
+
             // 🔥 Equivalent to Firestore query
             $items = MartCategory::query()
                 ->where('publish', [true, 1, '1', 'true'])
                 ->limit($limit)
                 ->get();
 
-            if ($items->isEmpty()) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No trending items found',
-                    'data' => []
-                ]);
-            }
-
-            return response()->json([
+            $response = [
                 'status' => true,
                 'message' => 'Trending items fetched successfully',
                 'count' => $items->count(),
                 'data' => $items
-            ]);
+            ];
+
+            if ($items->isEmpty()) {
+                $response = [
+                    'status' => false,
+                    'message' => 'No trending items found',
+                    'data' => []
+                ];
+            }
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Failed to fetch trending mart items', [
                 'error' => $e->getMessage(),
@@ -862,6 +1119,21 @@ class MartItemController extends Controller
                 $limit = 20;
             }
 
+            // Cache key based on request parameters
+            $cacheKey = 'mart_category_home_' . md5(json_encode(['limit' => $limit]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
+
             // 🔥 Equivalent to Firestore query
             $items = MartCategory::query()
                 ->where('show_in_homepage', $this->truthyValues)
@@ -870,20 +1142,25 @@ class MartItemController extends Controller
                 ->limit($limit)
                 ->get();
 
-            if ($items->isEmpty()) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No trending items found',
-                    'data' => []
-                ]);
-            }
-
-            return response()->json([
+            $response = [
                 'status' => true,
                 'message' => 'Trending items fetched successfully',
                 'count' => $items->count(),
                 'data' => $items
-            ]);
+            ];
+
+            if ($items->isEmpty()) {
+                $response = [
+                    'status' => false,
+                    'message' => 'No trending items found',
+                    'data' => []
+                ];
+            }
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Failed to fetch trending mart items', [
                 'error' => $e->getMessage(),
@@ -918,6 +1195,23 @@ class MartItemController extends Controller
             }
             $parent_category_id = $request->get('parent_category_id');
 
+            // Cache key based on request parameters
+            $cacheKey = 'mart_subcategories_by_parent_' . md5(json_encode([
+                'parent_category_id' => $parent_category_id,
+                'limit' => $limit
+            ]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
 
             // 🔥 Equivalent to Firestore query
             $items = MartSubcategory::query()
@@ -927,20 +1221,25 @@ class MartItemController extends Controller
                 ->limit($limit)
                 ->get();
 
-            if ($items->isEmpty()) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No trending items found',
-                    'data' => []
-                ]);
-            }
-
-            return response()->json([
+            $response = [
                 'status' => true,
                 'message' => 'Trending items fetched successfully',
                 'count' => $items->count(),
                 'data' => $items
-            ]);
+            ];
+
+            if ($items->isEmpty()) {
+                $response = [
+                    'status' => false,
+                    'message' => 'No trending items found',
+                    'data' => []
+                ];
+            }
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Failed to fetch trending mart items', [
                 'error' => $e->getMessage(),
@@ -973,6 +1272,21 @@ class MartItemController extends Controller
             $limit = (int) $request->get('limit', 10);
             $page  = (int) $request->get('page', 1);
 
+            // Cache key based on request parameters
+            $cacheKey = 'mart_subcategories_home_' . md5(json_encode(['limit' => $limit, 'page' => $page]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
+
             // Query with pagination
             $query = MartSubcategory::query()
                 ->whereIn('show_in_homepage', $this->truthyValues)
@@ -981,21 +1295,7 @@ class MartItemController extends Controller
 
             $items = $query->paginate($limit, ['*'], 'page', $page);
 
-            if ($items->isEmpty()) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No trending items found',
-                    'data' => [],
-                    'meta' => [
-                        'page' => $page,
-                        'limit' => $limit,
-                        'total' => 0,
-                        'last_page' => 0
-                    ]
-                ]);
-            }
-
-            return response()->json([
+            $response = [
                 'status' => true,
                 'message' => 'Trending items fetched successfully',
                 'count' => $items->count(),
@@ -1006,7 +1306,26 @@ class MartItemController extends Controller
                     'total' => $items->total(),
                     'last_page' => $items->lastPage(),
                 ]
-            ]);
+            ];
+
+            if ($items->isEmpty()) {
+                $response = [
+                    'status' => false,
+                    'message' => 'No trending items found',
+                    'data' => [],
+                    'meta' => [
+                        'page' => $page,
+                        'limit' => $limit,
+                        'total' => 0,
+                        'last_page' => 0
+                    ]
+                ];
+            }
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Failed to fetch trending mart items', [
                 'error' => $e->getMessage(),
@@ -1031,6 +1350,21 @@ class MartItemController extends Controller
         $query = strtolower($request->get('query'));
         $limit = $request->limit ?? 20;
 
+        // Cache key based on request parameters
+        $cacheKey = 'mart_search_subcategories_' . md5(json_encode(['query' => $query, 'limit' => $limit]));
+        $cacheTTL = 300; // 5 minutes
+
+        // Check if force refresh is requested
+        $forceRefresh = $request->boolean('refresh', false);
+
+        // Check cache before database operations
+        if (!$forceRefresh) {
+            $cachedResponse = Cache::get($cacheKey);
+            if ($cachedResponse !== null) {
+                return response()->json($cachedResponse);
+            }
+        }
+
         // Fetch only published subcategories
         $subcategories = MartSubcategory::where('publish', true)
             ->limit($limit)
@@ -1045,11 +1379,16 @@ class MartItemController extends Controller
                 str_contains($description, $query);
         })->values();
 
-        return response()->json([
+        $response = [
             'success' => true,
             'count' => $results->count(),
             'data'   => $results
-        ]);
+        ];
+
+        // Cache the response
+        Cache::put($cacheKey, $response, $cacheTTL);
+
+        return response()->json($response);
     }
 
     /**
@@ -1065,6 +1404,21 @@ class MartItemController extends Controller
         $query = strtolower($request->get('query'));
         $limit = $request->limit ?? 20;
 
+        // Cache key based on request parameters
+        $cacheKey = 'mart_search_categories_' . md5(json_encode(['query' => $query, 'limit' => $limit]));
+        $cacheTTL = 300; // 5 minutes
+
+        // Check if force refresh is requested
+        $forceRefresh = $request->boolean('refresh', false);
+
+        // Check cache before database operations
+        if (!$forceRefresh) {
+            $cachedResponse = Cache::get($cacheKey);
+            if ($cachedResponse !== null) {
+                return response()->json($cachedResponse);
+            }
+        }
+
         // Fetch published categories
         $categories = MartCategory::where('publish', true)
             ->limit($limit)
@@ -1079,11 +1433,16 @@ class MartItemController extends Controller
                 str_contains($description, $query);
         })->values();
 
-        return response()->json([
+        $response = [
             'success' => true,
             'count' => $results->count(),
             'data'   => $results
-        ]);
+        ];
+
+        // Cache the response
+        Cache::put($cacheKey, $response, $cacheTTL);
+
+        return response()->json($response);
     }
 
 
@@ -1095,6 +1454,21 @@ class MartItemController extends Controller
 
         try {
             $martId = $request->input('martId');
+
+            // Cache key based on request parameters
+            $cacheKey = 'mart_featured_categories_' . md5(json_encode(['martId' => $martId]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
 
             // Base query
             $query = MartCategory::where('publish', true);
@@ -1131,11 +1505,16 @@ class MartItemController extends Controller
             // Sort by category_order
             $sorted = $formatted->sortBy('category_order')->values();
 
-            return response()->json([
+            $response = [
                 'success' => true,
                 'count' => $sorted->count(),
                 'data' => $sorted
-            ]);
+            ];
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
 
         } catch (\Exception $e) {
             return response()->json([
@@ -1169,6 +1548,20 @@ class MartItemController extends Controller
             }
             $id = $request->get('id');
 
+            // Cache key based on request parameters
+            $cacheKey = 'mart_item_by_id_' . md5(json_encode(['id' => $id, 'limit' => $limit]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
 
             // 🔥 Equivalent to Firestore query
             $items = MartItem::query()
@@ -1177,20 +1570,25 @@ class MartItemController extends Controller
                 ->limit($limit)
                 ->get();
 
-            if ($items->isEmpty()) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No trending items found',
-                    'data' => []
-                ]);
-            }
-
-            return response()->json([
+            $response = [
                 'status' => true,
                 'message' => 'Trending items fetched successfully',
                 'count' => $items->count(),
                 'data' => $items
-            ]);
+            ];
+
+            if ($items->isEmpty()) {
+                $response = [
+                    'status' => false,
+                    'message' => 'No trending items found',
+                    'data' => []
+                ];
+            }
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
         } catch (\Exception $e) {
             Log::error('Failed to fetch trending mart items', [
                 'error' => $e->getMessage(),
@@ -1215,6 +1613,26 @@ class MartItemController extends Controller
         try {
             $limit = $request->input('limit', 6);
 
+            // Cache key based on request parameters
+            $cacheKey = 'mart_similar_products_' . md5(json_encode([
+                'categoryId' => $request->categoryId,
+                'subcategoryId' => $request->subcategoryId,
+                'excludeId' => $request->excludeId,
+                'limit' => $limit
+            ]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
+
             $query = MartItem::where('publish', true)
                 ->where('isAvailable',true)
                 ->where('categoryID', $request->categoryId);
@@ -1229,11 +1647,16 @@ class MartItemController extends Controller
 
             $items = $query->limit($limit)->get();
 
-            return response()->json([
+            $response = [
                 'success' => true,
                 'count' => $items->count(),
                 'data' => $items
-            ]);
+            ];
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -1267,5 +1690,144 @@ class MartItemController extends Controller
 //        }
 //    }
 
+
+
+    public function getMartVendors(Request $request)
+    {
+        try {
+            /* ---------------- Validate ---------------- */
+            $validator = Validator::make($request->all(), [
+                'limit' => 'nullable|integer|min:1|max:200',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid request parameters',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $limit = $this->normalizeLimit($request, 100, 200);
+
+            // Cache key based on request parameters
+            $cacheKey = 'mart_vendors_' . md5(json_encode(['limit' => $limit]));
+            $cacheTTL = 300; // 5 minutes
+
+            // Check if force refresh is requested
+            $forceRefresh = $request->boolean('refresh', false);
+
+            // Check cache before database operations
+            if (!$forceRefresh) {
+                $cachedResponse = Cache::get($cacheKey);
+                if ($cachedResponse !== null) {
+                    return response()->json($cachedResponse);
+                }
+            }
+
+            /* ---------------- Query ---------------- */
+            $vendors = Vendor::query()
+                ->where(function ($q) {
+                    $q->whereIn('publish', $this->truthyValues)
+                        ->orWhereNull('publish'); // NULL = published
+                })
+                ->where('vType', 'mart')
+                ->limit($limit)
+                ->get();
+
+            /* ---------------- Normalize Response ---------------- */
+            $data = $vendors->map(function ($vendor) {
+
+                return [
+                    'id' => $vendor->id,
+                    'title' => $vendor->title,
+                    'description' => $vendor->description,
+                    'latitude' => (float)$vendor->latitude,
+                    'longitude' => (float)$vendor->longitude,
+                    'phonenumber' => $vendor->phonenumber,
+                    'location' => $vendor->location,
+
+                    // Images
+                    'photo' => $vendor->photo,
+                    'photos' => $this->safeJson($vendor->photos),
+
+                    // Zone & slugs
+                    'zoneId' => $vendor->zoneId,
+                    'zone_slug' => $vendor->zone_slug,
+                    'restaurant_slug' => $vendor->restaurant_slug,
+
+                    // Schedule & config
+                    'workingHours' => $this->safeJson($vendor->workingHours),
+                    'filters' => $this->safeJson($vendor->filters),
+                    'adminCommission' => $this->safeJson($vendor->adminCommission),
+                    'specialDiscount' => $this->safeJson($vendor->specialDiscount),
+
+                    // Categories
+                    'categoryID' => $this->safeJson($vendor->categoryID),
+                    'categoryTitle' => $this->safeJson($vendor->categoryTitle),
+                    'restaurantMenuPhotos' => $this->safeJson($vendor->restaurantMenuPhotos),
+
+                    // Geo
+                    'g' => $this->safeJson($vendor->g),
+
+                    // Status
+                    'isOpen' => (bool)$vendor->isOpen,
+                    'reststatus' => (bool)$vendor->reststatus,
+                    'vType' => $vendor->vType,
+
+                    // Publish (null allowed)
+                    'publish' => $vendor->publish,
+                ];
+            });
+
+            /* ---------------- Response ---------------- */
+            $response = [
+                'success' => true,
+                'count' => $data->count(),
+                'data' => $data
+            ];
+
+            // Cache the response
+            Cache::put($cacheKey, $response, $cacheTTL);
+
+            return response()->json($response);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch mart vendors', [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching mart vendors',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+
+    private function safeJson($value)
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        // Already decoded
+        if (is_array($value) || is_object($value)) {
+            return $value;
+        }
+
+        // Decode JSON string
+        try {
+            $decoded = json_decode($value, true);
+
+            return json_last_error() === JSON_ERROR_NONE
+                ? $decoded
+                : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
 
 }

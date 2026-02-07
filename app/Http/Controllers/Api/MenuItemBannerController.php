@@ -77,7 +77,7 @@ class MenuItemBannerController extends Controller
              * This ensures zero database hits when cache exists
              * ------------------------------------- */
             $cacheKey = $this->generateMenuItemsCacheKey($position, $zoneId);
-            $cacheTTL = 86400; // 24 hours (86400 seconds)
+            $cacheTTL = 3600; // 1 hour (3600 seconds)
 
             // Check if force refresh is requested
             $forceRefresh = $request->boolean('refresh', false);
