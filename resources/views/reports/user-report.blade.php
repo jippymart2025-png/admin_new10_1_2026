@@ -27,17 +27,17 @@
                             <span class="counter ml-3 total_count"></span>
                         </div>
                         <div class="d-flex top-title-right align-self-center px-4">
-                            <div class="input-group mr-3" style="width: 300px;">
-                                <div class="input-group-prepend">
-                                    <span class="input-group-text"><i class="fa fa-search"></i></span>
-                                </div>
-                                <input type="text" class="form-control" id="user_search_input" placeholder="Search by name, email, phone, ID...">
-                                <div class="input-group-append">
-                                    <button class="btn btn-outline-secondary" type="button" id="clear_search_btn" title="Clear search">
-                                        <i class="fa fa-times"></i>
-                                    </button>
-                                </div>
-                            </div>
+{{--                            <div class="input-group mr-3" style="width: 300px;">--}}
+{{--                                <div class="input-group-prepend">--}}
+{{--                                    <span class="input-group-text"><i class="fa fa-search"></i></span>--}}
+{{--                                </div>--}}
+{{--                                <input type="text" class="form-control" id="user_search_input" placeholder="Search by name, email, phone, ID...">--}}
+{{--                                <div class="input-group-append">--}}
+{{--                                    <button class="btn btn-outline-secondary" type="button" id="clear_search_btn" title="Clear search">--}}
+{{--                                        <i class="fa fa-times"></i>--}}
+{{--                                    </button>--}}
+{{--                                </div>--}}
+{{--                            </div>--}}
                             <div class="select-box pl-3">
                                 <select class="form-control zone_selector" id="zone_filter">
                                     <option value="" selected>{{trans('lang.select_zone')}}</option>
@@ -190,70 +190,63 @@
         }
 
         function loadUserReport() {
-            console.log('📡 Loading user report...', { zone: selectedZoneFilter, search: searchTerm });
-            $('#data-table_processing').show();
 
-            $.ajax({
-                url: '{{ route('reports.userdata') }}',
-                method: 'GET',
-                data: {
-                    zone_id: selectedZoneFilter,
-                    search: searchTerm
-                },
-                success: function(response) {
-                    console.log('📥 User report response:', response);
-                    $('#data-table_processing').hide();
+            if (userReportDataTable) {
+                userReportDataTable.ajax.reload();
+                return;
+            }
 
-                    if (response.success || (response.data && Array.isArray(response.data))) {
-                        var users = response.data || response;
-                        renderTable(users);
-
-                        // Update count
-                        var count = users.length;
-                        var total = response.total || count;
-                        if (selectedZoneFilter || searchTerm) {
-                            $('.total_count').text(count + ' / ' + total);
-                        } else {
-                            $('.total_count').text(total);
-                        }
-
-                        // Initialize or reinitialize DataTable
-                        if (userReportDataTable) {
-                            userReportDataTable.destroy();
-                            userReportDataTable = null;
-                        }
-
-                        userReportDataTable = $('#userReportTable').DataTable({
-                            destroy: true,
-                            pageLength: 30,
-                            lengthMenu: [[10, 25, 30, 50, 100, -1], [10, 25, 30, 50, 100, "All"]],
-                            responsive: true,
-                            searching: false, // Disable DataTable search since we have custom search
-                            ordering: true,
-                            order: [[6, 'desc']], // Order by Last Order Date descending
-                            columnDefs: [
-                                { orderable: false, targets: [0] } // S.NO column not sortable
-                            ],
-                            "language": {
-                                "zeroRecords": "No users found",
-                                "emptyTable": "No users available",
-                                "processing": ""
-                            }
-                        });
-                    } else {
-                        console.error('❌ Invalid response format:', response);
-                        $('#user-report-body').html('<tr><td colspan="7" class="text-center text-danger">Error loading user report</td></tr>');
-                        $('.total_count').text('0 users');
+            userReportDataTable = $('#userReportTable').DataTable({
+                processing: true,
+                serverSide: true,
+                pageLength: 30,
+                lengthMenu: [[10, 25, 30, 50, 100], [10, 25, 30, 50, 100]],
+                responsive: true,
+                order: [[6, 'desc']],
+                columnDefs: [
+                    { orderable: false, targets: [0] }
+                ],
+                ajax: {
+                    url: '{{ route("reports.userdata") }}',
+                    type: 'GET',
+                    data: function (d) {
+                        d.zone_id = selectedZoneFilter;
+                        d.search = searchTerm;
                     }
                 },
-                error: function(xhr, status, error) {
-                    console.error('❌ Error loading user report:', xhr);
-                    $('#data-table_processing').hide();
-                    $('#user-report-body').html('<tr><td colspan="7" class="text-center text-danger">Error loading user report. Please try again.</td></tr>');
-                    $('.total_count').text('0 users');
+                columns: [
+                    {
+                        data: null,
+                        render: function (data, type, row, meta) {
+                            return meta.row + meta.settings._iDisplayStart + 1;
+                        }
+                    },
+                    { data: 'user_id', defaultContent: '-' },
+                    { data: 'name', defaultContent: '-' },
+                    { data: 'email', defaultContent: '-' },
+                    { data: 'phone', defaultContent: '-' },
+                    { data: 'zone', defaultContent: '-' },
+                    {
+                        data: 'last_order_date',
+                        render: function (data) {
+                            return formatDate(data);
+                        }
+                    }
+                ],
+                language: {
+                    zeroRecords: "No users found",
+                    emptyTable: "No users available",
+                    processing: "Loading..."
                 }
             });
+            // ✅ UPDATE USER COUNT
+            userReportTable.on('xhr', function () {
+                let json = userReportTable.ajax.json();
+                let total = json?.recordsFiltered ?? json?.recordsTotal ?? 0;
+                $('.total_count').text(`(${total})`);
+            });
         }
+
 
         // Search functionality with debounce
         var searchTimeout = null;

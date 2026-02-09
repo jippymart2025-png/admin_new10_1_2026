@@ -39,7 +39,7 @@
                                         <h4 class="text-dark-2 mb-1 h4 rest_count" id="total_orders">1</h4>
                                         <p class="mb-0 small text-dark-2">{{trans('lang.dashboard_total_orders')}}</p>
                                     </div>
-                                    <span class="box-icon ab"><img src="https://staging.foodie.siswebapp.com/images/active_restaurant.png"></span>
+                                    <span class="box-icon ab"><img src="{{ asset('images/active_restaurant.png') }}"></span>
                                 </div>
                             </div>
                         </a>
@@ -52,7 +52,7 @@
                                         <h4 class="text-dark-2 mb-1 h4 wallet_amount" id="wallet_amount">$0.00</h4>
                                         <p class="mb-0 small text-dark-2">{{trans('lang.wallet_Balance')}}</p>
                                     </div>
-                                    <span class="box-icon ab"><img src="https://staging.foodie.siswebapp.com/images/total_earning.png"></span>
+                                    <span class="box-icon ab"><img src="{{ asset('images/total_earning.png') }}"></span>
                                 </div>
                             </div>
                         </a>

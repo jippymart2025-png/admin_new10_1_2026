@@ -1243,7 +1243,7 @@
                     if (response.success) {
                         var updated = response.updated || 0;
                         const action = isOpen ? 'opened' : 'closed';
-                        var successMessage = `${updated} restaurant${updated === 1 ? '' : 's'} ${action} updated successfully.`;
+                        var successMessage = `${updated} restaurant${updated === 1 ? '' : 's'} ${action} successfully.`;
                         showNotification('success', successMessage);
                     } else {
                         showNotification('error', response.message || 'Unable to update restaurants.');

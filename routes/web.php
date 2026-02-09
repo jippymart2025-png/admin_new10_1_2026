@@ -760,8 +760,8 @@ Route::middleware(['permission:banners,setting.banners.edit'])->group(function (
     Route::post('/banners/update/{id}', [App\Http\Controllers\MenuItemController::class, 'update'])->name('menu-items.update');
     Route::post('/menu-items/toggle/{id}', [App\Http\Controllers\MenuItemController::class, 'togglePublish'])->name('banners.toggle');
 });
-Route::middleware(['permission:banners,setting.banners.delete'])->group(function () {
-    Route::post('/menu-items/{id}/delete', [App\Http\Controllers\MenuItemController::class, 'destroy'])->name('banners.destroy');
+Route::middleware(['permission:banners,banners.delete'])->group(function () {
+    Route::post('/menu-items/{id}/delete', [App\Http\Controllers\MenuItemController::class, 'destroy'])->name('banners.delete');
     Route::post('/banners/bulk-delete', [App\Http\Controllers\MenuItemController::class, 'bulkDelete'])->name('menu-items.bulkDelete');
 });
 // Banner helper routes
@@ -863,7 +863,7 @@ Route::middleware(['permission:cms,cms.delete'])->group(function () {
 Route::middleware(['permission:reports,report.index'])->group(function () {
     Route::get('report/{type}', [App\Http\Controllers\ReportController::class, 'index'])->name('report.index');
     Route::get('/reports/sales/options', [App\Http\Controllers\ReportController::class, 'salesOptions'])->name('reports.sales.options');
-    Route::post('/reports/sales/data', [App\Http\Controllers\ReportController::class, 'sale sData'])->name('reports.sales.data');
+    Route::post('/reports/sales/data', [App\Http\Controllers\ReportController::class, 'salesData'])->name('reports.sales.data');
 });
 Route::get('/reports/user/data', [App\Http\Controllers\ReportController::class, 'userData'])->name('reports.userdata');
 

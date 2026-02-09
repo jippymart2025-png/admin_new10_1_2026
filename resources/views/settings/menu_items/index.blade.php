@@ -154,7 +154,7 @@
                         var route1 = '{{ route('setting.banners.edit', ':id') }}'.replace(':id', item.id);
                         var imageHtml = (!item.photo) ? '<img alt="" style="width:70px;height:70px;" src="'+placeholderImage+'" />' : '<img onerror="this.onerror=null;this.src=\''+placeholderImage+'\'" style="width:70px;height:70px;" src="'+item.photo+'" />';
                         var publishHtml = item.is_publish ? '<label class="switch"><input type="checkbox" checked data-id="'+item.id+'" class="toggle-publish"><span class="slider round"></span></label>' : '<label class="switch"><input type="checkbox" data-id="'+item.id+'" class="toggle-publish"><span class="slider round"></span></label>';
-                        var actionsHtml = '<span class="action-btn"><?php if (in_array('banners.edit', json_decode(@session('user_permissions'), true))) { ?><a href="'+route1+'"><i class="mdi mdi-lead-pencil" title="Edit"></i></a><?php } ?>';
+                        var actionsHtml = '<span class="action-btn"><?php if (in_array('setting.banners.edit', json_decode(@session('user_permissions'), true))) { ?><a href="'+route1+'"><i class="mdi mdi-lead-pencil" title="Edit"></i></a><?php } ?>';
                         if (canDelete) { actionsHtml += ' <a href="javascript:void(0)" data-id="'+item.id+'" class="delete-item"><i class="mdi mdi-delete"></i></a>'; }
                         actionsHtml += '</span>';
                         var checkboxHtml = canDelete ? '<td class="delete-all"><input type="checkbox" class="is_open" dataId="'+item.id+'"><label class="col-3 control-label"></label></td>' : '';

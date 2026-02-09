@@ -274,6 +274,9 @@ class ReportController extends Controller
 
     public function userData(Request $request)
     {
+        $draw   = intval($request->draw);
+        $start  = intval($request->start,0);
+        $length = intval($request->length,10);
         $zoneId = $request->input('zone_id', '');
         $search = $request->input('search', '');
 
@@ -312,8 +315,10 @@ class ReportController extends Controller
             });
         }
 
-        $users = $query->get();
-
+        $users = $query
+            ->skip($start)
+            ->take($length)
+            ->get();
         // Get all zone names at once for efficiency
         $allZoneIds = [];
         foreach ($users as $user) {
@@ -366,7 +371,9 @@ class ReportController extends Controller
                 'success' => true,
                 'data' => $userReport,
                 'count' => count($userReport),
-                'total' => $totalCount
+                'total' => $totalCount,
+                        'draw' => $draw
+
             ]);
         }
 
