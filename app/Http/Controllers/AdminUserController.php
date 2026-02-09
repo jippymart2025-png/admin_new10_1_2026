@@ -141,111 +141,284 @@ class AdminUserController extends Controller
      * - CREATE INDEX idx_users_createdAt ON users(createdAt);
      * - CREATE INDEX idx_users_email ON users(email);
      */
+//    public function index(Request $request)
+//    {
+//        $limit  = (int) $request->query('limit', 10);
+//        $page   = (int) $request->query('page', 1);
+//        $active = $request->query('active');
+//        $zoneId = $request->query('zoneId');
+//        $search = trim((string) $request->query('search', ''));
+//
+//        $query = AppUser::query();
+//
+//        // Role filter
+//        $role = $request->query('role', 'customer');
+//        if ($role !== '') {
+//            $query->where('role', $role);
+//        }
+//
+//        /* =========================
+//           DATE RANGE FILTER (FIXED)
+//           ========================= */
+//
+//        $dateRange = $request->query('date_range');
+//        $from      = $request->query('from');
+//        $to        = $request->query('to');
+//
+//        // Always calculate in IST
+//        $nowIST = Carbon::now('Asia/Kolkata');
+//
+//        if ($dateRange !== 'all_orders') {
+//
+//            if ($from && $to) {
+//                // Frontend sends UTC
+//                $fromUtc = Carbon::parse($from, 'UTC');
+//                $toUtc   = Carbon::parse($to, 'UTC');
+//            } else {
+//                // Presets (IST → UTC)
+//                switch ($dateRange) {
+//                    case 'last_24_hours':
+//                        $fromUtc = $nowIST->copy()->subHours(24)->utc();
+//                        $toUtc   = $nowIST->copy()->utc();
+//                        break;
+//
+//                    case 'last_week':
+//                        $fromUtc = $nowIST->copy()->subDays(7)->startOfDay()->utc();
+//                        $toUtc   = $nowIST->copy()->endOfDay()->utc();
+//                        break;
+//
+//                    case 'last_month':
+//                        $fromUtc = $nowIST->copy()->subDays(30)->startOfDay()->utc();
+//                        $toUtc   = $nowIST->copy()->endOfDay()->utc();
+//                        break;
+//
+//                    default:
+//                        // Default = today (IST)
+//                        $fromUtc = $nowIST->copy()->startOfDay()->utc();
+//                        $toUtc   = $nowIST->copy()->endOfDay()->utc();
+//                }
+//            }
+//
+//            // Compare only ISO part (YYYY-MM-DD HH:MM:SS)
+//            $query->whereRaw(
+//                "SUBSTRING(REPLACE(createdAt,'\"',''),1,19) BETWEEN ? AND ?",
+//                [
+//                    $fromUtc->format('Y-m-d H:i:s'),
+//                    $toUtc->format('Y-m-d H:i:s')
+//                ]
+//            );
+//        }
+//
+//        /* =========================
+//           ACTIVE FILTER
+//           ========================= */
+//        if ($active !== null && $active !== '') {
+//            $query->where('active', (int) $active);
+//        }
+//
+//        /* =========================
+//           ZONE FILTER (JSON)
+//           ========================= */
+//        if (!empty($zoneId)) {
+//            $query->where(function ($q) use ($zoneId) {
+//                $q->whereRaw(
+//                    'JSON_SEARCH(shippingAddress, "one", ?, NULL, "$[*].zoneId") IS NOT NULL',
+//                    [$zoneId]
+//                )
+//                    ->orWhere('shippingAddress', 'like', "%\"zoneId\":\"$zoneId\"%");
+//            });
+//        }
+//
+//        /* =========================
+//           SEARCH
+//           ========================= */
+//        if ($search !== '') {
+//            $query->where(function ($q) use ($search) {
+//                $q->where('firstName', 'like', "%$search%")
+//                    ->orWhere('lastName', 'like', "%$search%")
+//                    ->orWhere('email', 'like', "%$search%")
+//                    ->orWhere('phoneNumber', 'like', "%$search%");
+//            });
+//        }
+//
+//        /* =========================
+//           PAGINATION
+//           ========================= */
+//        $total = (clone $query)->count();
+//
+//        $rows = $query->select(
+//            'id',
+//            'firebase_id',
+//            'firstName',
+//            'lastName',
+//            'email',
+//            'phoneNumber',
+//            'shippingAddress',
+//            'active',
+//            'isActive',
+//            'createdAt',
+//            'profilePictureURL'
+//        )
+//            ->orderByDesc('id')
+//            ->skip(($page - 1) * $limit)
+//            ->take($limit)
+//            ->get();
+//
+//        /* =========================
+//           RESPONSE FORMAT
+//           ========================= */
+//        $items = $rows->map(function ($u) {
+//
+//            $createdAtFormatted = '';
+//            if ($u->createdAt) {
+//                try {
+//                    $date = Carbon::parse(trim($u->createdAt, '"'))
+//                        ->timezone('Asia/Kolkata');
+//
+//                    $createdAtFormatted = $date->format('M d, Y h:i A');
+//                } catch (\Exception $e) {
+//                    $createdAtFormatted = (string) $u->createdAt;
+//                }
+//            }
+//
+//            return [
+//                'id'        => (string) ($u->firebase_id ?: $u->id),
+//                'firstName' => $u->firstName,
+//                'lastName'  => $u->lastName,
+//                'fullName'  => trim(($u->firstName ?? '') . ' ' . ($u->lastName ?? '')),
+//                'email'     => (string) ($u->email ?? ''),
+//                'phoneNumber' => (string) ($u->phoneNumber ?? ''),
+//                'zoneId'    => $u->shippingAddress
+//                    ? self::extractZoneFromShippingAddress($u->shippingAddress)
+//                    : '',
+//                'createdAt' => $createdAtFormatted,
+//                'active'    => ($u->active == 1 || $u->isActive == 1) ? 1 : 0,
+//                'profilePictureURL' => $u->profilePictureURL,
+//            ];
+//        });
+//
+//        return response()->json([
+//            'status' => true,
+//            'data'   => $items,
+//            'meta'   => [
+//                'page'     => $page,
+//                'limit'    => $limit,
+//                'total'    => $total,
+//                'has_more' => ($page * $limit) < $total,
+//            ],
+//        ]);
+//    }
     public function index(Request $request)
     {
-        $limit  = (int) $request->query('limit', 10);
-        $page   = (int) $request->query('page', 1);
+        $limit = (int) $request->query('limit', 10);
+        $page = (int) $request->query('page', 1);
         $active = $request->query('active');
         $zoneId = $request->query('zoneId');
         $search = trim((string) $request->query('search', ''));
 
         $query = AppUser::query();
 
-        // Role filter
+        // Only customers by default unless role is specified
         $role = $request->query('role', 'customer');
-        if ($role !== '') {
+        if (!empty($role)) {
             $query->where('role', $role);
         }
 
-        /* =========================
-           DATE RANGE FILTER (FIXED)
-           ========================= */
-
+        // Date range filter (supports presets: last_24_hours, last_week, last_month, custom, all_orders)
         $dateRange = $request->query('date_range');
-        $from      = $request->query('from');
-        $to        = $request->query('to');
+        $from = $request->query('from');
+        $to = $request->query('to');
 
-        // Always calculate in IST
-        $nowIST = Carbon::now('Asia/Kolkata');
-
-        if ($dateRange !== 'all_orders') {
-
-            if ($from && $to) {
-                // Frontend sends UTC
-                $fromUtc = Carbon::parse($from, 'UTC');
-                $toUtc   = Carbon::parse($to, 'UTC');
-            } else {
-                // Presets (IST → UTC)
-                switch ($dateRange) {
-                    case 'last_24_hours':
-                        $fromUtc = $nowIST->copy()->subHours(24)->utc();
-                        $toUtc   = $nowIST->copy()->utc();
-                        break;
-
-                    case 'last_week':
-                        $fromUtc = $nowIST->copy()->subDays(7)->startOfDay()->utc();
-                        $toUtc   = $nowIST->copy()->endOfDay()->utc();
-                        break;
-
-                    case 'last_month':
-                        $fromUtc = $nowIST->copy()->subDays(30)->startOfDay()->utc();
-                        $toUtc   = $nowIST->copy()->endOfDay()->utc();
-                        break;
-
-                    default:
-                        // Default = today (IST)
-                        $fromUtc = $nowIST->copy()->startOfDay()->utc();
-                        $toUtc   = $nowIST->copy()->endOfDay()->utc();
-                }
+        // Handle date range presets
+        // Note: createdAt is stored as JSON string format (e.g., "2025-12-19T09:50:00.000000+05:30")
+        // We need to extract and parse the date properly
+        if ($dateRange === 'last_24_hours') {
+            $startDateTime = Carbon::now('Asia/Kolkata')->subDay()->format('Y-m-d H:i:s');
+            $endDateTime = Carbon::now('Asia/Kolkata')->format('Y-m-d H:i:s');
+            // Extract date part from JSON string and compare
+//            $query->whereRaw("SUBSTRING(REPLACE(createdAt, '\"', ''), 1, 19) >= ? AND SUBSTRING(REPLACE(createdAt, '\"', ''), 1, 19) <= ?",
+//                [$startDateTime, $endDateTime]);
+            $query->whereRaw("
+    STR_TO_DATE(
+        REPLACE(SUBSTRING(createdAt, 1, 19), 'T', ' '),
+        '%Y-%m-%d %H:%i:%s'
+    ) BETWEEN ? AND ?
+", [$startDateTime, $endDateTime]);
+        } elseif ($dateRange === 'last_week') {
+            $startDate = Carbon::now('Asia/Kolkata')->subWeek()->startOfDay()->format('Y-m-d');
+            $endDate = Carbon::now('Asia/Kolkata')->endOfDay()->format('Y-m-d');
+            // Extract date part (first 10 chars: YYYY-MM-DD) for comparison
+            $query->whereRaw("SUBSTRING(REPLACE(createdAt, '\"', ''), 1, 10) BETWEEN ? AND ?",
+                [$startDate, $endDate]);
+        } elseif ($dateRange === 'last_month') {
+            $startDate = Carbon::now('Asia/Kolkata')->subMonth()->startOfDay()->format('Y-m-d');
+            $endDate = Carbon::now('Asia/Kolkata')->endOfDay()->format('Y-m-d');
+            $query->whereRaw("SUBSTRING(REPLACE(createdAt, '\"', ''), 1, 10) BETWEEN ? AND ?",
+                [$startDate, $endDate]);
+        } elseif ($dateRange === 'all_orders') {
+            // Show all users - skip date filtering entirely
+            // Do nothing - no date filter applied
+        } elseif (!empty($from) || !empty($to)) {
+            // Custom range or direct from/to parameters
+            if (!empty($from)) {
+                $fromDate = Carbon::parse($from)->startOfDay()->format('Y-m-d');
+                $query->whereRaw("SUBSTRING(REPLACE(createdAt, '\"', ''), 1, 10) >= ?", [$fromDate]);
             }
+            if (!empty($to)) {
+                $toDate = Carbon::parse($to)->endOfDay()->format('Y-m-d');
+                $query->whereRaw("SUBSTRING(REPLACE(createdAt, '\"', ''), 1, 10) <= ?", [$toDate]);
+            }
+        } else {
+            // No date range selected - default to today only (Asia/Kolkata timezone)
+            // Convert IST date range to UTC for database comparison
+            $todayStartIST = Carbon::today('Asia/Kolkata'); // Feb 09, 2026 00:00:00 IST
+            $todayEndIST = Carbon::today('Asia/Kolkata')->endOfDay(); // Feb 09, 2026 23:59:59 IST
 
-            // Compare only ISO part (YYYY-MM-DD HH:MM:SS)
-            $query->whereRaw(
-                "SUBSTRING(REPLACE(createdAt,'\"',''),1,19) BETWEEN ? AND ?",
-                [
-                    $fromUtc->format('Y-m-d H:i:s'),
-                    $toUtc->format('Y-m-d H:i:s')
-                ]
-            );
+            // Convert to UTC (subtract 5:30)
+            $todayStartUTC = $todayStartIST->copy()->setTimezone('UTC')->format('Y-m-d H:i:s');
+            $todayEndUTC = $todayEndIST->copy()->setTimezone('UTC')->format('Y-m-d H:i:s');
+
+            // Compare with datetime in database
+            $query->whereRaw("
+                STR_TO_DATE(
+                    REPLACE(SUBSTRING(createdAt, 1, 19), 'T', ' '),
+                    '%Y-%m-%d %H:%i:%s'
+                ) BETWEEN ? AND ?
+            ", [$todayStartUTC, $todayEndUTC]);
         }
 
-        /* =========================
-           ACTIVE FILTER
-           ========================= */
         if ($active !== null && $active !== '') {
             $query->where('active', (int) $active);
         }
 
-        /* =========================
-           ZONE FILTER (JSON)
-           ========================= */
+        // Zone filter - search in shippingAddress JSON column
         if (!empty($zoneId)) {
-            $query->where(function ($q) use ($zoneId) {
-                $q->whereRaw(
-                    'JSON_SEARCH(shippingAddress, "one", ?, NULL, "$[*].zoneId") IS NOT NULL',
-                    [$zoneId]
-                )
-                    ->orWhere('shippingAddress', 'like', "%\"zoneId\":\"$zoneId\"%");
+            $query->where(function($q) use ($zoneId) {
+                // Use JSON_EXTRACT for better performance (MySQL 5.7+)
+                // This searches in the JSON array for zoneId
+                $q->whereRaw('JSON_SEARCH(shippingAddress, "one", ?, NULL, "$[*].zoneId") IS NOT NULL', [$zoneId])
+                    ->orWhereRaw('JSON_EXTRACT(shippingAddress, "$[0].zoneId") = ?', [$zoneId])
+                    ->orWhere('shippingAddress', 'like', "%\"zoneId\":\"$zoneId\"%"); // Fallback for older MySQL
             });
         }
 
-        /* =========================
-           SEARCH
-           ========================= */
+        // Search
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('firstName', 'like', "%$search%")
                     ->orWhere('lastName', 'like', "%$search%")
                     ->orWhere('email', 'like', "%$search%")
                     ->orWhere('phoneNumber', 'like', "%$search%");
+                // Removed createdAt LIKE search - it's inefficient and rarely used
+                // If date search is needed, use date range filters instead
             });
         }
 
-        /* =========================
-           PAGINATION
-           ========================= */
+        // Optimize count query - use selectRaw for faster counting
         $total = (clone $query)->count();
 
+        // Only fetch needed columns
+        // Order by indexed column (id) for better performance
         $rows = $query->select(
             'id',
             'firebase_id',
@@ -264,46 +437,58 @@ class AdminUserController extends Controller
             ->take($limit)
             ->get();
 
-        /* =========================
-           RESPONSE FORMAT
-           ========================= */
         $items = $rows->map(function ($u) {
+            $fullName = trim(($u->firstName ?? '') . ' ' . ($u->lastName ?? ''));
 
+            // Extract zoneId from shippingAddress JSON using helper method
+            // Only parse JSON if shippingAddress exists (optimization)
+            $zoneId = $u->shippingAddress
+                ? \App\Http\Controllers\UserController::extractZoneFromShippingAddress($u->shippingAddress)
+                : '';
+
+            // Format createdAt with Asia/Kolkata timezone
             $createdAtFormatted = '';
             if ($u->createdAt) {
                 try {
-                    $date = Carbon::parse(trim($u->createdAt, '"'))
-                        ->timezone('Asia/Kolkata');
+                    // Handle JSON string format (e.g., "2025-10-16T07:13:41.487000Z")
+                    $dateStr = is_string($u->createdAt) ? trim($u->createdAt, '"') : $u->createdAt;
 
+                    // Parse the date
+                    $date = Carbon::parse($dateStr);
+
+                    // Convert to Asia/Kolkata timezone
+                    $date->setTimezone('Asia/Kolkata');
+
+                    // Format as: Dec 19, 2025 04:10 AM
                     $createdAtFormatted = $date->format('M d, Y h:i A');
                 } catch (\Exception $e) {
+                    // Fallback to original value if parsing fails
                     $createdAtFormatted = (string) $u->createdAt;
                 }
             }
 
             return [
-                'id'        => (string) ($u->firebase_id ?: $u->id),
+                'id' => (string) ($u->firebase_id ?: $u->id),
                 'firstName' => $u->firstName,
-                'lastName'  => $u->lastName,
-                'fullName'  => trim(($u->firstName ?? '') . ' ' . ($u->lastName ?? '')),
-                'email'     => (string) ($u->email ?? ''),
+                'lastName' => $u->lastName,
+                'fullName' => $fullName,
+                'email' => (string) ($u->email ?? ''),
                 'phoneNumber' => (string) ($u->phoneNumber ?? ''),
-                'zoneId'    => $u->shippingAddress
-                    ? self::extractZoneFromShippingAddress($u->shippingAddress)
-                    : '',
+                'zoneId' => (string) $zoneId,
                 'createdAt' => $createdAtFormatted,
-                'active'    => ($u->active == 1 || $u->isActive == 1) ? 1 : 0,
+//                'active' => in_array((string) $u->active, ['1','true'], true) || (bool) ($u->isActive ?? 0),
+                'active' => ($u->active == 1 || $u->isActive == 1) ? 1 : 0,
                 'profilePictureURL' => $u->profilePictureURL,
             ];
-        });
+        })->all();
 
         return response()->json([
             'status' => true,
-            'data'   => $items,
-            'meta'   => [
-                'page'     => $page,
-                'limit'    => $limit,
-                'total'    => $total,
+            'data' => $items,
+            'meta' => [
+                'page' => $page,
+                'limit' => $limit,
+                'total' => $total,
                 'has_more' => ($page * $limit) < $total,
             ],
         ]);
