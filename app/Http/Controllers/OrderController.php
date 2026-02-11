@@ -5,7 +5,6 @@ use App\Models\Driver;
 use App\Models\ReviewAttribute;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
@@ -784,43 +783,49 @@ class OrderController extends Controller
 
     private function getDeliveryChargeSettings(): array
     {
-        return Cache::remember('delivery_charge_settings', 3600, function () {
-            $defaults = [
-                'base_delivery_charge' => 23,
-                'free_delivery_distance_km' => 5,
-                'per_km_charge_above_free_distance' => 7,
-                'item_total_threshold' => 299,
-            ];
+        static $cache = null;
+        if ($cache !== null) {
+            return $cache;
+        }
 
-            $record = DB::table('settings')
-                ->where('document_name', 'DeliveryCharge')
-                ->first();
+        $defaults = [
+            'base_delivery_charge' => 23,
+            'free_delivery_distance_km' => 5,
+            'per_km_charge_above_free_distance' => 7,
+            'item_total_threshold' => 299,
+        ];
 
-            if ($record && !empty($record->fields)) {
-                $decoded = json_decode($record->fields, true);
-                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                    return array_merge($defaults, array_filter($decoded, fn($v) => $v !== null && $v !== ''));
-                }
+        $record = DB::table('settings')->where('document_name', 'DeliveryCharge')->first();
+        if ($record && !empty($record->fields)) {
+            $decoded = json_decode($record->fields, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $filtered = array_filter($decoded, function ($value) {
+                    return $value !== null && $value !== '';
+                });
+                $cache = array_merge($defaults, $filtered);
+                return $cache;
             }
-            return $defaults;
-        });
+        }
+
+        return $cache = $defaults;
     }
 
     private function isSelfDeliveryFeatureEnabled(): bool
     {
-        return Cache::remember('self_delivery_feature_enabled', 3600, function () {
-            $record = DB::table('settings')
-                ->where('document_name', 'globalSettings')
-                ->first();
+        static $cache = null;
+        if ($cache !== null) {
+            return $cache;
+        }
 
-            if ($record && !empty($record->fields)) {
-                $decoded = json_decode($record->fields, true);
-                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                    return (bool) ($decoded['isSelfDelivery'] ?? false);
-                }
+        $record = DB::table('settings')->where('document_name', 'globalSettings')->first();
+        if ($record && !empty($record->fields)) {
+            $decoded = json_decode($record->fields, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && array_key_exists('isSelfDelivery', $decoded)) {
+                return $cache = (bool) $decoded['isSelfDelivery'];
             }
-            return false;
-        });
+        }
+
+        return $cache = false;
     }
 
     private function fetchPromotionDetails(?string $productId, ?string $vendorId): ?array
@@ -1014,20 +1019,21 @@ class OrderController extends Controller
 
     private function decodeJsonField($value, $default = [])
     {
-        // Early returns for performance
         if (is_array($value)) {
             return $value;
         }
-
-        if (!is_string($value) || trim($value) === '' || strcasecmp(trim($value), 'null') === 0) {
+        if (!is_string($value)) {
             return $default;
         }
-
-        $decoded = json_decode($value, true);
-
-        return (json_last_error() === JSON_ERROR_NONE && $decoded !== null)
-            ? $decoded
-            : $default;
+        $trimmed = trim($value);
+        if ($trimmed === '' || strtolower($trimmed) === 'null') {
+            return $default;
+        }
+        $decoded = json_decode($trimmed, true);
+        if (json_last_error() === JSON_ERROR_NONE && $decoded !== null) {
+            return $decoded;
+        }
+        return $default;
     }
 
     private function extractNameFromJson($json)

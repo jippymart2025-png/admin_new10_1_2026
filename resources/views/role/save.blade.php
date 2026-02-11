@@ -727,7 +727,7 @@
                                                                for="orders-delete">{{ trans('lang.delete') }}</label>
                                                         {{-- ✅ NEW: Billing Details --}}
                                                         <input type="checkbox" id="orders-billing"
-                                                               value="view-billing-details"
+                                                               value="orders.view-billing"
                                                                name="orders[]"
                                                                class="permission">
                                                         <label class="control-label2" for="orders-billing">

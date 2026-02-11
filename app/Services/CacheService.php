@@ -127,7 +127,7 @@ class CacheService
         return null;
     }
 
-    private static function getTopRestaurants(int $limit = 5): array
+    private static function getTopRestaurants(int $limit = 8): array
     {
         try {
             $nameCol = self::firstExistingColumn('vendors', ['title','name']);
@@ -155,7 +155,7 @@ class CacheService
         }
     }
 
-    private static function getTopDrivers(int $limit = 5): array
+    private static function getTopDrivers(int $limit = 10): array
     {
         try {
             return DB::table('users as u')
