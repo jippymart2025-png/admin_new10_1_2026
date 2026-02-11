@@ -385,7 +385,7 @@ class MapController extends Controller
     public function getRestaurantMap(){
         return view('map.restaurantMap');
     }
-    /**
+    /**f
      * Get live restaurant locations (latitude & longitude based)
      */
     public function getRestaurantData(Request $request)
