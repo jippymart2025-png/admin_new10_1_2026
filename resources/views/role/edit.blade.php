@@ -812,6 +812,7 @@
                                                     </label>
                                                 </td>
                                             </tr>
+
                                             <tr>
                                                 <td>
                                                     <strong>{{ trans('lang.dinein_order') }}</strong>
