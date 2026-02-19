@@ -249,10 +249,18 @@ class FoodController extends Controller
 
         $id = Str::uuid()->toString();
 
-        $photoPath = $this->storeUploadedPhoto($request);
+//        $photoPath = $this->storeUploadedPhoto($request);
 
         $vendorTitle = $this->getVendorTitle($data['vendorID']);
         $categoryTitle = $this->getCategoryTitle($data['categoryID']);
+
+        $imageUrl = null;
+        if ($request->hasFile('photo')) {
+            $imageUrl = $this->firebaseStorage->uploadFile(
+                $request->file('photo'),
+                'foods/food_' . time() . '.' . $request->file('photo')->getClientOriginalExtension()
+            );
+        }
 
         $food = VendorProduct::create([
             'id' => $id,
@@ -275,8 +283,8 @@ class FoodController extends Controller
             'grams' => $data['grams'],
             'proteins' => $data['proteins'],
             'fats' => $data['fats'],
-            'photo' => $photoPath,
-            'photos' => $photoPath ? [$photoPath] : [],
+            'photo' => $imageUrl,
+//            'photos' => $imageUrl ? [$imageUrl] : [],
             'addOnsTitle' => $data['addOnsTitle'],
             'addOnsPrice' => $data['addOnsPrice'],
             'product_specification' => $data['product_specification'],
@@ -300,16 +308,24 @@ class FoodController extends Controller
 
         $data = $this->validateFood($request, true);
 
-        $photoPath = $food->photo;
+//        $photoPath = $food->photo;
         $originalName = $food->name;
 
+        $imageUrl = null;
+        if ($request->hasFile('photo')) {
+            $imageUrl = $this->firebaseStorage->uploadFile(
+                $request->file('photo'),
+                'foods/food_' . time() . '.' . $request->file('photo')->getClientOriginalExtension()
+            );
+        }
+
         if ($request->boolean('remove_photo')) {
-            $this->deleteImage($photoPath);
+            $this->deleteImage($imageUrl);
             $photoPath = null;
         }
 
         if ($request->hasFile('photo')) {
-            $this->deleteImage($photoPath);
+            $this->deleteImage($imageUrl);
             $photoPath = $this->storeUploadedPhoto($request);
         }
 
@@ -336,8 +352,8 @@ class FoodController extends Controller
             'grams' => $data['grams'],
             'proteins' => $data['proteins'],
             'fats' => $data['fats'],
-            'photo' => $photoPath,
-            'photos' => $photoPath ? [$photoPath] : [],
+            'photo' => $imageUrl,
+//            'photos' => $photoPath ? [$photoPath] : [],
             'addOnsTitle' => $data['addOnsTitle'],
             'addOnsPrice' => $data['addOnsPrice'],
             'product_specification' => $data['product_specification'],
@@ -350,13 +366,7 @@ class FoodController extends Controller
 
         $redirectUrl = $request->input('return_url');
 
-        $logger->log(
-            auth()->user(),
-            'foods',
-            'updated',
-            'Updated food: ' . $originalName . ' → ' . $food->name,
-            $request
-        );
+        $logger->log(auth()->user(), 'foods', 'updated', 'Updated food: ' . $originalName . ' → ' . $food->name, $request);
 
         if ($redirectUrl) {
             return redirect($redirectUrl)->with('success', 'Food updated successfully.');

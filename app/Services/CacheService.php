@@ -127,7 +127,7 @@ class CacheService
         return null;
     }
 
-    private static function getTopRestaurants(int $limit = 8): array
+    private static function getTopRestaurants(int $limit = 0): array
     {
         try {
             $nameCol = self::firstExistingColumn('vendors', ['title','name']);
@@ -155,7 +155,7 @@ class CacheService
         }
     }
 
-    private static function getTopDrivers(int $limit = 10): array
+    private static function getTopDrivers(int $limit = 0): array
     {
         try {
             return DB::table('users as u')
@@ -192,7 +192,7 @@ class CacheService
     }
 
 
-    private static function getRecentOrders(int $limit = 10): array
+    private static function getRecentOrders(int $limit = 0): array
     {
         try {
             $amountCol = self::firstExistingColumn('restaurant_orders', ['toPayAmount','grandTotal','total','amount','totalAmount']);
@@ -236,7 +236,7 @@ class CacheService
         }
     }
 
-    private static function getRecentPayouts(int $limit = 10): array
+    private static function getRecentPayouts(int $limit = 0): array
     {
         try {
             // Try common payout tables

@@ -803,7 +803,7 @@
                                                            for="orders-delete">{{ trans('lang.delete') }}</label>
                                                     {{-- ✅ NEW: Billing Details --}}
                                                     <input type="checkbox" id="orders-billing"
-                                                           value="orders.view-billing"
+                                                           value="view-billing-details"
                                                            name="orders[]"
                                                            class="permission"
                                                         {{ in_array('view-billing-details', $permissions) ? 'checked' : '' }}>

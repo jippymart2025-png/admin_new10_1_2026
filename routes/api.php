@@ -656,6 +656,13 @@ Route::post('/driver/get-current-order', [DriverSqlBridgeController::class, 'get
 // routes/api.php
 Route::get('/driver/get-current-reject-accept', [App\Http\Controllers\Api\DriverSqlBridgeController::class, 'getOrderCancelRejectCompleated']);
 
+// Specific driver routes must be defined before /driver/{id} so they are not matched as {id}
+Route::get('/driver/ordersList', [DriverSqlBridgeController::class, 'driverGetOrders']);
+
+
+Route::get('/driver-sql/forceupdate', [DriverSqlBridgeController::class, 'getVersion']);
+Route::get('/restaurant-sql/forceupdate', [DriverSqlBridgeController::class, 'getresturantVersion']);
+
 // routes/api.php
 Route::get('/driver/{id}', [DriverSqlBridgeController::class, 'getDriver']);
 Route::get('/order/{id}', [DriverSqlBridgeController::class, 'refreshCurrentOrder']);

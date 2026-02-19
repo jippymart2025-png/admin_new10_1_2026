@@ -2476,7 +2476,7 @@
         // ============================
         // CONFIG
         // ============================
-        const POLL_INTERVAL_MS = 1000;
+        const POLL_INTERVAL_MS = 10000;
         const ENDPOINT_LATEST = "/api/orders/latest-id";
         const ENDPOINT_ORDER = (id) => `/api/orders/get/${id}`;
         const ENDPOINT_RINGTONE = "/api/settings/ringtone";

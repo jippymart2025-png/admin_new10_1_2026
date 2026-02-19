@@ -223,6 +223,167 @@ class MobileSqlBridgeController extends Controller
     /**
      * Create a SQL backed order record that mirrors the old Firestore payload.
      */
+//    public function createOrder(Request $request): JsonResponse
+//    {
+//        $validator = Validator::make($request->all(), [
+//            'author_id' => ['nullable', 'string'],
+//            'cart_items' => ['required', 'array', 'min:1'],
+//            'cart_items.*.id' => ['nullable', 'string'],
+//            'selected_address' => ['required', 'array'],
+//            'payment_method' => ['required', 'string'],
+//            'total_amount' => ['required', 'numeric', 'min:0'],
+//            'delivery_charges' => ['nullable', 'numeric', 'min:0'],
+//            'tip_amount' => ['nullable', 'numeric', 'min:0'],
+//            'coupon_id' => ['nullable', 'string'],
+//            'coupon_code' => ['nullable', 'string'],
+//            'discount' => ['nullable', 'numeric', 'min:0'],
+//            'promotion' => ['nullable', 'numeric'],
+//            'notes' => ['nullable', 'string'],
+//            'schedule_time' => ['nullable', 'date'],
+//            'surge_percent' => ['nullable', 'numeric', 'min:0'],
+//            'admin_surge_fee' => ['nullable', 'numeric', 'min:0'],
+//            'special_discount' => ['nullable', 'array'],
+//            'calculated_charges' => ['nullable', 'array'],
+//            'tax_setting' => ['nullable', 'array'],
+//            'takeaway' => ['nullable', 'boolean'],
+//            'vendor_id' => ['nullable', 'string'],
+//        ]);
+//
+//        if ($validator->fails()) {
+//            return $this->error('Validation failed', 422, (array) $validator->errors());
+//        }
+//
+//        $authorId = $request->input('author_id') ?? $this->resolveUserId($request);
+//        if (!$authorId) {
+//            return $this->error('Author ID is required', 422);
+//        }
+//
+//        $user = $this->resolveUser($authorId);
+//        $authorPayload = $this->mapUserPayload($user);
+//
+//        $cartItems = $request->input('cart_items');
+//        $selectedAddress = $request->input('selected_address');
+//
+//        $specialDiscount = array_merge([
+//            'special_discount' => 0,
+//            'special_discount_label' => null,
+//            'specialType' => null,
+//        ], $request->input('special_discount', []));
+//
+//        $deliveryCharges = (float) $request->input('delivery_charges', 0);
+//        $tipAmount = (float) $request->input('tip_amount', 0);
+//        $discount = (float) $request->input('discount', 0);
+//        $totalAmount = (float) $request->input('total_amount', 0);
+//        $surgePercent = (int) $request->input('surge_percent', 0);
+//
+//        // -------- Surge fee handling -------
+//        $adminFee = $request->filled('admin_surge_fee')
+//            ? (int) $request->admin_surge_fee
+//            : ($surgePercent > 0 ? $this->resolveAdminSurgeFeeValue() : 0);
+//
+//        $totalSurgeFee = $surgePercent + $adminFee;
+//
+//        // -------- Schedule Date ----------
+//        $scheduleTime = $request->filled('schedule_time')
+//            ? Carbon::parse($request->schedule_time)->toISOString()
+//            : null;
+//
+//        // Vendor info resolve
+//        $vendorContext = $this->resolveVendorContext($request->vendor_id);
+//        $adminCommission = $vendorContext['commission'];
+//
+//        $orderId = $this->generateOrderId();
+//        $now = Carbon::now()->toISOString();
+//
+//        /**
+//         * ✅ PROMOTION AUTO-DETECT FROM CART ITEMS
+//         * If any product has promo_id → promotion = 1
+//         */
+//        $promotion = 0;
+//        foreach ($cartItems as $item) {
+//            if (!empty($item['promo_id'])) {
+//                $promotion = 1;
+//                break;
+//            }
+//        }
+//
+//        $orderData = [
+//            'id'                    => $orderId,
+//            'vendorID'              => (string) $request->vendor_id,
+//            'authorID'              => $authorId,
+//            'status'                => 'Order Placed',
+//            'createdAt'             => $now,
+//            'scheduleTime'          => $scheduleTime,
+//            'deliveryCharge'        => $deliveryCharges,
+//            'discount'              => $discount,
+//            'tip_amount'            => $tipAmount,
+//            'takeAway'              => $request->boolean('takeaway'),
+//            'payment_method'        => $request->payment_method,
+//            'couponId'              => $request->coupon_id ?? '',
+//            'couponCode'            => $request->coupon_code ?? '',
+//            'promotion'             => $promotion,
+//            'ToPay'                 => $totalAmount,
+//            'toPayAmount'           => $totalAmount,
+//            'surge_fee'             => $totalSurgeFee,
+//            'adminCommission'       => (string) $adminCommission['amount'],
+//            'adminCommissionType'   => $adminCommission['commissionType'],
+//            'specialDiscount'       => json_encode($specialDiscount),
+//            'calculatedCharges'     => $request->calculated_charges ? json_encode($request->calculated_charges) : null,
+//            'taxSetting'            => $request->tax_setting ? json_encode($request->tax_setting) : null,
+//            'products'              => json_encode($cartItems),
+//            'address'               => json_encode($selectedAddress),
+//            'author'                => json_encode($authorPayload),
+//            'notes'                 => $request->notes,
+//        ];
+//
+//        try {
+//            DB::transaction(function () use (
+//                $orderData,
+//                $orderId,
+//                $totalAmount,
+//                $surgePercent,
+//                $adminFee,
+//                $request,
+//                $authorId
+//            ) {
+//                RestaurantOrder::create($orderData);
+//
+//                if ($request->filled('coupon_id')) {
+//                    $this->storeCouponUsage($authorId, $request->coupon_id);
+//                }
+//
+//                DB::table('order_billing')->updateOrInsert(
+//                    ['orderId' => $orderId],
+//                    [
+//                        'id'               => (string) Str::uuid(),
+//                        'createdAt'        => now()->toISOString(),
+//                        'orderId'          => $orderId,
+//                        'ToPay'            => $totalAmount,
+//                        'surge_fee'        => $surgePercent,
+//                        'admin_surge_fee'  => $adminFee,
+//                        'total_surge_fee'  => $adminFee + $surgePercent,
+//                    ]
+//                );
+//            });
+//        } catch (\Throwable $e) {
+//            Log::error('Order Failed', [
+//                'orderId' => $orderId,
+//                'error' => $e->getMessage(),
+//            ]);
+//
+//            return $this->error('Failed to place order, try again later.', 500);
+//        }
+//
+//        return $this->success([
+//            'order_id'        => $orderId,
+//            'surge_fee'       => $surgePercent,
+//            'admin_surge_fee' => $adminFee,
+//            'total_surge_fee' => $totalSurgeFee,
+//        ], 'Order placed successfully');
+//    }
+
+
+
     public function createOrder(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -264,6 +425,20 @@ class MobileSqlBridgeController extends Controller
         $cartItems = $request->input('cart_items');
         $selectedAddress = $request->input('selected_address');
 
+        /**
+         * ✅ FETCH merchant_price FROM products TABLE
+         */
+        $productIds = collect($cartItems)->pluck('id')->filter()->toArray();
+
+        $merchantPrices = DB::table('vendor_products')
+            ->whereIn('id', $productIds)
+            ->pluck('merchant_price', 'id'); // returns [id => merchant_price]
+
+        $updatedCartItems = collect($cartItems)->map(function ($item) use ($merchantPrices) {
+            $item['merchant_price'] = (float) ($merchantPrices[$item['id']] ?? 0);
+            return $item;
+        })->toArray();
+
         $specialDiscount = array_merge([
             'special_discount' => 0,
             'special_discount_label' => null,
@@ -276,31 +451,24 @@ class MobileSqlBridgeController extends Controller
         $totalAmount = (float) $request->input('total_amount', 0);
         $surgePercent = (int) $request->input('surge_percent', 0);
 
-        // -------- Surge fee handling -------
         $adminFee = $request->filled('admin_surge_fee')
             ? (int) $request->admin_surge_fee
             : ($surgePercent > 0 ? $this->resolveAdminSurgeFeeValue() : 0);
 
         $totalSurgeFee = $surgePercent + $adminFee;
 
-        // -------- Schedule Date ----------
         $scheduleTime = $request->filled('schedule_time')
             ? Carbon::parse($request->schedule_time)->toISOString()
             : null;
 
-        // Vendor info resolve
         $vendorContext = $this->resolveVendorContext($request->vendor_id);
         $adminCommission = $vendorContext['commission'];
 
         $orderId = $this->generateOrderId();
         $now = Carbon::now()->toISOString();
 
-        /**
-         * ✅ PROMOTION AUTO-DETECT FROM CART ITEMS
-         * If any product has promo_id → promotion = 1
-         */
         $promotion = 0;
-        foreach ($cartItems as $item) {
+        foreach ($updatedCartItems as $item) {
             if (!empty($item['promo_id'])) {
                 $promotion = 1;
                 break;
@@ -330,7 +498,7 @@ class MobileSqlBridgeController extends Controller
             'specialDiscount'       => json_encode($specialDiscount),
             'calculatedCharges'     => $request->calculated_charges ? json_encode($request->calculated_charges) : null,
             'taxSetting'            => $request->tax_setting ? json_encode($request->tax_setting) : null,
-            'products'              => json_encode($cartItems),
+            'products'              => json_encode($updatedCartItems), // ✅ updated here
             'address'               => json_encode($selectedAddress),
             'author'                => json_encode($authorPayload),
             'notes'                 => $request->notes,

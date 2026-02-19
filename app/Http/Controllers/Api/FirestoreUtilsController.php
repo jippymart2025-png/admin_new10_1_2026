@@ -612,6 +612,7 @@ class FirestoreUtilsController extends Controller
                 "takeawayOption" => $request->takeawayOption ?? null,
                 "disPrice" => $request->disPrice ?? "0",
                 "price" => $request->price ?? "0",
+                "merchant_price"=> $request->merchant_price ?? "0",
                 "quantity" => $request->quantity ?? 0,
                 "grams" => $request->grams ?? 0,
                 "categoryID" => $request->categoryID,
@@ -1093,6 +1094,8 @@ class FirestoreUtilsController extends Controller
             $data['isOpen'] = $data['isOpen'] ?? 1;
             $data['publish'] = $data['publish'] ?? 1;
             $data['reststatus'] = $data['reststatus'] ?? 1;
+            $data['vType'] = $data['Restaurant'] ?? "Restaurant";
+
 
             // Insert valid columns only
             $allowedColumns = DB::getSchemaBuilder()->getColumnListing('vendors');
@@ -2452,7 +2455,7 @@ class FirestoreUtilsController extends Controller
                         $patterns[] = $cachePrefix . ':' . $pattern;
                         $patterns[] = $cachePrefix . '_' . $pattern;
                     }
-                    
+
                     $deleted = DB::table('cache')
                         ->where(function ($q) use ($patterns) {
                             foreach ($patterns as $index => $pat) {
@@ -2464,9 +2467,9 @@ class FirestoreUtilsController extends Controller
                             }
                         })
                         ->delete();
-                    
+
                     $cleared = $deleted;
-                    
+
                     Log::info('Product feed cache cleared for vendor (database)', [
                         'vendor_id' => $vendorId,
                         'keys_cleared' => $cleared,
@@ -2512,15 +2515,15 @@ class FirestoreUtilsController extends Controller
                 try {
                     $redis = Cache::getStore()->getRedis();
                     $connection = Cache::getStore()->connection();
-                    
+
                     // Get the prefix that Laravel uses (Cache facade handles this automatically)
                     $prefix = $cachePrefix ? $cachePrefix . ':' : '';
                     $searchPattern = $prefix . "product_feed_vendor_{$vendorId}_*";
-                    
+
                     // Use SCAN to find all matching keys (more efficient than KEYS)
                     $cursor = 0;
                     $allKeys = [];
-                    
+
                     do {
                         // SCAN returns [cursor, [keys...]]
                         $result = $redis->scan($cursor, ['match' => $searchPattern, 'count' => 100]);
@@ -2534,7 +2537,7 @@ class FirestoreUtilsController extends Controller
                             break;
                         }
                     } while ($cursor > 0);
-                    
+
                     // Delete all found keys using Cache::forget (handles prefix automatically)
                     foreach ($allKeys as $fullKey) {
                         // Extract the actual cache key (remove prefix if present)
@@ -2543,12 +2546,12 @@ class FirestoreUtilsController extends Controller
                             $cleared++;
                         }
                     }
-                    
+
                     // If SCAN didn't find keys, fall back to common filters
                     if ($cleared === 0) {
                         throw new \Exception('No keys found via SCAN, using fallback');
                     }
-                    
+
                     Log::info('Product feed cache cleared for vendor (redis)', [
                         'vendor_id' => $vendorId,
                         'keys_cleared' => $cleared,
@@ -2561,7 +2564,7 @@ class FirestoreUtilsController extends Controller
                         'vendor_id' => $vendorId,
                         'error' => $e->getMessage(),
                     ]);
-                    
+
                     // Generate comprehensive filter combinations
                     $commonFilters = [
                         ['search' => null, 'is_veg' => null, 'is_nonveg' => null, 'offer_only' => null],
@@ -2580,7 +2583,7 @@ class FirestoreUtilsController extends Controller
                             $cleared++;
                         }
                     }
-                    
+
                     Log::info('Product feed cache cleared for vendor (redis fallback)', [
                         'vendor_id' => $vendorId,
                         'keys_cleared' => $cleared,

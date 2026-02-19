@@ -1691,6 +1691,67 @@ public function getOrderCancelRejectCompleated(Request $request)
 
 
 
+    public function driverGetOrders(Request $request)
+    {
+        // Accept driver_id from GET query parameters
+        $driverId = $request->query('driver_id') ?? $request->query('driverId');
+
+        if (!$driverId) {
+            return response()->json([
+                "success" => false,
+                "message" => "driver_id is required"
+            ], 400);
+        }
+
+        $activeStatuses = [
+            'driver Pending',
+            'driver Accepted',
+            'order Shipped',
+            'order In Transit',
+            'order Completed',
+            'order Cancelled'
+        ];
+
+        try {
+            // Get pagination parameters (default: 15 items per page)
+            $perPage = $request->query('per_page', 10);
+            $page = $request->query('page', 1);
+
+            $orders = Restaurant_Orders::where('driverID', $driverId)
+                ->whereIn('status', $activeStatuses)
+                ->orderBy('createdAt', 'desc')
+                ->paginate($perPage);
+
+            // Decode JSON fields for each order
+            $orders->getCollection()->transform(function ($order) {
+                $order->products = $order->products ? json_decode($order->products, true) : null;
+                $order->address = $order->address ? json_decode($order->address, true) : null;
+                $order->author = $order->author ? json_decode($order->author, true) : null;
+                $order->specialDiscount = $order->specialDiscount ? json_decode($order->specialDiscount, true) : null;
+                return $order;
+            });
+
+            return response()->json([
+                "success" => true,
+                "orders" => $orders->items(),
+                "pagination" => [
+                    "total" => $orders->total(),
+                    "per_page" => $orders->perPage(),
+                    "current_page" => $orders->currentPage(),
+                    "last_page" => $orders->lastPage(),
+                    "from" => $orders->firstItem(),
+                    "to" => $orders->lastItem()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                "success" => false,
+                "message" => "Error fetching orders: " . $e->getMessage()
+            ], 500);
+        }
+    }
+
 
     public function getOrders(Request $request)
     {
@@ -1704,14 +1765,17 @@ public function getOrderCancelRejectCompleated(Request $request)
             ], 400);
         }
 
-        // Optional: Check if driver exists in users table
-        $driver = User::where('firebase_id', $driverId)->first();
+        // Optional: Check if driver exists (by firebase_id or numeric id)
+        $driver = User::where('firebase_id', $driverId)->orWhere('id', $driverId)->first();
         if (!$driver) {
             return response()->json([
                 "success" => false,
                 "message" => "Driver not found"
             ], 404);
         }
+
+        // Use the driver's firebase_id for order lookup (orders.driverID stores firebase_id)
+        $driverIdForOrders = $driver->firebase_id ?? $driverId;
 
         $activeStatuses = [
             'driver Pending',
@@ -1723,7 +1787,7 @@ public function getOrderCancelRejectCompleated(Request $request)
         ];
 
         try {
-            $orders = Restaurant_Orders::where('driverID', $driverId)
+            $orders = Restaurant_Orders::where('driverID', $driverIdForOrders)
                 ->whereIn('status', $activeStatuses)
                 ->orderBy('createdAt', 'desc')
                 ->get();
@@ -1909,6 +1973,85 @@ public function getOrderCancelRejectCompleated(Request $request)
         }
     }
 
+
+    public function getVersion(): array
+    {
+        $app = DB::table('app_settings')
+            ->where('app_type', 'driver')
+            ->first();
+
+        $currentVersion = (string) request()->input('version', request()->input('current_version', ''));
+        $minVersion = $app ? (string) ($app->min_required_version ?? '') : '';
+        $forceUpdate = (bool) ($app->force_update ?? false);
+
+        // show_update: true = show update screen, false = same or newer, don't show
+        $showUpdate = false;
+        if ($minVersion !== '' && $currentVersion !== '') {
+            $showUpdate = version_compare($currentVersion, $minVersion, '<');
+        } elseif ($forceUpdate) {
+            $showUpdate = true;
+        }
+
+        if (!$app) {
+            return [
+                'googlePlayLink'   => '',
+                'appStoreLink'     => '',
+                'app_version'      => '',
+                'force_update'     => false,
+                'min_app_version'  => '',
+                'show_update'      => false,
+            ];
+        }
+
+        return [
+            'googlePlayLink'   => $app->android_update_url ?? '',
+            'appStoreLink'     => $app->ios_update_url ?? '',
+            'app_version'      => $app->android_version ?? '',
+            'force_update'     => $forceUpdate,
+            'min_app_version'  => $minVersion,
+            'show_update'      => $showUpdate,
+        ];
+    }
+
+
+    public function getresturantVersion(): array
+    {
+        $app = DB::table('app_settings')
+            ->where('app_type', 'restaurant')
+            ->first();
+
+        $currentVersion = (string) request()->input('version', request()->input('current_version', ''));
+        $minVersion = $app ? (string) ($app->min_required_version ?? '') : '';
+        $forceUpdate = (bool) ($app->force_update ?? false);
+
+        // show_update: true = show update screen, false = same or newer, don't show
+        $showUpdate = false;
+        if ($minVersion !== '' && $currentVersion !== '') {
+            $showUpdate = version_compare($currentVersion, $minVersion, '<');
+        } elseif ($forceUpdate) {
+            $showUpdate = true;
+        }
+
+        if (!$app) {
+            return [
+                'googlePlayLink'   => '',
+                'appStoreLink'     => '',
+                'app_version'      => '',
+                'force_update'     => false,
+                'min_app_version'  => '',
+                'show_update'      => false,
+            ];
+        }
+
+        return [
+            'googlePlayLink'   => $app->android_update_url ?? '',
+            'appStoreLink'     => $app->ios_update_url ?? '',
+            'app_version'      => $app->android_version ?? '',
+            'force_update'     => $forceUpdate,
+            'min_app_version'  => $minVersion,
+            'show_update'      => $showUpdate,
+        ];
+    }
 
 
 
