@@ -160,8 +160,25 @@
                                     <p class="mb-0 text-dark-2">{{trans('lang.food_table_text')}}</p>
                                 </div>
                                 <div class="card-header-right d-flex align-items-center">
+                                    <div class="dropdown mr-3">
+                                        <button class="btn btn-outline-secondary dropdown-toggle rounded-full" type="button"
+                                                id="columnToggleMenu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                            Columns
+                                        </button>
+
+                                        <div class="dropdown-menu p-3" aria-labelledby="columnToggleMenu" style="max-height:300px;overflow:auto; min-width: 320px; width: 320px;">
+                                            <div id="dynamicColumnToggleArea"></div>
+
+                                            <button id="showAllColumns" class="btn btn-light btn-sm mt-2 w-100">
+                                                Show All
+                                            </button>
+                                        </div>
+                                    </div>
                                     <div class="card-header-btn mr-3">
                                         <?php if (!empty($restaurantId)) { ?>
+                                        <button type="button" id="recalculate-prices-btn" class="btn btn-primary rounded-full mr-2" title="Recalculate all product prices based on current subscription status">
+                                            <i class="fa fa-calculator mr-1"></i> Recalculate Prices
+                                        </button>
                                         <a class="btn-primary btn rounded-full"
                                            href="{!! route('foods.create') !!}/{{$restaurantId}}"><i
                                                 class="mdi mdi-plus mr-2"></i>{{trans('lang.food_create')}}</a>
@@ -195,6 +212,7 @@
                                                 <th>{{trans('lang.food_restaurant_id')}}</th>
                                             @endif
                                             <th>{{trans('lang.food_category_id')}}</th>
+                                            <th>Options</th>
                                             <th>{{trans('lang.food_publish')}}</th>
                                             <th>Available</th>
                                             <th>{{trans('lang.actions')}}</th>
@@ -230,7 +248,8 @@
         }
         var restaurantID = "{{ $restaurantId ?? '' }}";
         var placeholderImage = '{{ asset('images/placeholder.png') }}';
-
+        let foodsTable;
+        let Foods_COLUMN_STORAGE_KEY = 'foods_column_visibility_v1';
         $.ajaxSetup({
             headers: {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
@@ -337,7 +356,7 @@
 
             jQuery("#data-table_processing").show();
 
-            const table = $('#foodTable').DataTable({
+            foodsTable = $('#foodTable').DataTable({
                 pageLength: 30,
                 lengthMenu: [[10, 30, 50, 100], [10, 30, 50, 100,]],
                 processing: false,
@@ -479,6 +498,16 @@
                         }
                     },
                     {
+                        data: 'options_count',
+                        render: function (data, type, row) {
+                            if (!row.has_options || data === 0) {
+                                return '<span class="badge badge-secondary">No Options</span>';
+                            }
+
+                            return `<span class="badge badge-info">${data} Options</span>`;
+                        }
+                    },
+                    {
                         data: 'publish',
                         orderable: false,
                         render: function (data, type, row) {
@@ -558,6 +587,10 @@
                         return this.nodeType === 3;
                     }).remove();
                 }
+            });
+            foodsTable.on('init', function () {
+                restoreFoodColumnState();
+                buildColumnToggleList();
             });
 
             // Handle publish toggle
@@ -801,6 +834,50 @@
                 }
             });
         });
+
+        // Recalculate prices button
+        const csrfToken = '{{ csrf_token() }}';
+        const recalculateBtn = document.getElementById('recalculate-prices-btn');
+        if (recalculateBtn) {
+            recalculateBtn.addEventListener('click', function () {
+                if (!confirm('This will recalculate all product online prices based on your current subscription status. Continue?')) {
+                    return;
+                }
+
+                const btn = this;
+                const originalText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> Recalculating...';
+
+                fetch(`/foods/${restaurantID}/recalculate-prices`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Successfully recalculated prices for ' + data.products_updated + ' product(s).');
+                            // Reload page to show updated prices
+                            window.location.reload();
+                        } else {
+                            alert('Error: ' + (data.message || 'Failed to recalculate prices.'));
+                            btn.disabled = false;
+                            btn.innerHTML = originalText;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Failed to recalculate prices. Please try again.');
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    });
+            });
+        }
+
         function exportFoods(type) {
             let params = {
                 search: $('.dataTables_filter input').val(),
@@ -812,5 +889,96 @@
 
             window.location.href = '/foods/export?' + $.param(params);
         }
+        function buildColumnToggleList() {
+            let html = '';
+
+            foodsTable.columns().every(function (index) {
+                let column = this;
+                let title = $(column.header()).text().trim();
+
+                if (!title) title = 'Select';
+
+                html += `
+            <div class="form-check">
+                <input
+                    class="form-check-input toggle-col"
+                    type="checkbox"
+                    id="order_col_${index}"
+                    data-col="${index}"
+                    ${column.visible() ? 'checked' : ''}>
+                <label class="form-check-label" for="order_col_${index}">
+                    ${title}
+                </label>
+            </div>
+        `;
+            });
+
+            $('#dynamicColumnToggleArea').html(html);
+        }
+
+        $(document).on('click','#dynamicColumnToggleArea', function (e) {
+            e.stopPropagation();
+        });
+
+        $(document).on('change', '.toggle-col', function () {
+            const colIndex = $(this).data('col');
+            foodsTable.column(colIndex).visible(this.checked);
+            saveFoodColumnState();
+        });
+
+        function saveFoodColumnState() {
+            let state = {};
+
+            foodsTable.columns().every(function (index) {
+                state[index] = this.visible();
+            });
+
+            localStorage.setItem(
+                Foods_COLUMN_STORAGE_KEY,
+                JSON.stringify(state)
+            );
+        }
+        function restoreFoodColumnState() {
+            const savedState = localStorage.getItem(Foods_COLUMN_STORAGE_KEY);
+            if (!savedState) return;
+
+            const state = JSON.parse(savedState);
+
+            Object.entries(state).forEach(([index, visible]) => {
+                if (foodsTable.column(index).length) {
+                    foodsTable.column(index).visible(visible);
+                }
+            });
+        }
+
+        $(document).ready(function () {
+
+            // Build column checkboxes AFTER table loads
+            setTimeout(buildColumnToggleList, 1000);
+
+            // --------------------------------------
+            // TOGGLE INDIVIDUAL COLUMN
+            // --------------------------------------
+            $(document).on("change", ".toggle-col", function () {
+                let colIndex = $(this).data("col");
+                let column = foodsTable.column(colIndex);
+
+                column.visible($(this).is(":checked"));
+            });
+
+            // --------------------------------------
+            // SHOW ALL COLUMNS
+            // --------------------------------------
+            $('#showAllColumns').on('click', function (e) {
+                e.stopPropagation();
+
+                foodsTable.columns().every(function () {
+                    this.visible(true);
+                });
+
+                $('.toggle-col').prop('checked', true);
+                saveFoodColumnState();
+            });
+        });
     </script>
 @endsection
