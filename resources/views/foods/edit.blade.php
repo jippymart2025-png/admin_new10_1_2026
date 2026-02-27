@@ -187,6 +187,74 @@
                                 </div>
                             </div>
                         </fieldset>
+
+                        <fieldset>
+                            <legend>Options</legend>
+
+                            @if(!empty($options))
+                                @foreach($options as $index => $option)
+                                    <div class="border rounded p-3 mb-3">
+
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <label>Option Title</label>
+                                                <input type="text"
+                                                       name="options[{{ $index }}][title]"
+                                                       class="form-control"
+                                                       value="{{ old("options.$index.title", $option['title'] ?? '') }}">
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <label>Option Subtitle</label>
+                                                <input type="text"
+                                                       name="options[{{ $index }}][subtitle]"
+                                                       class="form-control"
+                                                       value="{{ old("options.$index.subtitle", $option['subtitle'] ?? '') }}">
+                                            </div>
+                                        </div>
+
+                                        <div class="row mt-2">
+                                            <div class="col-md-4">
+                                                <label>Price (₹)</label>
+                                                <input type="number"
+                                                       name="options[{{ $index }}][price]"
+                                                       class="form-control"
+                                                       value="{{ old("options.$index.price", $option['price'] ?? 0) }}">
+                                            </div>
+
+                                            <div class="col-md-4">
+                                                <label>Original Price (₹)</label>
+                                                <input type="number"
+                                                       name="options[{{ $index }}][original_price]"
+                                                       class="form-control"
+                                                       value="{{ old("options.$index.original_price", $option['original_price'] ?? 0) }}">
+                                            </div>
+
+                                            <div class="col-md-4 d-flex align-items-center mt-4">
+                                                <div class="form-check mr-3">
+                                                    <input type="checkbox"
+                                                           name="options[{{ $index }}][is_available]"
+                                                           class="form-check-input"
+                                                        {{ !empty($option['is_available']) ? 'checked' : '' }}>
+                                                    <label class="form-check-label">Available</label>
+                                                </div>
+
+                                                <div class="form-check">
+                                                    <input type="checkbox"
+                                                           name="options[{{ $index }}][is_featured]"
+                                                           class="form-check-input"
+                                                        {{ !empty($option['is_featured']) ? 'checked' : '' }}>
+                                                    <label class="form-check-label">Featured</label>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                @endforeach
+                            @else
+                                <p class="text-muted text-center">No options added for this item.</p>
+                            @endif
+                        </fieldset>
                     </div>
                 </div>
 

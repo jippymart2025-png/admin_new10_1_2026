@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AppUser;
+use App\Models\Vendor;
 use App\Models\VendorProduct;
 use App\Services\ActivityLogger;
 use App\Services\FirebaseStorageService;
@@ -18,6 +19,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class FoodController extends Controller
 {
     protected FirebaseStorageService $firebaseStorage;
+
     public function __construct(FirebaseStorageService $firebaseStorage)
     {
         $this->middleware('auth');
@@ -45,11 +47,6 @@ class FoodController extends Controller
         ]);
     }
 
-    public function createfood()
-    {
-        return $this->create();
-    }
-
     public function edit($id)
     {
         $food = VendorProduct::findOrFail($id);
@@ -58,8 +55,17 @@ class FoodController extends Controller
         $categories = $this->getCategories();
         $attributes = $this->getAttributes();
 
+        $options = [];
+        if (!empty($food->options)) {
+            $options = is_string($food->options)
+                ? json_decode($food->options, true)
+                : $food->options;
+        }
+
+
         return view('foods.edit', [
             'food' => $food,
+            'options' => $options,
             'restaurants' => $restaurants,
             'categories' => $categories,
             'attributes' => $attributes,
@@ -96,10 +102,10 @@ class FoodController extends Controller
         $userPermissions = json_decode(@session('user_permissions'), true) ?: [];
         $canDelete = in_array('foods.delete', $userPermissions);
 
-        $draw = (int) $request->input('draw', 1);
-        $start = (int) $request->input('start', 0);
-        $length = (int) $request->input('length', 10);
-        $search = strtolower((string) data_get($request->input('search'), 'value', ''));
+        $draw = (int)$request->input('draw', 1);
+        $start = (int)$request->input('start', 0);
+        $length = (int)$request->input('length', 10);
+        $search = strtolower((string)data_get($request->input('search'), 'value', ''));
 
         $restaurantFilter = $request->input('restaurant');
         $categoryFilter = $request->input('category');
@@ -122,6 +128,7 @@ class FoodController extends Controller
                 'vp.publish',
                 'vp.nonveg',
                 'vp.isAvailable',
+                'vp.options',
                 'v.title as restaurant_name',
                 'vc.title as category_name'
             );
@@ -161,11 +168,11 @@ class FoodController extends Controller
         $recordsFiltered = $query->count();
 
         $order = $request->input('order.0', ['column' => 1, 'dir' => 'asc']);
-        $orderColumnIndex = (int) data_get($order, 'column', 1);
+        $orderColumnIndex = (int)data_get($order, 'column', 1);
         $orderDir = data_get($order, 'dir', 'asc') === 'desc' ? 'desc' : 'asc';
 
         $orderableColumns = $canDelete
-            ? ['', 'vp.name', 'vp.price', 'vp.merchant_price','vp.disPrice', 'restaurant_name', 'category_name', '', '']
+            ? ['', 'vp.name', 'vp.price', 'vp.merchant_price', 'vp.disPrice', 'restaurant_name', 'category_name', '', '']
             : ['vp.name', 'vp.price', 'vp.merchant_price', 'vp.disPrice', 'restaurant_name', 'category_name', '', ''];
 
         $orderBy = $orderableColumns[$orderColumnIndex] ?? 'vp.name';
@@ -176,22 +183,39 @@ class FoodController extends Controller
 
         $foods = $query->skip($start)->take($length)->get();
 
+
         $data = $foods->map(function ($food) {
+
+            $optionsArray = [];
+
+            if (!empty($food->options)) {
+                $decoded = json_decode($food->options, true);
+
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $optionsArray = $decoded;
+                }
+            }
+
+            $optionsCount = count($optionsArray);
+
+
             return [
                 'id' => $food->id,
                 'name' => $food->name,
                 'photo' => $this->buildPhotoUrl($food->photo),
                 'price' => $food->price,
-                'merchant_price' => $food->merchant_price !== null ? (float) $food->merchant_price : null,
+                'merchant_price' => $food->merchant_price !== null ? (float)$food->merchant_price : null,
                 'disPrice' => $food->disPrice,
                 'vendorID' => $food->vendorID,
                 'categoryID' => $food->categoryID,
                 'restaurant_name' => $food->restaurant_name,
                 'category_name' => $food->category_name,
                 'description' => $food->description,
-                'publish' => (bool) $food->publish,
-                'nonveg' => (bool) $food->nonveg,
-                'isAvailable' => (bool) $food->isAvailable,
+                'publish' => (bool)$food->publish,
+                'nonveg' => (bool)$food->nonveg,
+                'isAvailable' => (bool)$food->isAvailable,
+                'has_options' => $optionsCount > 0,
+                'options_count' => $optionsCount,
             ];
         });
 
@@ -247,7 +271,7 @@ class FoodController extends Controller
     {
         $data = $this->validateFood($request);
 
-        $id = Str::uuid()->toString();
+        $id = Str::random(20);
 
 //        $photoPath = $this->storeUploadedPhoto($request);
 
@@ -519,7 +543,7 @@ class FoodController extends Controller
                 ], 400);
             }
 
-            $value = (int) $value;
+            $value = (int)$value;
             $message = ucfirst(str_replace('_', ' ', $field)) . ' updated successfully';
 
             // =============================
@@ -540,9 +564,7 @@ class FoodController extends Controller
                 if ($food->merchant_price && $food->merchant_price > $value) {
                     $food->merchant_price = $value;
                 }
-            }
-
-            // 2️⃣ Merchant Price
+            } // 2️⃣ Merchant Price
             elseif ($field === 'merchant_price') {
 
                 // Merchant price cannot exceed main price
@@ -554,26 +576,20 @@ class FoodController extends Controller
                 }
 
                 $food->merchant_price = $value;
-            }
-
-            // 3️⃣ Discount Price
+            } // 3️⃣ Discount Price
             elseif ($field === 'disPrice') {
 
                 // Reset discount
                 if ($value === 0) {
                     $food->disPrice = null;
                     $message = 'Discount price removed';
-                }
-
-                // Discount cannot exceed price
+                } // Discount cannot exceed price
                 elseif ($food->price && $value > $food->price) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Discount price cannot be greater than regular price'
                     ], 400);
-                }
-
-                else {
+                } else {
                     $food->disPrice = $value;
                 }
             }
@@ -744,7 +760,7 @@ class FoodController extends Controller
         }
 
 
-            $this->generateTemplate($filePath);
+        $this->generateTemplate($filePath);
 
 
         return response()->download($filePath, 'foods_import_template.xlsx', [
@@ -904,7 +920,7 @@ class FoodController extends Controller
             return null;
         }
 
-        return (float) str_replace(',', '', $value);
+        return (float)str_replace(',', '', $value);
     }
 
     protected function parseBoolean($value): bool
@@ -974,6 +990,7 @@ class FoodController extends Controller
 
         return ltrim($photo, '/');
     }
+
     private function exportFoodCSV($foods)
     {
         return new StreamedResponse(function () use ($foods) {
@@ -1039,7 +1056,6 @@ class FoodController extends Controller
     }
 
 
-
     private function exportFoodExcel($foods)
     {
         return \Maatwebsite\Excel\Facades\Excel::download(
@@ -1091,7 +1107,6 @@ class FoodController extends Controller
         }
 
 
-
         $foods = $query->orderByDesc('vp.createdAt')->get();
 
         if ($request->type === 'pdf' && $foods->count() > 200) {
@@ -1103,10 +1118,103 @@ class FoodController extends Controller
 
 
         return match ($request->type) {
-            'csv'   => $this->exportFoodCSV($foods),
-            'pdf'   => $this->exportFoodPDF($foods),
+            'csv' => $this->exportFoodCSV($foods),
+            'pdf' => $this->exportFoodPDF($foods),
             'excel' => $this->exportFoodExcel($foods),
             default => abort(404),
         };
+    }
+
+    public function recalculatePrices(Request $request, ActivityLogger $logger, $vendorID)
+    {
+        try {
+            $vendor =  Vendor::find($vendorID);
+
+            if (!$vendor) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vendor not found.'
+                ], 404);
+            }
+
+            $updatedCount = $this->recalculateProductPrices($vendor);
+
+            $logger->log(auth()->user(), 'foods', 'price_recalculated', 'Recalculated prices for vendor: ' . $vendor->title, $request);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully recalculated prices for {$updatedCount} product(s).",
+                'products_updated' => $updatedCount
+            ]);
+        } catch (\Exception $e) {
+            \Log::error("Error in recalculatePrices endpoint: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to recalculate prices: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function recalculateProductPrices(Vendor $vendor)
+    {
+        try {
+            // ---------- CONFIG ----------
+            $gstPercent = 5;
+            $defaultCommission = 30;
+
+            // ---------- COMMISSION ----------
+            $commission = 0;
+
+            if (empty($vendor->subscriptionPlanId)) {
+                $commission = $defaultCommission;
+            } else {
+                $plan = DB::table('subscription_plans')
+                    ->where('id', $vendor->subscriptionPlanId)
+                    ->select('name')
+                    ->first();
+
+                if ($plan && stripos($plan->name, 'commission') !== false) {
+                    $commission = $defaultCommission;
+                }
+            }
+
+            // ---------- GST ----------
+            $applyGst = !$vendor->gst;
+
+            // ---------- UPDATE PRICES ----------
+            $updated = DB::table('vendor_products')
+                ->where('vendorID', $vendor->id)
+                ->update([
+                    'price' => DB::raw("
+                    CASE
+                        WHEN MOD(
+                            merchant_price
+                            + " . ($applyGst ? "(merchant_price * $gstPercent / 100)" : "0") . "
+                            + (merchant_price * $commission / 100),
+                            1
+                        ) = 0.5
+                        THEN FLOOR(
+                            merchant_price
+                            + " . ($applyGst ? "(merchant_price * $gstPercent / 100)" : "0") . "
+                            + (merchant_price * $commission / 100)
+                        )
+                        ELSE ROUND(
+                            merchant_price
+                            + " . ($applyGst ? "(merchant_price * $gstPercent / 100)" : "0") . "
+                            + (merchant_price * $commission / 100)
+                        )
+                    END
+                ")
+                ]);
+
+            return $updated; // ✅ number of products updated
+
+        } catch (\Throwable $e) {
+            \Log::error('Price Recalculation Error', [
+                'vendor_id' => $vendor->id,
+                'error' => $e->getMessage()
+            ]);
+            return 0;
+        }
     }
 }
