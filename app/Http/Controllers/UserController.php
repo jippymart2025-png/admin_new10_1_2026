@@ -255,18 +255,21 @@ class UserController extends Controller
 
     public function view($id)
     {
+        $id = $id ?? '';
         try {
-            $id = $id ?? '';
             return view('settings.users.view')->with('id', $id);
         } catch (\Throwable $e) {
-            \Log::error('User view page error: ' . $e->getMessage(), [
-                'id' => $id ?? null,
+            \Log::error('User view page error', [
+                'id' => $id,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
             ]);
             if (config('app.debug')) {
                 throw $e;
             }
-            abort(500, 'Unable to load user page. Please try again.');
+            abort(500, 'Unable to load user page. Check storage/logs/laravel.log for details.');
         }
     }
 
@@ -884,21 +887,23 @@ class UserController extends Controller
                 ], 404);
             }
 
-            // Get total orders count
-            $totalOrders = \DB::table('restaurant_orders')
-                ->where('authorID', $id)
-                ->count();
+            // Total orders: guard in case restaurant_orders or authorID column missing
+            $totalOrders = 0;
+            try {
+                if (Schema::hasTable('restaurant_orders')) {
+                    $totalOrders = (int) DB::table('restaurant_orders')->where('authorID', $id)->count();
+                }
+            } catch (\Throwable $e) {
+                \Log::debug('User data: orders count skipped: ' . $e->getMessage());
+            }
 
-            // Parse shipping address if it's JSON
             $shippingAddress = null;
-            if ($user->shippingAddress) {
+            if (!empty($user->shippingAddress)) {
                 $shippingAddress = json_decode($user->shippingAddress, true);
             }
 
-            // Extract zoneId from shippingAddress
-            $zoneId = self::extractZoneFromShippingAddress($user->shippingAddress);
+            $zoneId = self::extractZoneFromShippingAddress($user->shippingAddress ?? '');
 
-            // Wallet coins / balance: safe when customer_wallet table does not exist (e.g. production without coins)
             $walletCoins = 0;
             $walletCoinsBalance = '0.00';
             try {
@@ -909,37 +914,44 @@ class UserController extends Controller
                         $walletCoinsBalance = number_format((int) ($wallet->money_balance_paise ?? 0) / 100, 2, '.', '');
                     }
                 }
-            } catch (\Exception $e) {
-                // ignore; keep 0
+            } catch (\Throwable $e) {
+                \Log::debug('User data: wallet skipped: ' . $e->getMessage());
             }
 
             return response()->json([
                 'success' => true,
                 'data' => [
                     'id' => $user->firebase_id ?? $user->_id ?? $user->id,
-                    'firstName' => $user->firstName,
-                    'lastName' => $user->lastName,
-                    'email' => $user->email,
-                    'phoneNumber' => $user->phoneNumber,
-                    'countryCode' => $user->countryCode,
+                    'firstName' => $user->firstName ?? '',
+                    'lastName' => $user->lastName ?? '',
+                    'email' => $user->email ?? '',
+                    'phoneNumber' => $user->phoneNumber ?? '',
+                    'countryCode' => $user->countryCode ?? '',
                     'wallet_amount' => $user->wallet_amount ?? 0,
                     'walletCoins' => $walletCoins,
                     'walletCoinsBalance' => $walletCoinsBalance,
-                    'profilePictureURL' => $user->profilePictureURL,
+                    'profilePictureURL' => $user->profilePictureURL ?? '',
                     'shippingAddress' => $shippingAddress,
                     'zoneId' => $zoneId,
-                    'isActive' => $user->isActive,
-                    'createdAt' => $user->createdAt,
+                    'isActive' => $user->isActive ?? false,
+                    'createdAt' => $user->createdAt ?? null,
                     'totalOrders' => $totalOrders,
                     'referredBy' => null,
                 ]
             ]);
-        } catch (\Exception $e) {
-            \Log::error('Error fetching user data: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            \Log::error('UserController::getUserData failed', [
+                'id' => $id,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            // Return 200 with success: false so the frontend can show a message instead of "500 Internal Server Error"
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching user data: ' . $e->getMessage()
-            ], 500);
+                'message' => config('app.debug') ? $e->getMessage() : 'Failed to load user data. Please try again.',
+            ], 200);
         }
     }
 
