@@ -639,6 +639,11 @@ Route::prefix('settings')->group(function () {
         Route::get('api/surge-rules/settings', [App\Http\Controllers\SettingsController::class, 'getSurgeRulesData'])->name('api.surge.settings');
         Route::post('api/surge-rules/settings', [App\Http\Controllers\SettingsController::class, 'updateSurgeRulesData'])->name('api.surge.update');
     });
+    Route::middleware(['permission:coins,coins'])->group(function () {
+        Route::get('app/coins', [App\Http\Controllers\SettingsController::class, 'coins'])->name('coins');
+        Route::get('/coins/settings', [App\Http\Controllers\SettingsController::class, 'getCoinsData'])->name('coins.get');
+        Route::post('/coins/settings', [App\Http\Controllers\SettingsController::class, 'updateCoinsData'])->name('coins.update');
+    });
     Route::middleware(['permission:app-settings,settings.app.appSettings'])->group(function () {
         Route::get('app/appSettings', [App\Http\Controllers\SettingsController::class, 'appSettings'])->name('settings.app.appSettings');
         Route::get('api/app-settings/settings', [App\Http\Controllers\SettingsController::class, 'getAppSettingsData'])->name('api.app.settings');
