@@ -43,14 +43,14 @@
                                     </select>
                                 </div>
 
-                                <div class="select-box pl-3">
-                                    <button type="button"
-                                            class="btn btn-sm btn-secondary"
-                                            id="clear_filters_btn"
-                                            style="display:none; white-space: nowrap;">
-                                        <i class="mdi mdi-close-circle mr-1"></i>Clear Filters
-                                    </button>
-                                </div>
+{{--                                <div class="select-box pl-3">--}}
+{{--                                    <button type="button"--}}
+{{--                                            class="btn btn-sm btn-secondary"--}}
+{{--                                            id="clear_filters_btn"--}}
+{{--                                            style="display:none; white-space: nowrap;">--}}
+{{--                                        <i class="mdi mdi-close-circle mr-1"></i>Clear Filters--}}
+{{--                                    </button>--}}
+{{--                                </div>--}}
 
                             </div>
                         </div>
@@ -172,6 +172,14 @@
 var selectedVTypeFilter = '';
 var selectedZoneFilter = '';
 
+// Sync filter globals from current select values (jQuery .val() works with Select2)
+function syncFilterValues() {
+    var v = ($('#vtype_filter').val() || '').toString().trim().toLowerCase();
+    var z = ($('#zone_filter').val() || '').toString().trim();
+    selectedVTypeFilter = v;
+    selectedZoneFilter = z;
+}
+
 // Function to show/hide clear filters button
 function updateClearFiltersButton() {
     if (selectedVTypeFilter || selectedZoneFilter) {
@@ -250,10 +258,13 @@ function editUrl(id) {
 }
 
 function loadPromotions() {
+    syncFilterValues(); // ensure globals match current select values before request
+    loadPromotionsRequestId += 1;
+    var thisRequestId = loadPromotionsRequestId;
     console.log('📡 Loading promotions...', {
         vtype: selectedVTypeFilter,
         zone: selectedZoneFilter,
-        route: '{{ route('promotions.data') }}'
+        requestId: thisRequestId
     });
     jQuery('#data-table_processing').show();
 
@@ -261,23 +272,29 @@ function loadPromotions() {
         url: '{{ route('promotions.data') }}',
         method: 'GET',
         data: {
-            vtype_filter: selectedVTypeFilter,
-            zone_filter: selectedZoneFilter
+            vtype_filter: selectedVTypeFilter || '',
+            zone_filter: selectedZoneFilter || ''
         },
+        traditional: true,
         success: function(response) {
-            console.log('📥 Promotions response:', response);
+            // Only apply this response if it's still the latest request (avoid stale response overwriting table)
+            if (thisRequestId !== loadPromotionsRequestId) {
+                console.log('⏭️ Ignoring stale promotions response', thisRequestId, 'current', loadPromotionsRequestId);
+                return;
+            }
+            console.log('📥 Promotions response:', response.data.length, 'rows, requestId:', thisRequestId);
 
             if (response.success) {
                 renderTable(response.data);
                 jQuery('#data-table_processing').hide();
 
-                // Update count display
+                // Update count from same response so count and table always match
                 if (response.stats && response.stats.filtered !== undefined) {
-                    $('.promotion_count').text(response.stats.total);
-                    console.log('📊 Filtered:', response.stats.filtered, 'Total:', response.stats.total);
+                    var displayCount = (selectedVTypeFilter || selectedZoneFilter) ? response.stats.filtered : response.stats.total;
+                    $('.promotion_count').text(displayCount);
+                    console.log('📊 Filtered:', response.stats.filtered, 'Total:', response.stats.total, 'Data rows:', response.data.length);
                 } else if (response.stats && response.stats.total) {
                     $('.promotion_count').text(response.stats.total);
-                    console.log('📊 Total promotions:', response.stats.total);
                 } else {
                     $('.promotion_count').text(response.data.length);
                 }
@@ -288,7 +305,7 @@ function loadPromotions() {
                     promotionsDataTable = null;
                 }
 
-                // Initialize DataTable
+                // Initialize DataTable on the newly rendered rows
                 promotionsDataTable = $('#promotionsTable').DataTable({
                     destroy: true,
                     pageLength: 30,
@@ -323,6 +340,7 @@ function loadPromotions() {
             }
         },
         error: function(xhr, status, error) {
+            if (thisRequestId !== loadPromotionsRequestId) return;
             jQuery('#data-table_processing').hide();
             console.error('❌ AJAX Error loading promotions:', {
                 status: xhr.status,
@@ -351,6 +369,7 @@ function loadPromotions() {
 }
 
 var promotionsDataTable = null;
+var loadPromotionsRequestId = 0; // ignore stale AJAX responses
 
 $(document).ready(function() {
     console.log('📡 Initializing Promotions page...');
@@ -384,17 +403,39 @@ $(document).ready(function() {
                 // Initialize Select2 after zones are loaded (if Select2 is available)
                 if (typeof $.fn.select2 !== 'undefined') {
                     $('#vtype_filter').select2({
-                        placeholder: "{{trans('lang.restaurant_type')}}",
+                        placeholder: "{{ trans('lang.restaurant_type') }}",
                         minimumResultsForSearch: Infinity,
                         allowClear: true,
                     });
                     $('#zone_filter').select2({
-                        placeholder: "{{trans('lang.select_zone')}}",
+                        placeholder: "{{ trans('lang.select_zone') }}",
                         minimumResultsForSearch: Infinity,
                         allowClear: true,
                     });
 
-                    // Handle Select2 clear event
+                    // Select2: use event data so we have the correct value before DOM may update
+                    $('#vtype_filter').on('select2:select', function(e) {
+                        selectedVTypeFilter = (e.params.data.id || '').toString().trim().toLowerCase();
+                        updateClearFiltersButton();
+                        loadPromotions();
+                    });
+                    $('#vtype_filter').on('select2:clear', function() {
+                        selectedVTypeFilter = '';
+                        updateClearFiltersButton();
+                        loadPromotions();
+                    });
+                    $('#zone_filter').on('select2:select', function(e) {
+                        selectedZoneFilter = (e.params.data.id || '').toString().trim();
+                        updateClearFiltersButton();
+                        loadPromotions();
+                    });
+                    $('#zone_filter').on('select2:clear', function() {
+                        selectedZoneFilter = '';
+                        updateClearFiltersButton();
+                        loadPromotions();
+                    });
+
+                    // Handle Select2 clear button / unselect
                     $('#vtype_filter, #zone_filter').on('select2:unselecting', function(e) {
                         var self = $(this);
                         setTimeout(function() {
@@ -413,18 +454,16 @@ $(document).ready(function() {
         }
     });
 
-    // Filter change handlers
+    // Filter change handlers (for native select when Select2 is not used, and as fallback)
     $(document).on('change', '#vtype_filter', function() {
-        var val = $(this).val();
-        selectedVTypeFilter = val ? val.toString().toLowerCase() : '';
+        syncFilterValues();
         console.log('🔍 Type filter changed:', selectedVTypeFilter);
         updateClearFiltersButton();
         loadPromotions();
     });
 
     $(document).on('change', '#zone_filter', function() {
-        var val = $(this).val();
-        selectedZoneFilter = val ? val.toString() : '';
+        syncFilterValues();
         console.log('🔍 Zone filter changed:', selectedZoneFilter);
         updateClearFiltersButton();
         loadPromotions();

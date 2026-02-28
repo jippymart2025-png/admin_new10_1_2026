@@ -38,8 +38,8 @@ class PromotionController extends Controller
     public function getData(Request $request)
     {
         try {
-            $vtypeFilter = $request->input('vtype_filter', '');
-            $zoneFilter = $request->input('zone_filter', '');
+            $vtypeFilter = trim((string) $request->input('vtype_filter', ''));
+            $zoneFilter = trim((string) $request->input('zone_filter', ''));
 
             // ✅ Base query
             $query = DB::table('promotions as p')
@@ -51,21 +51,19 @@ class PromotionController extends Controller
                     'z.name as zone_name'
                 );
 
-            // ✅ Apply filters directly on promotions table
-            if (!empty($vtypeFilter)) {
-                $query->where('p.vType', '=', $vtypeFilter);
+            // ✅ Apply filters: restaurant type (case-insensitive) and zone
+            if ($vtypeFilter !== '') {
+                $query->whereRaw('LOWER(TRIM(COALESCE(p.vType, ""))) = ?', [strtolower($vtypeFilter)]);
             }
 
-            if (!empty($zoneFilter)) {
+            if ($zoneFilter !== '') {
                 $query->where('p.zoneId', '=', $zoneFilter);
             }
 
-            // ✅ Count totals
+            // ✅ Count total (unfiltered) and fetch filtered data in one go so count always matches table
             $totalRecords = DB::table('promotions')->count();
-            $filteredRecords = (clone $query)->count();
-
-            // ✅ Fetch data
             $promotions = $query->orderBy('p.start_time', 'desc')->get();
+            $filteredRecords = $promotions->count();
 
             $data = [];
             foreach ($promotions as $promo) {

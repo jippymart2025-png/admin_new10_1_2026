@@ -171,22 +171,38 @@ class TransactionController extends Controller
 
     public function walletCoinsIndex(Request $request, $firebaseId)
     {
-        // 🔹 1️⃣ Find user by firebase_id
         $user = \App\Models\AppUser::where('firebase_id', $firebaseId)->first();
 
         if (!$user) {
             abort(404, 'User not found');
         }
 
-        // 🟢 Normal page load → return view
         if (!$request->ajax()) {
             return view('transactions.wallet_coins_index', [
-                'id' => $firebaseId,          // keep firebase id for routes
-                'userDbId' => $user->id       // optional if needed in blade
+                'id' => $firebaseId,
+                'userDbId' => $user->id
             ]);
         }
 
-        // 🔵 AJAX (DataTables)
+        // AJAX (DataTables): safe when coin_ledger table does not exist
+        try {
+            if (!\Schema::hasTable('coin_ledger')) {
+                return response()->json([
+                    'draw'            => intval($request->input('draw')),
+                    'recordsTotal'    => 0,
+                    'recordsFiltered' => 0,
+                    'data'            => [],
+                ]);
+            }
+        } catch (\Throwable $e) {
+            return response()->json([
+                'draw'            => intval($request->input('draw')),
+                'recordsTotal'    => 0,
+                'recordsFiltered' => 0,
+                'data'            => [],
+            ]);
+        }
+
         $start  = (int) $request->input('start', 0);
         $length = (int) $request->input('length', 10);
         $search = $request->input('search.value', '');
@@ -199,13 +215,9 @@ class TransactionController extends Controller
             2 => 'coins',
             3 => 'created_at',
         ];
-
         $orderBy = $columns[$orderColumnIndex] ?? 'created_at';
 
-        // 🔹 2️⃣ Use NUMERIC users.id here ✅
-        $query = DB::table('coin_ledger')
-            ->where('user_id', $user->id);
-
+        $query = DB::table('coin_ledger')->where('user_id', $user->id);
         $recordsTotal = $query->count();
 
         if ($search) {
@@ -215,7 +227,6 @@ class TransactionController extends Controller
                     ->orWhere('reference_id', 'like', "%{$search}%");
             });
         }
-
         $recordsFiltered = $query->count();
 
         $data = $query

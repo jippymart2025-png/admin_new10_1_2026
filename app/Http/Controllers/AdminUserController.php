@@ -6,6 +6,7 @@ use App\Models\AppUser;
 use App\Models\CustomerWallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -568,12 +569,8 @@ class AdminUserController extends Controller
     }
     public function userData($id)
     {
-        $user = AppUser::with([
-            'customerWallet:user_id,coin_balance,money_balance_paise',
-//            'latestDailyCheckin:user_id,streak_day_number',
-            'referredBy'
-        ])->where('firebase_id', $id)
-//            ->orWhere('id', $id)
+        $user = AppUser::with(['referredBy'])
+            ->where('firebase_id', $id)
             ->first();
 
         if (!$user) {
@@ -584,19 +581,36 @@ class AdminUserController extends Controller
         }
 
         $shippingAddress = $user->shippingAddress;
-
         if (is_string($shippingAddress)) {
             $shippingAddress = json_decode($shippingAddress, true);
         }
 
         $referredBy = null;
-
-
         if ($user->referredBy) {
             $referredBy = [
-                'name'  => trim($user->referredBy->firstName . ' ' . $user->referredBy->lastName),
-                'email' => $user->referredBy->email,
+                'name'  => trim(($user->referredBy->firstName ?? '') . ' ' . ($user->referredBy->lastName ?? '')),
+                'email' => $user->referredBy->email ?? '',
             ];
+        }
+
+        // Wallet coins / balance: safe when customer_wallet table does not exist (e.g. production without coins)
+        $walletCoins = 0;
+        $walletCoinsBalance = '0.00';
+        $streak = 0;
+        try {
+            if (Schema::hasTable('customer_wallet')) {
+                $wallet = DB::table('customer_wallet')->where('user_id', $user->id)->first();
+                if ($wallet) {
+                    $walletCoins = (int) ($wallet->coin_balance ?? 0);
+                    $walletCoinsBalance = number_format((int) ($wallet->money_balance_paise ?? 0) / 100, 2, '.', '');
+                }
+            }
+            if (Schema::hasTable('daily_checkins')) {
+                $streakRow = DB::table('daily_checkins')->where('user_id', $user->id)->orderByDesc('id')->first();
+                $streak = (int) ($streakRow->streak_day_number ?? 0);
+            }
+        } catch (\Throwable $e) {
+            // keep defaults 0 / 0.00
         }
 
         return response()->json([
@@ -608,19 +622,25 @@ class AdminUserController extends Controller
                 'email' => $user->email,
                 'phoneNumber' => $user->phoneNumber,
                 'wallet_amount' => $user->wallet_amount ?? 0,
-                'walletCoins' => optional($user->customerWallet)->coin_balance ?? 0,
-//                'walletCoinsBalance' => optional($user->customerWallet)->money_balance_paise ?? 0,
-                'walletCoinsBalance' => number_format((optional($user->customerWallet)->money_balance_paise ?? 0) / 100, 2, '.', ''),
-                'streak' => optional($user->latestDailyCheckin)->streak_day_number ?? 0,
+                'walletCoins' => $walletCoins,
+                'walletCoinsBalance' => $walletCoinsBalance,
+                'streak' => $streak,
                 'profilePictureURL' => $user->profilePictureURL,
                 'referredBy' => $referredBy,
-                'shippingAddress' =>$shippingAddress,
+                'shippingAddress' => $shippingAddress,
             ]
         ]);
     }
 
     public function addWalletCoins(Request $request, $id)
     {
+        if (!Schema::hasTable('customer_wallet') || !Schema::hasTable('coin_ledger')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Wallet coins feature is not available (tables not set up).'
+            ], 503);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -628,7 +648,6 @@ class AdminUserController extends Controller
                 'coins' => 'required|integer',
             ]);
 
-            // Support id OR firebase_id
             $user = AppUser::where('id', $id)
                 ->orWhere('firebase_id', $id)
                 ->first();
