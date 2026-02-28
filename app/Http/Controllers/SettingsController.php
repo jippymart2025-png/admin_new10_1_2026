@@ -195,6 +195,10 @@ class SettingsController extends Controller
       return view('settings.app.surgeRules');
     }
 
+    public function coins(){
+        return view('settings.app.coins');
+    }
+
     public function getRingtone()
     {
         $row = DB::table('settings')
@@ -710,6 +714,74 @@ class SettingsController extends Controller
         DB::table('settings')->updateOrInsert(
             ['document_name' => 'surge_rules_config'],
             ['fields' => json_encode(['admin_surge_fee' => (int) $payload['admin_surge_fee']], JSON_UNESCAPED_UNICODE)]
+        );
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Wallet/Coins Config: SQL-backed via `settings` table, document_name = 'wallet_config'.
+     * Fetches all details from fields (version + wallet_config nested structure).
+     */
+    public function getCoinsData()
+    {
+        $row = DB::table('settings')->where('document_name', 'wallet_config')->first();
+        $fields = $row && $row->fields ? json_decode($row->fields, true) : [];
+        $wallet = $fields['wallet_config'] ?? [];
+
+        return response()->json([
+            'version' => (int) ($fields['version'] ?? 1),
+            'coins_per_100_rupees' => (int) ($wallet['coins_per_100_rupees'] ?? 1000),
+            'min_redeem_coins' => (int) ($wallet['min_redeem_coins'] ?? 1000),
+            'daily_redeem_cap_rupees' => (float) ($wallet['daily_redeem_cap_rupees'] ?? 100.0),
+            'checkin_coins_per_day' => (int) (($wallet['checkin'] ?? [])['coins_per_day'] ?? 25),
+            'streak_day_10' => (int) (($wallet['checkin']['streak_bonus'] ?? [])['day_10'] ?? 100),
+            'streak_day_20' => (int) (($wallet['checkin']['streak_bonus'] ?? [])['day_20'] ?? 250),
+            'streak_day_30' => (int) (($wallet['checkin']['streak_bonus'] ?? [])['day_30'] ?? 500),
+            'referee_first_order_coins' => (int) (($wallet['referral'] ?? [])['referee_first_order_coins'] ?? 50),
+        ]);
+    }
+
+    public function updateCoinsData(Request $request)
+    {
+        $payload = $request->validate([
+            'version' => 'nullable|integer|min:0',
+            'coins_per_100_rupees' => 'required|integer|min:0',
+            'min_redeem_coins' => 'required|integer|min:0',
+            'daily_redeem_cap_rupees' => 'required|numeric|min:0',
+            'checkin_coins_per_day' => 'required|integer|min:0',
+            'streak_day_10' => 'required|integer|min:0',
+            'streak_day_20' => 'required|integer|min:0',
+            'streak_day_30' => 'required|integer|min:0',
+            'referee_first_order_coins' => 'required|integer|min:0',
+        ]);
+
+        $version = (int) ($payload['version'] ?? 1);
+        $walletConfig = [
+            'coins_per_100_rupees' => (int) $payload['coins_per_100_rupees'],
+            'min_redeem_coins' => (int) $payload['min_redeem_coins'],
+            'daily_redeem_cap_rupees' => (float) $payload['daily_redeem_cap_rupees'],
+            'checkin' => [
+                'coins_per_day' => (int) $payload['checkin_coins_per_day'],
+                'streak_bonus' => [
+                    'day_10' => (int) $payload['streak_day_10'],
+                    'day_20' => (int) $payload['streak_day_20'],
+                    'day_30' => (int) $payload['streak_day_30'],
+                ],
+            ],
+            'referral' => [
+                'referee_first_order_coins' => (int) $payload['referee_first_order_coins'],
+            ],
+        ];
+
+        $fields = [
+            'version' => $version,
+            'wallet_config' => $walletConfig,
+        ];
+
+        DB::table('settings')->updateOrInsert(
+            ['document_name' => 'wallet_config'],
+            ['fields' => json_encode($fields, JSON_UNESCAPED_UNICODE)]
         );
 
         return response()->json(['success' => true]);

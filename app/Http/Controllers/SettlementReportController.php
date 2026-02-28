@@ -13,6 +13,41 @@ use App\Models\VendorSettlement;
 use App\Models\DriverSettlement;
 class SettlementReportController extends Controller
 {
+    public function index(Request $request)
+    {
+        $query = DB::table('settlement_weeks');
+
+//        if ($request->has('start_date') && $request->has('end_date')) {
+//            $startDate = $request->input('start_date');
+//            $endDate = $request->input('end_date');
+//
+//            [, , $startDateOnly, $endDateOnly] = $this->normalizeDateRange((string)$startDate, (string)$endDate);
+//            $startDate = $startDateOnly;
+//            $endDate = $endDateOnly;
+//
+//            $query->where(function($q) use ($startDate, $endDate) {
+//                $q->where(function($subQ) use ($startDate, $endDate) {
+//                    $subQ->whereDate('week_start_date', '>=', $startDate)
+//                        ->whereDate('week_start_date', '<=', $endDate);
+//                })->orWhere(function($subQ) use ($startDate, $endDate) {
+//                    $subQ->whereDate('week_end_date', '>=', $startDate)
+//                        ->whereDate('week_end_date', '<=', $endDate);
+//                })->orWhere(function($subQ) use ($startDate, $endDate) {
+//                    $subQ->whereDate('week_start_date', '<=', $startDate)
+//                        ->whereDate('week_end_date', '>=', $endDate);
+//                });
+//            });
+//        }
+
+        $weeks = $query->orderBy('week_start_date', 'desc')->get();
+
+        $year = (int) request('year', now()->year);
+        $weeks2026 = $this->getWeeksForYear($year);
+
+
+        return view('reports.merchantSettlement', compact('weeks','weeks2026'));
+    }
+
     /**
      * Normalize incoming UI dates to a safe SQL datetime range.
      */
@@ -92,7 +127,6 @@ CASE
     ELSE NULL
 END
 ";
-
     }
 
     private function getWeeksForYear(int $year): array
@@ -258,7 +292,8 @@ END
             if (!$product) continue;
 
             $qty = $item['quantity'] ?? 1;
-            $merchantPrice = $product->merchant_price ?? 0;
+            // Prefer merchant_price from restaurant_orders.products JSON; fallback to vendor_products
+            $merchantPrice = (float)($item['merchant_price'] ?? $product->merchant_price ?? 0);
 
             // FINAL RULE: Use promo price ONLY when BOTH are true:
             // promotions.promo = 1 AND restaurant_orders.promotion = 1
@@ -358,41 +393,6 @@ END
     | SETTLEMENT WEEKS LIST
     |--------------------------------------------------------------------------
     */
-    public function index(Request $request)
-    {
-        $query = DB::table('settlement_weeks');
-
-//        if ($request->has('start_date') && $request->has('end_date')) {
-//            $startDate = $request->input('start_date');
-//            $endDate = $request->input('end_date');
-//
-//            [, , $startDateOnly, $endDateOnly] = $this->normalizeDateRange((string)$startDate, (string)$endDate);
-//            $startDate = $startDateOnly;
-//            $endDate = $endDateOnly;
-//
-//            $query->where(function($q) use ($startDate, $endDate) {
-//                $q->where(function($subQ) use ($startDate, $endDate) {
-//                    $subQ->whereDate('week_start_date', '>=', $startDate)
-//                        ->whereDate('week_start_date', '<=', $endDate);
-//                })->orWhere(function($subQ) use ($startDate, $endDate) {
-//                    $subQ->whereDate('week_end_date', '>=', $startDate)
-//                        ->whereDate('week_end_date', '<=', $endDate);
-//                })->orWhere(function($subQ) use ($startDate, $endDate) {
-//                    $subQ->whereDate('week_start_date', '<=', $startDate)
-//                        ->whereDate('week_end_date', '>=', $endDate);
-//                });
-//            });
-//        }
-
-        $weeks = $query->orderBy('week_start_date', 'desc')->get();
-
-        $year = (int) request('year', now()->year);
-        $weeks2026 = $this->getWeeksForYear($year);
-
-
-        return view('reports.merchantSettlement', compact('weeks','weeks2026'));
-    }
-
     /*
     |--------------------------------------------------------------------------
     | FILTER WEEKS BY DATE RANGE (AJAX)
@@ -734,7 +734,8 @@ END
                     $product = $vendorProducts->firstWhere('id', $item['id'] ?? null);
                     if (!$product) continue;
                     $qty = $item['quantity'] ?? 1;
-                    $merchantPrice = $product->merchant_price ?? 0;
+                    // Prefer merchant_price from restaurant_orders.products JSON; fallback to vendor_products
+                    $merchantPrice = (float)($item['merchant_price'] ?? $product->merchant_price ?? 0);
 
                     // STEP 1: Promotion check (FIRST) - use special_price if order.promotion=1 or promo=1, else merchant_price
                     // GOLDEN RULE: restaurant_orders.promotion = 1 is the source of truth
@@ -1056,7 +1057,8 @@ END
                     $product = $vendorProducts->firstWhere('id', $item['id'] ?? null);
                     if (!$product) continue;
                     $qty = $item['quantity'] ?? 1;
-                    $merchantPrice = $product->merchant_price ?? 0;
+                    // Prefer merchant_price from restaurant_orders.products JSON; fallback to vendor_products
+                    $merchantPrice = (float)($item['merchant_price'] ?? $product->merchant_price ?? 0);
 
                     // STEP 1: Promotion check (FIRST) - use special_price if promo = 1, else merchant_price
                     $price = $this->getProductPrice($product->id, $vendor->id, $orderDate, $merchantPrice, $promotionsCache);
@@ -1189,8 +1191,8 @@ END
                 $products = array_map(function ($item) use ($vendorProducts, $vendorId, $orderDate, $promotionsCache, $orderHasPromotion) {
                     $productId = $item['id'] ?? null;
                     if ($productId && isset($vendorProducts[$productId])) {
-                        // Add merchant_price from vendor_products table
-                        $merchantPrice = $vendorProducts[$productId]->merchant_price ?? 0;
+                        // Prefer merchant_price from restaurant_orders.products JSON; fallback to vendor_products
+                        $merchantPrice = (float)($item['merchant_price'] ?? $vendorProducts[$productId]->merchant_price ?? 0);
                         $item['merchant_price'] = $merchantPrice;
 
                         // FINAL RULE: Use promo price ONLY when BOTH are true:
@@ -1216,7 +1218,8 @@ END
                             $item['promo_accepted'] = false;
                         }
                     } else {
-                        $item['merchant_price'] = 0;
+                        // No vendor_products row: use merchant_price from order JSON if present
+                        $item['merchant_price'] = (float)($item['merchant_price'] ?? 0);
                         $item['promotion_price'] = null;
                         $item['has_promotion'] = false;
                     }
@@ -1698,7 +1701,8 @@ END
                     if (!$product) continue;
 
                     $qty = $item['quantity'] ?? 1;
-                    $merchantPrice = $product->merchant_price ?? 0;
+                    // Prefer merchant_price from restaurant_orders.products JSON; fallback to vendor_products
+                    $merchantPrice = (float)($item['merchant_price'] ?? $product->merchant_price ?? 0);
 
                     // STEP 1: Promotion check (FIRST) - use special_price if promo = 1, else merchant_price
                     $price = $this->getProductPrice($product->id, $vendor->id, $orderDate, $merchantPrice, $promotionsCache);

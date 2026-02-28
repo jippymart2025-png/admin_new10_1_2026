@@ -503,6 +503,9 @@
                     @if(in_array('surge-rules', $role_has_permission))
                         <li><a href="{!! url('settings/app/surgeRules') !!}">{{trans('lang.surge_rules')}}</a></li>
                     @endif
+                        @if(in_array('coins', $role_has_permission))
+                            <li><a href="{!! url('settings/app/coins') !!}">Coins Settings</a></li>
+                        @endif
                     @if(in_array('app-settings', $role_has_permission))
                         <li><a href="{!! url('settings/app/appSettings') !!}">{{trans('lang.app_settings')}}</a></li>
                     @endif

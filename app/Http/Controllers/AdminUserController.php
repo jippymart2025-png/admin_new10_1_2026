@@ -685,7 +685,7 @@ class AdminUserController extends Controller
                 'user_id'    => $user->id,
                 'type'       => $type,
                 'coins'      => $coins,
-                'created_at' => now(),
+//                'created_at' => now(),
             ]);
 
             DB::commit();
