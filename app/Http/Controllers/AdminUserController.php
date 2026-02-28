@@ -569,76 +569,97 @@ class AdminUserController extends Controller
     }
     public function userData($id)
     {
-        $user = AppUser::with(['referredBy'])
-            ->where('firebase_id', $id)
-            ->first();
+        try {
+            $user = AppUser::with(['referredBy'])
+                ->where('firebase_id', $id)
+                ->first();
 
-        if (!$user) {
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found'
+                ], 404);
+            }
+
+            $shippingAddress = $user->shippingAddress;
+            if (is_string($shippingAddress)) {
+                $shippingAddress = json_decode($shippingAddress, true);
+            }
+
+            $referredBy = null;
+            if ($user->referredBy) {
+                $referredBy = [
+                    'name'  => trim(($user->referredBy->firstName ?? '') . ' ' . ($user->referredBy->lastName ?? '')),
+                    'email' => $user->referredBy->email ?? '',
+                ];
+            }
+
+            $walletCoins = 0;
+            $walletCoinsBalance = '0.00';
+            $streak = 0;
+            try {
+                if (Schema::hasTable('customer_wallet')) {
+                    $wallet = DB::table('customer_wallet')->where('user_id', $user->id)->first();
+                    if ($wallet) {
+                        $walletCoins = (int) ($wallet->coin_balance ?? 0);
+                        $walletCoinsBalance = number_format((int) ($wallet->money_balance_paise ?? 0) / 100, 2, '.', '');
+                    }
+                }
+                if (Schema::hasTable('daily_checkins')) {
+                    $streakRow = DB::table('daily_checkins')->where('user_id', $user->id)->orderByDesc('id')->first();
+                    $streak = (int) ($streakRow->streak_day_number ?? 0);
+                }
+            } catch (\Throwable $e) {
+                // keep defaults
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => (string) ($user->firebase_id ?: $user->id),
+                    'firstName' => $user->firstName ?? '',
+                    'lastName' => $user->lastName ?? '',
+                    'email' => $user->email ?? '',
+                    'phoneNumber' => $user->phoneNumber ?? '',
+                    'wallet_amount' => $user->wallet_amount ?? 0,
+                    'walletCoins' => $walletCoins,
+                    'walletCoinsBalance' => $walletCoinsBalance,
+                    'streak' => $streak,
+                    'profilePictureURL' => $user->profilePictureURL ?? '',
+                    'referredBy' => $referredBy,
+                    'shippingAddress' => $shippingAddress,
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('AdminUserController::userData failed', [
+                'id' => $id,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'User not found'
-            ], 404);
+                'message' => config('app.debug') ? $e->getMessage() : 'Failed to load user data.',
+            ], 200);
         }
-
-        $shippingAddress = $user->shippingAddress;
-        if (is_string($shippingAddress)) {
-            $shippingAddress = json_decode($shippingAddress, true);
-        }
-
-        $referredBy = null;
-        if ($user->referredBy) {
-            $referredBy = [
-                'name'  => trim(($user->referredBy->firstName ?? '') . ' ' . ($user->referredBy->lastName ?? '')),
-                'email' => $user->referredBy->email ?? '',
-            ];
-        }
-
-        // Wallet coins / balance: safe when customer_wallet table does not exist (e.g. production without coins)
-        $walletCoins = 0;
-        $walletCoinsBalance = '0.00';
-        $streak = 0;
-        try {
-            if (Schema::hasTable('customer_wallet')) {
-                $wallet = DB::table('customer_wallet')->where('user_id', $user->id)->first();
-                if ($wallet) {
-                    $walletCoins = (int) ($wallet->coin_balance ?? 0);
-                    $walletCoinsBalance = number_format((int) ($wallet->money_balance_paise ?? 0) / 100, 2, '.', '');
-                }
-            }
-            if (Schema::hasTable('daily_checkins')) {
-                $streakRow = DB::table('daily_checkins')->where('user_id', $user->id)->orderByDesc('id')->first();
-                $streak = (int) ($streakRow->streak_day_number ?? 0);
-            }
-        } catch (\Throwable $e) {
-            // keep defaults 0 / 0.00
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'id' => (string) ($user->firebase_id ?: $user->id),
-                'firstName' => $user->firstName,
-                'lastName' => $user->lastName,
-                'email' => $user->email,
-                'phoneNumber' => $user->phoneNumber,
-                'wallet_amount' => $user->wallet_amount ?? 0,
-                'walletCoins' => $walletCoins,
-                'walletCoinsBalance' => $walletCoinsBalance,
-                'streak' => $streak,
-                'profilePictureURL' => $user->profilePictureURL,
-                'referredBy' => $referredBy,
-                'shippingAddress' => $shippingAddress,
-            ]
-        ]);
     }
 
     public function addWalletCoins(Request $request, $id)
     {
-        if (!Schema::hasTable('customer_wallet') || !Schema::hasTable('coin_ledger')) {
+        try {
+            if (!Schema::hasTable('customer_wallet') || !Schema::hasTable('coin_ledger')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Wallet coins feature is not available (tables not set up).'
+                ], 503);
+            }
+        } catch (\Throwable $e) {
+            \Log::error('AddWalletCoins table check failed', ['message' => $e->getMessage()]);
             return response()->json([
                 'success' => false,
-                'message' => 'Wallet coins feature is not available (tables not set up).'
-            ], 503);
+                'message' => 'Wallet coins feature is not available.',
+            ], 200);
         }
 
         DB::beginTransaction();
@@ -717,14 +738,19 @@ class AdminUserController extends Controller
                     ->value('coin_balance')
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
-            \Log::error('Wallet Error: ' . $e->getMessage());
-
+            \Log::error('AddWalletCoins failed', [
+                'id' => $id,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Something went wrong'
-            ], 500);
+                'message' => config('app.debug') ? $e->getMessage() : 'Something went wrong. Please try again.',
+            ], 200);
         }
     }
 }
