@@ -1,50 +1,10 @@
 <?php
 
 use App\Http\Controllers\AdminUserController;
-use App\Http\Controllers\Api\ChatadminController;
-use App\Http\Controllers\Api\ChatDriverContoller;
-use App\Http\Controllers\Api\ChatRestaurantController;
-use App\Http\Controllers\Api\DriverControllerLogin;
-use App\Http\Controllers\Api\DriverUserController;
-use App\Http\Controllers\Api\DriverSqlBridgeController;
-use App\Http\Controllers\Api\MobileSqlBridgeController;
-use App\Http\Controllers\Api\OrderSupportController;
-use App\Http\Controllers\Api\productcontroller;
-use App\Http\Controllers\Api\FirestoreBridgeController;
-use App\Http\Controllers\Api\RestaurantAppSettingController;
-use App\Http\Controllers\Api\restaurantControllerLogin;
-use App\Http\Controllers\Api\restaurantUserController;
-use App\Http\Controllers\Api\restaurentrestpassword;
-use App\Http\Controllers\Api\SearchController;
-use App\Http\Controllers\Api\SettingsApiController;
-use App\Http\Controllers\Api\VendorController;
-use App\Http\Controllers\Api\Vendor_Reviews;
-use App\Http\Controllers\Api\WalletTransactionController;
-use App\Http\Controllers\Api\WalletApiController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\PaymentController;
-use App\Http\Controllers\Api\ZoneController;
-use App\Http\Controllers\Api\RestaurantController;
-use App\Http\Controllers\Api\CategoryController;
-use App\Http\Controllers\Api\BannerController;
-use App\Http\Controllers\Api\MenuItemBannerController;
-use App\Http\Controllers\Api\StoryController;
-use App\Http\Controllers\Api\CouponApiController;
-use App\Http\Controllers\Api\UserProfileController;
-use App\Http\Controllers\Api\ShippingAddressController;
-use App\Http\Controllers\Api\FavoriteController;
-use App\Http\Controllers\Api\WalletController;
-use App\Http\Controllers\Api\OrderApiController;
-use App\Http\Controllers\Api\MartItemController;
-use App\Http\Controllers\ChatController;
-use App\Http\Controllers\Api\SwiggySearchController;
-use App\Http\Controllers\Api\FirestoreUtilsController;
-use App\Http\Controllers\Api\CacheController;
-
-
 
 
 Route::get('/settings/ringtone', [SettingsController::class, 'getRingtone']);
@@ -94,22 +54,22 @@ Route::patch('/app-users/{id}/active', [AdminUserController::class, 'setActive']
 Route::get('/app-users/export', [App\Http\Controllers\AdminUserController::class, 'export']);
 // Chat API routes
 // Chat inbox (list all chats)
-Route::get('/chat/inbox', [ChatController::class, 'getInbox']);
-// Get chat messages by order ID
-Route::get('/chat/{orderId}/messages', [ChatController::class, 'getMessages']);
-// Get single chat with messages
-//    Route::post('/chat/{orderId}', [ChatController::class, 'getChat']);
-// Send message
-Route::post('/chat/{orderId}/send', [ChatController::class, 'sendMessage']);
-// Delete message
-Route::delete('/chat/message/{messageId}', [ChatController::class, 'deleteMessage']);
-// Delete chat
-Route::delete('/chat/{orderId}', [ChatController::class, 'deleteChat']);
-// Upload image
-Route::post('/chat/upload/image', [ChatController::class, 'uploadImage']);
-// Upload video
-Route::post('/chat/upload/video', [ChatController::class, 'uploadVideo']);
-//
+//Route::get('/chat/inbox', [ChatController::class, 'getInbox']);
+//// Get chat messages by order ID
+//Route::get('/chat/{orderId}/messages', [ChatController::class, 'getMessages']);
+//// Get single chat with messages
+////    Route::post('/chat/{orderId}', [ChatController::class, 'getChat']);
+//// Send message
+//Route::post('/chat/{orderId}/send', [ChatController::class, 'sendMessage']);
+//// Delete message
+//Route::delete('/chat/message/{messageId}', [ChatController::class, 'deleteMessage']);
+//// Delete chat
+//Route::delete('/chat/{orderId}', [ChatController::class, 'deleteChat']);
+//// Upload image
+//Route::post('/chat/upload/image', [ChatController::class, 'uploadImage']);
+//// Upload video
+//Route::post('/chat/upload/video', [ChatController::class, 'uploadVideo']);
+////
 //Route::get('/settings/mobile', [SettingsApiController::class, 'mobileSettings'])
 //    ->withoutMiddleware(['throttle:api']);  // REMOVE default throttle
 //Route::get('/settings/delivery-charge', [SettingsApiController::class, 'getDeliveryChargeSettings'])
@@ -686,7 +646,15 @@ Route::post('/chat/upload/video', [ChatController::class, 'uploadVideo']);
 //
 //
 
-
+//Route::post('/referral/apply-code', [ReferralController::class, 'applyCode']);
+//Route::get('/referral/my-referrals', [ReferralController::class, 'myReferrals']);
+//
+//Route::post('/checkin', [CheckinController::class, 'checkin']);
+//Route::get('/checkin/status', [CheckinController::class, 'status']);
+//
+//Route::get('/wallet', [WalletController::class, 'getWallet']);
+//Route::get('/wallet/coins/ledger', [WalletController::class, 'coinLedger']);
+//Route::post('/wallet/coins/redeem', [WalletController::class, 'redeemCoins']);
 
 
 
