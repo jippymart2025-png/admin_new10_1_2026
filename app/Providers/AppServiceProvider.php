@@ -19,9 +19,13 @@ class AppServiceProvider extends ServiceProvider
     public function register()
     {
         $countries_data = [];
-        $get_countries_json = file_get_contents(public_path('countriesdata.json'));
-        if($get_countries_json != ''){
-            $countries_data = json_decode($get_countries_json);
+        try {
+            $get_countries_json = @file_get_contents(public_path('countriesdata.json'));
+            if ($get_countries_json != '' && $get_countries_json !== false) {
+                $countries_data = json_decode($get_countries_json);
+            }
+        } catch (\Throwable $e) {
+            Log::debug('Countries data load skipped: ' . $e->getMessage());
         }
         view()->composer('*', function($view) use($countries_data) {
             $view->with('countries_data', $countries_data);

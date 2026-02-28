@@ -255,7 +255,19 @@ class UserController extends Controller
 
     public function view($id)
     {
-        return view('settings.users.view')->with('id', $id);
+        try {
+            $id = $id ?? '';
+            return view('settings.users.view')->with('id', $id);
+        } catch (\Throwable $e) {
+            \Log::error('User view page error: ' . $e->getMessage(), [
+                'id' => $id ?? null,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            if (config('app.debug')) {
+                throw $e;
+            }
+            abort(500, 'Unable to load user page. Please try again.');
+        }
     }
 
     public function payToUser(Request $request)
