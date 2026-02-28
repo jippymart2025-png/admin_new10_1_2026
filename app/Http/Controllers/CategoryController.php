@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\FirebaseStorageService;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Illuminate\Support\Str;
@@ -12,9 +13,11 @@ use App\Models\VendorCategory;
 class CategoryController extends Controller
 {
 
-    public function __construct()
+    protected FirebaseStorageService $firebaseStorage;
+    public function __construct(FirebaseStorageService $firebaseStorage)
     {
         $this->middleware('auth');
+        $this->firebaseStorage = $firebaseStorage;
     }
 
 	  public function index()
@@ -102,7 +105,15 @@ class CategoryController extends Controller
                 })
                 ->count();
 
-            $imageUrl = $row->photo ?: $placeholder;
+//            $imageUrl = $row->photo ?: $placeholder;
+            $imageUrl = null;
+            if ($request->hasFile('photo')) {
+                $imageUrl = $this->firebaseStorage->uploadFile(
+                    $request->file('photo'),
+                    'categories/category_' . time() . '.' . $request->file('photo')->getClientOriginalExtension()
+                );
+            }
+
             $imageHtml = '<img alt="" width="100%" style="width:70px;height:70px;" src="'.e($imageUrl).'" onerror="this.onerror=null;this.src=\''.$placeholder.'\'" alt="image">';
             $editUrl = route('categories.edit', $row->id);
             $titleHtml = $imageHtml.'<a href="'.$editUrl.'">'.e($row->title).'</a>';
@@ -168,11 +179,17 @@ class CategoryController extends Controller
             'photo' => 'nullable|image',
         ]);
 
-        $id = (string) Str::uuid();
+        $id =  Str::random(20);
         $photoUrl = null;
+//        if ($request->hasFile('photo')) {
+//            $path = $request->file('photo')->store('public/uploads/categories');
+//            $photoUrl = asset('storage/' . str_replace('public/', '', $path));
+//        }
         if ($request->hasFile('photo')) {
-            $path = $request->file('photo')->store('public/uploads/categories');
-            $photoUrl = asset('storage/' . str_replace('public/', '', $path));
+            $photoUrl = $this->firebaseStorage->uploadFile(
+                $request->file('photo'),
+                'categories/category_' . time() . '.' . $request->file('photo')->getClientOriginalExtension()
+            );
         }
 
         VendorCategory::create([
@@ -200,9 +217,15 @@ class CategoryController extends Controller
         ]);
 
         $photoUrl = $category->photo;
+//        if ($request->hasFile('photo')) {
+//            $path = $request->file('photo')->store('public/uploads/categories');
+//            $photoUrl = asset('storage/' . str_replace('public/', '', $path));
+//        }
         if ($request->hasFile('photo')) {
-            $path = $request->file('photo')->store('public/uploads/categories');
-            $photoUrl = asset('storage/' . str_replace('public/', '', $path));
+            $photoUrl = $this->firebaseStorage->uploadFile(
+                $request->file('photo'),
+                'categories/category_' . time() . '.' . $request->file('photo')->getClientOriginalExtension()
+            );
         }
 
         $category->update([
@@ -223,15 +246,21 @@ class CategoryController extends Controller
     public function togglePublish(Request $request, $id)
     {
         $category = VendorCategory::findOrFail($id);
-        $oldStatus = $category->publish;
+
         $newStatus = $request->boolean('publish') ? 1 : 0;
         $category->publish = $newStatus;
         $category->save();
 
-        // Log activity
-        \Log::info('✅ Category publish toggled:', ['id' => $id, 'title' => $category->title, 'publish' => $newStatus]);
+        \Log::info('✅ Category publish toggled:', [
+            'id' => $id,
+            'title' => $category->title,
+            'publish' => $newStatus
+        ]);
 
-        return response()->json(['success' => true, 'publish' => $newStatus]);
+        return response()->json([
+            'success' => true,
+            'publish' => $newStatus
+        ]);
     }
 
     public function import(Request $request)
@@ -279,7 +308,7 @@ class CategoryController extends Controller
                     $showInHomepage = in_array(strtolower(trim($data['show_in_homepage'] ?? '')), ['true', '1', 'yes'], true) ? 1 : 0;
 
                     VendorCategory::create([
-                        'id' => (string) Str::uuid(),
+                        'id' => Str::random(20),
                         'title' => trim($data['title']),
                         'description' => trim($data['description'] ?? ''),
                         'photo' => trim($data['photo'] ?? ''),

@@ -39,7 +39,8 @@
                     </div>
                     <div class="form-group row width-50">
                         <label class="col-3 control-label">{{trans('lang.photo')}}</label>
-                        <input type="file" onChange="handleFileSelect(event)" class="col-7">
+{{--                        <input type="file" onChange="handleFileSelect(event)" class="col-7">--}}
+                        <input type="file" name="photo" id="photo" class="col-7">
                         <div id="uploding_image"></div>
                         <div class="placeholder_img_thumb user_image"></div>
                     </div>
@@ -71,9 +72,13 @@
                             <input type="radio" class="redirect_type" value="product" name="redirect_type" id="product">
                             <label class="custom-control-label">{{trans('lang.product')}}</label>
                         </div>
-                        <div class="radio-form col-md-4">
+                        <div class="radio-form col-md-2">
                             <input type="radio" class="redirect_type" value="external_link" name="redirect_type" id="external">
                             <label class="custom-control-label">{{trans('lang.external_link')}}</label>
+                        </div>
+                        <div class="radio-form col-md-2">
+                            <input type="radio" class="redirect_type" name="redirect_type" id="none" value="none">
+                            <label class="custom-control-label">None</label>
                         </div>
                     </div>
                     <div class="form-group row width-50" id="vendor_div" style="display: none;">
@@ -235,6 +240,10 @@
         if($("#store").is(':checked')) redirect_id = $('#storeId').val()||'';
         else if($("#product").is(':checked')) redirect_id = $('#productId').val()||'';
         else if($("#external").is(':checked')) redirect_id = $('#external_link').val()||'';
+        else if($("#none").is(':checked')){
+            fd.append('redirect_type', '');
+            fd.append('redirect_id', '');
+        }
         fd.append('redirect_id', redirect_id);
         var fileInput = $("input[type='file']")[0];
         if (fileInput && fileInput.files && fileInput.files[0]) { fd.append('photo', fileInput.files[0]); }
@@ -257,13 +266,34 @@
                 logActivity('menu_items', 'created', 'Created menu item: ' + title);
             }
 
+            alert(response.message); // "Banner created successfully"
+
             window.location.href = '{{ route('setting.banners') }}';
         })
-        .fail(function(xhr){
-            jQuery("#data-table_processing").hide();
-            $(".error_top").show().html('<p>Failed ('+xhr.status+'): '+xhr.responseText+'</p>');
-            window.scrollTo(0,0);
-        });
+            .fail(function(xhr){
+                jQuery("#data-table_processing").hide();
+
+                let message = 'Something went wrong. Please try again.';
+
+                // Validation error (422)
+                if (xhr.status === 422 && xhr.responseJSON) {
+                    let errors = xhr.responseJSON.errors;
+                    message = '<ul>';
+
+                    $.each(errors, function (key, value) {
+                        message += '<li>' + value[0] + '</li>';
+                    });
+
+                    message += '</ul>';
+                }
+                // Other server errors
+                else if (xhr.responseJSON && xhr.responseJSON.message) {
+                    message = xhr.responseJSON.message;
+                }
+
+                $(".error_top").show().html(message);
+                window.scrollTo(0,0);
+            });
     });
 </script>
 @endsection

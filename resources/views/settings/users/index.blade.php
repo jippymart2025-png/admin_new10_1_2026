@@ -21,7 +21,7 @@
                     <div class="col-12">
                         <div class="d-flex top-title-section pb-4 justify-content-between">
                             <div class="d-flex top-title-left align-self-center">
-                                <span class="icon mr-3"><img src="{{ asset('images/users.png') }}"></span>
+                                <span class="icon mr-3"><img src="{{ asset('images/users.png') }}" alt="profile"></span>
                                 <h3 class="mb-0">{{trans('lang.user_plural')}}</h3>
                                 <span class="counter ml-3 total_count"></span>
                             </div>
@@ -127,28 +127,24 @@
                                     <p class="mb-0 text-dark-2">{{trans('lang.users_table_text')}}</p>
                                 </div>
                                 <div class="card-header-right d-flex align-items-center">
+                                    <div class="dropdown mr-3">
+                                        <button class="btn btn-outline-secondary dropdown-toggle rounded-full" type="button"
+                                                id="columnToggleMenu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                            Columns
+                                        </button>
+
+                                        <div class="dropdown-menu p-3" aria-labelledby="columnToggleMenu" style="max-height:300px;overflow:auto; min-width: 320px; width: 320px;">
+                                            <div id="dynamicColumnToggleArea"></div>
+
+                                            <button id="showAllColumns" class="btn btn-light btn-sm mt-2 w-100">
+                                                Show All
+                                            </button>
+                                        </div>
+                                    </div>
                                     <div class="card-header-btn mr-3">
                                         <a class="btn-primary btn rounded-full" href="{!! route('users.create') !!}"><i
                                                 class="mdi mdi-plus mr-2"></i>{{trans('lang.user_create')}}</a>
                                     </div>
-                                    {{--                                    <div class="dropdown ml-2">--}}
-                                    {{--                                        <button class="btn btn-info dropdown-toggle" type="button"--}}
-                                    {{--                                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">--}}
-                                    {{--                                            <i class="mdi mdi-cloud-download"></i> Export as--}}
-                                    {{--                                        </button>--}}
-
-                                    {{--                                        <div class="dropdown-menu dropdown-menu-right">--}}
-                                    {{--                                            <a class="dropdown-item" href="javascript:void(0)" onclick="exportUsers('excel')">--}}
-                                    {{--                                                Export Excel--}}
-                                    {{--                                            </a>--}}
-                                    {{--                                            <a class="dropdown-item" href="javascript:void(0)" onclick="exportUsers('pdf')">--}}
-                                    {{--                                                Export PDF--}}
-                                    {{--                                            </a>--}}
-                                    {{--                                            <a class="dropdown-item" href="javascript:void(0)" onclick="exportUsers('csv')">--}}
-                                    {{--                                                Export CSV--}}
-                                    {{--                                            </a>--}}
-                                    {{--                                        </div>--}}
-                                    {{--                                    </div>--}}
                                 </div>
                             </div>
                             <div class="card-body">
@@ -169,11 +165,12 @@
                                             <th>{{trans('lang.user_info')}}</th>
                                             <th>{{trans('lang.email')}}</th>
                                             <th>{{trans('lang.phone_number')}}</th>
-                                            <th>{{trans('lang.zone')}}</th>
+                                            <th>Zone</th>
                                             <th>{{trans('lang.date')}}</th>
+                                            <th>Streak</th>
+                                            <th>Wallet Coins</th>
                                             <th>{{trans('lang.active')}}</th>
                                             {{-- <th>{{trans('lang.wallet_transaction')}}</th> --}}
-                                            {{-- <th >{{trans('lang.role')}}</th> --}}
                                             <th>{{trans('lang.actions')}}</th>
                                         </tr>
                                         </thead>
@@ -230,9 +227,7 @@
     </style>
 @endsection
 @section('scripts')
-    <script src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
     <script type="text/javascript">
-        // SQL mode: fetch via API instead of Firebase
         var apiBase = '{{ url('/api') }}';
         var placeholderImage = '{{ asset('images/placeholder.png') }}';
         var user_permissions = '<?php echo @session("user_permissions") ?>';
@@ -243,7 +238,8 @@
         }
         var zoneIdToName = {};
         var zonesLoaded = false;
-
+        let usersTable;
+        const USER_COLUMN_STORAGE_KEY = 'user_column_visibility_v1';
         // Format date time helper function
         function formatDateTime(dateString) {
             if (!dateString) return '-';
@@ -268,7 +264,6 @@
         }
         // Load zones from SQL
         var loadZonesPromise = new Promise(function(resolve){
-            console.log('🔄 Loading zones from SQL...');
             $.ajax({
                 url: '{{ route("zone.data") }}',
                 method: 'GET',
@@ -290,7 +285,6 @@
                     resolve(zoneIdToName);
                 },
                 error: function(xhr, status, error) {
-                    console.error('❌ Error loading zones:', error);
                     console.error('Response:', xhr.responseText);
                     zonesLoaded = true;
                     resolve(zoneIdToName);
@@ -331,13 +325,7 @@
 
             let statusValue = $('.status_selector').val();
             console.log('- Status Value:', statusValue);
-            console.log('Filter change triggered:');
             console.log('- Zone Value:', zoneValue);
-
-            // No-op; filters are sent to server via DataTables ajax
-
-            // Note: Zone filter is NOT applied in Firestore query
-            // It will be applied client-side because zoneId is nested in shippingAddress
 
             // Apply date filter
             if ($('#daterange span').html() != '{{trans("lang.select_range")}}' && daterangepicker) {
@@ -435,19 +423,15 @@
                 var now = moment();
 
 
-
                 if (selectedRange === 'last_24_hours') {
                     startDate = moment().subtract(24, 'hours');
                     endDate = now;
-                    console.log('📅 Setting Last 24 hours:', startDate.format('YYYY-MM-DD HH:mm'), 'to', endDate.format('YYYY-MM-DD HH:mm'));
                 } else if (selectedRange === 'last_week') {
                     startDate = moment().subtract(7, 'days').startOf('day');
                     endDate = now;
-                    console.log('📅 Setting Last week:', startDate.format('YYYY-MM-DD'), 'to', endDate.format('YYYY-MM-DD'));
                 } else if (selectedRange === 'last_month') {
-                    startDate = moment().subtract(30, 'days').startOf('day');
+                    startDate  = moment().subtract(30, 'days').startOf('day');
                     endDate = now;
-                    console.log('📅 Setting Last month:', startDate.format('YYYY-MM-DD'), 'to', endDate.format('YYYY-MM-DD'));
                 }
 
                 // Set the date range picker values (for the hidden custom picker)
@@ -504,12 +488,14 @@
                     ],
                     fileName: "{{trans('lang.user_table')}}",
                 };
-                const table = $('#userTable').DataTable({
+                usersTable = $('#userTable').DataTable({
                     pageLength: 30,
                     lengthMenu: [[10,30, 50, 100,500,1000], [10,30, 50, 100,500,1000]],
-                    processing: false, // Show processing indicator
+                    processing: true, // Show processing indicator
                     serverSide: true, // Enable server-side processing
                     responsive: true,
+                    searchDelay: 500,
+                    deferRender: true,
                     ajax: function (data, callback, settings) {
                         const start = data.start;
                         const length = data.length;
@@ -552,7 +538,7 @@
 
                         $('#data-table_processing').show();
                         $.ajax({
-                            url: apiBase + '/app-users',
+                            url: apiBase + '/app-users?_t=' + Date.now(),
                             method: 'GET',
                             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                             data: {
@@ -567,13 +553,13 @@
                                 role: 'customer'
                             }
                         }).done(function (resp) {
-                            console.log('📊 Users API response:', resp);
                             const items = resp.data || [];
                             const total = (resp.meta && resp.meta.total) ? resp.meta.total : items.length;
                             $('.total_count').text(total);
                             console.log('👥 Loading ' + items.length + ' users');
                             let records = [];
                             items.forEach(function (childData) {
+                                let row = [];
                                 console.log('User data:', {
                                     id: childData.id,
                                     name: childData.fullName,
@@ -591,29 +577,88 @@
                                     // Check if zone exists in mapping
                                     if (zoneIdToName[childData.zoneId]) {
                                         zoneName = '<span class="badge badge-info py-2 px-3">' + zoneIdToName[childData.zoneId] + '</span>';
-                                        console.log('✅ Zone found for user ' + id + ':', zoneIdToName[childData.zoneId]);
                                     } else {
                                         // Zone ID exists but not found in zones table
                                         zoneName = '<span class="badge badge-warning py-2 px-3" style="color: #666;">Zone Not Found (ID: ' + childData.zoneId + ')</span>';
-                                        console.warn('⚠️ Zone ID "' + childData.zoneId + '" not found in zones table for user ' + id);
                                     }
                                 } else {
                                     // No zone ID assigned
                                     zoneName = '<span style="color: #999; font-style: italic;">null</span>';
-                                    console.log('ℹ️ No zone assigned for user ' + id);
                                 }
                                 // Format date with the new format: Oct 06, 2025 07:24 AM
                                 var createdAt = formatDateTime(childData.createdAt) || '-';
-                                records.push([
-                                    checkDeletePermission ? '<td class="delete-all"><input type="checkbox" id="is_open_' + id + '" class="is_open" dataId="' + id + '"><label class="col-3 control-label" for="is_open_' + id + '" ></label></td>' : '',
-                                    vendorImage + '<a href="' + user_view + '" class="redirecttopage">' + (childData.fullName || '') + '</a>',
-                                    childData.email ? childData.email : ' ',
-                                    childData.phoneNumber ? childData.phoneNumber : ' ',
-                                    zoneName,
-                                    createdAt,
-                                    childData.active ? '<label class="switch"><input type="checkbox" checked id="' + id + '" name="isActive"><span class="slider round"></span></label>' : '<label class="switch"><input type="checkbox" id="' + id + '" name="isActive"><span class="slider round"></span></label>',
-                                    '<span class="action-btn"><a href="' + user_view + '"><i class="mdi mdi-eye"></i></a><a href="' + route1 + '"><i class="mdi mdi-lead-pencil" title="Edit"></i></a><?php if (in_array('user.delete', json_decode(@session('user_permissions'), true))){ ?> <a id="' + id + '" class="delete-btn" name="user-delete" href="javascript:void(0)"><i class="mdi mdi-delete"></i></a></td><?php } ?></span>'
-                                ]);
+
+                                var streak = childData.streak > 0 ? '🔥 ' + childData.streak : '-';
+
+                                var walletCoins = `
+                                <span class="wallet-pill" title="Wallet Coins">
+                                   <i class="mdi mdi-wallet"></i>
+                                         <span class="coins-count">${childData.walletCoins ?? 0}</span>
+                                           </span>`;
+{{--                                var walletCoins = `--}}
+{{--    <a href="javascript:void(0)"--}}
+{{--       class="wallet-pill open-wallet"--}}
+{{--       data-user="${childData.id}">--}}
+{{--        <i class="mdi mdi-wallet"></i>--}}
+{{--        ${childData.walletCoins ?? 0}--}}
+{{--    </a>--}}
+{{--`;--}}
+{{--                                --}}
+// $(document).on('click', '.open-wallet', function () {
+//     let userId = $(this).data('user');
+//     console.log('Open wallet for user:', userId);
+// });
+    {{--records.push([--}}
+                                {{--    checkDeletePermission ? '<td class="delete-all"><input type="checkbox" id="is_open_' + id + '" class="is_open" dataId="' + id + '"><label class="col-3 control-label" for="is_open_' + id + '" ></label></td>' : '',--}}
+                                {{--    vendorImage + '<a href="' + user_view + '" class="redirecttopage">' + (childData.fullName || '') + '</a>',--}}
+                                {{--    childData.email ? childData.email : ' ',--}}
+                                {{--    childData.phoneNumber ? childData.phoneNumber : ' ',--}}
+                                {{--    zoneName,--}}
+                                {{--    createdAt,--}}
+                                {{--    childData.active ? '<label class="switch"><input type="checkbox" checked id="' + id + '" name="isActive"><span class="slider round"></span></label>' : '<label class="switch"><input type="checkbox" id="' + id + '" name="isActive"><span class="slider round"></span></label>',--}}
+                                {{--    '<span class="action-btn"><a href="' + user_view + '"><i class="mdi mdi-eye"></i></a><a href="' + route1 + '"><i class="mdi mdi-lead-pencil" title="Edit"></i></a><?php if (in_array('user.delete', json_decode(@session('user_permissions'), true))){ ?> <a id="' + id + '" class="delete-btn" name="user-delete" href="javascript:void(0)"><i class="mdi mdi-delete"></i></a></td><?php } ?></span>'--}}
+                                {{--]);--}}
+
+                                if (checkDeletePermission) {
+                                    row.push(
+                                        '<input type="checkbox" class="is_open" dataId="' + id + '">'
+                                    );
+                                }
+
+                                row.push(
+                                    vendorImage + '<a href="' + user_view + '" class="redirecttopage">' +
+                                    (childData.fullName || '') + '</a>'
+                                );
+
+                                row.push(childData.email || '');
+                                row.push(childData.phoneNumber || '');
+                                row.push(zoneName);
+                                row.push(createdAt);
+                                row.push(streak);
+                                row.push(walletCoins);
+
+                                row.push(
+                                    childData.active
+                                        ? '<label class="switch"><input type="checkbox" checked id="' + id + '" name="isActive"><span class="slider round"></span></label>'
+                                        : '<label class="switch"><input type="checkbox" id="' + id + '" name="isActive"><span class="slider round"></span></label>'
+                                );
+
+                                let actionsHtml =
+                                    '<span class="action-btn">' +
+                                    '<a href="' + user_view + '"><i class="mdi mdi-eye"></i></a>' +
+                                    '<a href="' + route1 + '"><i class="mdi mdi-lead-pencil"></i></a>';
+
+                                if (checkDeletePermission) {
+                                    actionsHtml +=
+                                        '<a id="' + id + '" class="delete-btn" name="user-delete" href="javascript:void(0)">' +
+                                        '<i class="mdi mdi-delete"></i></a>';
+                                }
+
+                                actionsHtml += '</span>';
+
+                                row.push(actionsHtml);
+
+                                records.push(row);
                             });
                             $('#data-table_processing').hide();
                             callback({
@@ -687,7 +732,7 @@
                         }).remove();
                     }
                 });
-                table.columns.adjust().draw();
+                usersTable.columns.adjust().draw();
 
                 function debounce(func, wait) {
                     let timeout;
@@ -702,10 +747,10 @@
                     const searchValue = $(this).val();
                     if (searchValue.length >= 3) {
                         $('#data-table_processing').show();
-                        table.search(searchValue).draw();
+                        usersTable.search(searchValue).draw();
                     } else if (searchValue.length === 0) {
                         $('#data-table_processing').show();
-                        table.search('').draw();
+                        usersTable.search('').draw();
                     }
                 }, 300));
             }); // Close loadZonesPromise.then()
@@ -809,5 +854,96 @@
 
             window.location.href = apiBase + '/app-users/export?' + $.param(params);
         }
+        function buildColumnToggleList() {
+            let html = '';
+
+            usersTable.columns().every(function (index) {
+                let column = this;
+                let title = $(column.header()).text().trim();
+
+                if (!title) title = 'Select';
+
+                html += `
+            <div class="form-check">
+                <input
+                    class="form-check-input toggle-col"
+                    type="checkbox"
+                    id="order_col_${index}"
+                    data-col="${index}"
+                    ${column ? 'checked' : ''}>
+                <label class="form-check-label" for="order_col_${index}">
+                    ${title}
+                </label>
+            </div>
+        `;
+            });
+
+            $('#dynamicColumnToggleArea').html(html);
+        }
+
+        $(document).on('click','#dynamicColumnToggleArea', function (e) {
+            e.stopPropagation();
+        });
+
+        $(document).on('change', '.toggle-col', function () {
+            const colIndex = $(this).data('col');
+            usersTable.column(colIndex).visible(this.checked);
+            saveOrderColumnState();
+        });
+
+        function saveOrderColumnState() {
+            let state = {};
+
+            usersTable.columns().every(function (index) {
+                state[index] = this.visible();
+            });
+
+            localStorage.setItem(
+                USER_COLUMN_STORAGE_KEY,
+                JSON.stringify(state)
+            );
+        }
+        function restoreOrderColumnState() {
+            const savedState = localStorage.getItem(USER_COLUMN_STORAGE_KEY);
+            if (!savedState) return;
+
+            const state = JSON.parse(savedState);
+
+            Object.entries(state).forEach(([index, visible]) => {
+                if (usersTable.column(index).length) {
+                    usersTable.column(index).visible(visible);
+                }
+            });
+        }
+
+        $(document).ready(function () {
+
+            // Build column checkboxes AFTER table loads
+            setTimeout(buildColumnToggleList, 1000);
+
+            // --------------------------------------
+            // TOGGLE INDIVIDUAL COLUMN
+            // --------------------------------------
+            $(document).on("change", ".toggle-col", function () {
+                let colIndex = $(this).data("col");
+                let column = usersTable.column(colIndex);
+
+                column.visible($(this).is(":checked"));
+            });
+
+            // --------------------------------------
+            // SHOW ALL COLUMNS
+            // --------------------------------------
+            $('#showAllColumns').on('click', function (e) {
+                e.stopPropagation();
+
+                usersTable.columns().every(function () {
+                    this.visible(true);
+                });
+
+                $('.toggle-col').prop('checked', true);
+                saveOrderColumnState();
+            });
+        });
     </script>
 @endsection

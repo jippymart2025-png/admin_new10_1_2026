@@ -10836,7 +10836,7 @@ span.order_completed span {
     border-radius: 5px;
 }
 .driver_accepted span{
-    background: #17a2b8;
+    background: blue;
     color: #fff;
     padding: 3px 10px;
     font-size: 10px;

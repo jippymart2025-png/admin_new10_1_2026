@@ -159,11 +159,11 @@ class CacheService
     {
         try {
             return DB::table('users as u')
-//                ->join('restaurant_orders as ro', 'ro.driverID', '=', 'u.firebase_id')
-                ->join('restaurant_orders as ro', function ($join) {
-                    $join->on('ro.driverID', '=', 'u.firebase_id')
-                        ->orOn('ro.driverID', '=', 'u.id');
-                })
+              ->join('restaurant_orders as ro', 'ro.driverID', '=', 'u.firebase_id')
+//                ->join('restaurant_orders as ro', function ($join) {
+//                    $join->on('ro.driverID', '=', 'u.firebase_id')
+//                        ->orOn('ro.driverID', '=', 'u.id');
+//                })
                 ->where('u.role', 'driver')
                 ->where('ro.status', 'Order Completed')
                 ->select(

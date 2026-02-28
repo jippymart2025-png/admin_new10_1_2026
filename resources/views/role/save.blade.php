@@ -281,6 +281,41 @@
                                                                value="restaurants.impersonate" name="restaurants[]"
                                                                class="permission">
                                                         <label class="control-label2" for="restaurants-impersonate">Impersonate</label>
+                                                        <input type="checkbox" id="restaurants-publish"
+                                                               value="restaurants.publish" name="restaurants[]"
+                                                               class="permission">
+                                                        <label class="control-label2" for="restaurants-publish">Publish</label>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td>
+                                                        <strong>Marts</strong>
+                                                    </td>
+                                                    <td>
+                                                        <input type="checkbox" id="marts-list" value="marts"
+                                                               name="marts[]" class="permission">
+                                                        <label class=" control-label2"
+                                                               for="marts-list">{{ trans('lang.list') }}</label>
+                                                        <input type="checkbox" id="marts-create"
+                                                               value="marts.create" name="marts[]"
+                                                               class="permission">
+                                                        <label class=" control-label2"
+                                                               for="marts-create">{{ trans('lang.create') }}</label>
+                                                        <input type="checkbox" id="marts-edit"
+                                                               value="marts.edit" name="marts[]"
+                                                               class="permission">
+                                                        <label class=" control-label2"
+                                                               for="marts-edit">{{ trans('lang.edit') }}</label>
+                                                        <input type="checkbox" id="marts-view"
+                                                               value="marts.view" name="marts[]"
+                                                               class="permission">
+                                                        <label class=" control-label2"
+                                                               for="marts.view">{{ trans('lang.view') }}</label>
+                                                        <input type="checkbox" id="marts-delete"
+                                                               value="marts.delete" name="marts[]"
+                                                               class="permission">
+                                                        <label class="contol-label2"
+                                                               for="marts-delete">{{ trans('lang.delete') }}</label>
                                                     </td>
                                                 </tr>
                                                 <tr>

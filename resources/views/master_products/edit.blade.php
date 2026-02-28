@@ -391,6 +391,42 @@
         $('#master_product_form').on('submit', function () {
             $('#options_data').val(JSON.stringify(optionsList));
         });
+
+        $('#remove_category_btn').on('click', function () {
+
+            // Clear dropdown selection
+            $('#category_selector').prop('selectedIndex', 0);
+
+            // Clear hidden inputs
+            $('#form_category_id').val('');
+            $('#selected_category_id').val('');
+
+            // Clear displayed text
+            $('#selected_category_title').text('N/A');
+
+            // Toggle UI
+            $('#selected_category_display').slideUp();
+            $('#category_selector_display').slideDown();
+        });
+
+        $('#category_selector').on('change', function () {
+
+            let categoryId = $(this).val();
+            let categoryTitle = $(this).find('option:selected').text();
+
+            if (!categoryId) return;
+
+            // Update hidden inputs
+            $('#form_category_id').val(categoryId);
+            $('#selected_category_id').val(categoryId);
+
+            // Update display
+            $('#selected_category_title').text(categoryTitle);
+
+            // Toggle UI
+            $('#selected_category_display').slideDown();
+            $('#category_selector_display').slideUp();
+        });
     </script>
 
 @endsection

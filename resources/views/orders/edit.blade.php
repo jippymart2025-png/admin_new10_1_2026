@@ -1550,7 +1550,6 @@
         // Enhanced function to build product list with promotional pricing
         async function buildHTMLProductsListWithPromotions(snapshotsProducts, vendorID) {
             try {
-                console.log('🎯 ===== BUILDING PRODUCT LIST WITH PROMOTIONS =====');
                 snapshotsProducts = Array.isArray(snapshotsProducts) ? snapshotsProducts : [];
                 console.log('🎯 Products:', snapshotsProducts.length);
                 console.log('🎯 Vendor ID:', vendorID);
@@ -1602,6 +1601,12 @@
                             html = html + '<div class="variant-info">';
                             html = html + '<ul>';
                             $.each(val.variant_info.variant_options, function (label, value) {
+
+                                // 🚫 Hide merchant price
+                                if (label.toLowerCase().includes('merchant')) {
+                                    return; // continue
+                                }
+
                                 html = html + '<li class="variant"><span class="label">' + label +
                                     '</span><span class="value">' + value + '</span></li>';
                             });
@@ -1652,23 +1657,39 @@
                         }
 
                         // Add promotional badge and styling if order has promotion (orderData.promotion == 1)
+        //                 var promotionalBadge = '';
+        //                 var rowClass = '';
+        //                 var shouldShowBadge = false;
+        //
+        //                 // Show badge when order-level promotion is active
+        //                 if (orderData && orderData.promotion == 1) {
+        //                     promotionalBadge = `
+        // <span class="badge badge-warning" style="font-size:16px; padding:4px 8px; margin-left:8px; background-color:#ff9800; color:#fff;">
+        //    🎯 PROMO
+        // </span>`;
+        //
+        //                     rowClass = ' promotional-item-row';
+        //                     shouldShowBadge = true;
+        //
+        //                     console.log('🎯 PROMO badge applied for order-level promotion:', product.name, {
+        //                         orderPromo: orderData.promotion
+        //                     });
+        //                 }
                         var promotionalBadge = '';
                         var rowClass = '';
                         var shouldShowBadge = false;
 
-                        // Show badge when order-level promotion is active
-                        if (orderData && orderData.promotion == 1) {
+                       // ✅ promo_id comes from JSON
+                        if (val.promo_id && Number(val.promo_id) === 1) {
+
                             promotionalBadge = `
-        <span class="badge badge-warning" style="font-size:16px; padding:4px 8px; margin-left:8px; background-color:#ff9800; color:#fff;">
+        <span class="badge badge-warning"
+              style="font-size:14px; padding:4px 8px; margin-left:8px;">
            🎯 PROMO
         </span>`;
 
-                            rowClass = ' promotional-item-row';
+                            rowClass = 'promotional-item-row';
                             shouldShowBadge = true;
-
-                            console.log('🎯 PROMO badge applied for order-level promotion:', product.name, {
-                                orderPromo: orderData.promotion
-                            });
                         }
 
 
@@ -1768,10 +1789,16 @@
                 }
                 html = html + '</div><div class="orders-tracking"><h6>' + val.name +
                     '</h6><div class="orders-tracking-item-details">';
+
                 if (val.variant_info) {
                     html = html + '<div class="variant-info">';
                     html = html + '<ul>';
                     $.each(val.variant_info.variant_options, function (label, value) {
+
+                        // 🚫 Hide merchant price
+                        if (label.toLowerCase().includes('merchant')) {
+                            return; // continue
+                        }
                         html = html + '<li class="variant"><span class="label">' + label +
                             '</span><span class="value">' + value + '</span></li>';
                     });
@@ -2301,6 +2328,32 @@
             html = html +
                 '<tr class="grand-total"><td class="label">{{ trans('lang.total_amount') }}</td><td class="total_price_val " id="greenColor">' +
                 total_price_val + '</td></tr>';
+
+            // 💰 Total Collected (ToPay - Wallet Used)
+            var walletUsed = parseFloat(orderData.wallet_used_amount || 0);
+            var toPayAmount = parseFloat(orderData.toPayAmount || 0);
+            var totalCollected = toPayAmount - walletUsed;
+
+            if (totalCollected < 0) totalCollected = 0; // safety
+
+            var totalCollectedVal = currencyAtRight
+                ? totalCollected.toFixed(decimal_degits) + currentCurrency
+                : currentCurrency + totalCollected.toFixed(decimal_degits);
+
+             // Separator (same pattern as admin commission)
+            html += '<tr><td class="seprater" colspan="2"><hr></td></tr>';
+
+             // Display like admin commission
+            html += '<tr>' +
+                '<td class="label"><big>Total Collect</big></td>' +
+                '<td style="color:green"><big>' + totalCollectedVal + '</big></td>' +
+                '</tr>';
+
+            html += '<tr>' +
+                '<td class="label"><small></small></td>' +
+                '<td style="color:blue"><small>' + (toPayAmount) + - +  (walletUsed) + '</small></td>' +
+                '</tr>';
+
             var adminCommHtml = "";
             if (adminCommissionType == "Percent") {
                 basePrice = (priceWithCommision / (1 + (parseFloat(adminCommissionValue) / 100)));

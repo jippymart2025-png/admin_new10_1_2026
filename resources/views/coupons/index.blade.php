@@ -100,13 +100,13 @@
                                     <th>{{trans('lang.coupon_code')}}</th>
                                     <th>{{trans('lang.coupon_discount')}}</th>
                                     <th>Item Value</th>
-                                    <th style="display: none;">Usage Limit</th>
                                     <th>{{trans('lang.coupon_privacy')}}</th>
                                     <th>{{trans('lang.coupon_type')}}</th>
                                     <th>{{trans('lang.coupon_restaurant_id')}}</th>
                                     <th>{{trans('lang.coupon_expires_at')}}</th>
                                     <th>{{trans('lang.coupon_enabled')}}</th>
                                     <th>{{trans('lang.coupon_description')}}</th>
+                                    <th>Used Count</th>
                                     <th>{{trans('lang.actions')}}</th>
                                 </tr>
                                 </thead>
@@ -173,96 +173,6 @@ input:checked + .slider:before {
 .slider.round:before {
     border-radius: 50%;
 }
-</style>
-<style>
-/* 🎨 EXTRAORDINARY COUPON TYPE CARDS */
-.coupon-type-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 2px;
-}
-
-.coupon-type-card {
-    display: flex;
-    align-items: center;
-    padding: 8px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    position: relative;
-    overflow: hidden;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    min-width: 100px;
-    backdrop-filter: blur(10px);
-}
-
-.coupon-type-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-    transition: left 0.5s;
-}
-
-.coupon-type-card:hover::before {
-    left: 100%;
-}
-
-.type-icon-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    margin-right: 8px;
-    position: relative;
-    z-index: 2;
-}
-
-.type-icon {
-    font-size: 14px;
-    transition: all 0.3s ease;
-}
-
-.type-content {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    position: relative;
-    z-index: 2;
-}
-
-.type-label {
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 1;
-}
-
-.type-indicator {
-    width: 100%;
-    height: 2px;
-    border-radius: 1px;
-    margin-top: 2px;
-    transition: all 0.3s ease;
-}
-
-/* 🍽️ RESTAURANT CARD - Extraordinary Design */
-.restaurant-card {
-    background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
-    color: white;
-    border: 2px solid #ff5252;
-    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
-}
-
 .restaurant-card .type-icon-wrapper {
     background: rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(5px);
@@ -508,7 +418,7 @@ input:checked + .slider:before {
                     console.error('❌ Error loading coupons:', xhr);
                 });
             },
-            order: (checkDeletePermission) ? [6, 'desc'] : [5, 'desc'],
+            order: (checkDeletePermission) ? [8, 'desc'] : [7, 'desc'],
             columnDefs: [ { targets: (checkDeletePermission) ? [0, 4, 7, 9] : [4, 6, 8], orderable: false }, { targets: 4, visible: false } ],
             language: { zeroRecords: "{{trans('lang.no_record_found')}}", emptyTable: "{{trans('lang.no_record_found')}}" }
         });

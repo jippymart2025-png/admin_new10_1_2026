@@ -29,7 +29,6 @@ class ActivityLogController extends Controller
     public function getActivityLogsData(Request $request)
     {
         try {
-            // Get DataTables parameters
             $draw = $request->get('draw', 1);
             $start = $request->get('start', 0);
             $length = $request->get('length', 10);
@@ -86,7 +85,7 @@ class ActivityLogController extends Controller
                     'user_type' => '<span class="badge badge-' . $this->getUserTypeBadge($log->user_type) . '">'
                         . ($log->user_type ?? 'N/A') . '</span>',
 
-                    'role' => '<span class="badge badge-info">' . ($log->role ?? 'N/A') . '</span>',
+                    'role' => '<span>' . ($log->role ?? 'N/A') . '</span>',
 
                     'module' => '<span class="badge badge-secondary">' . ($log->module ?? 'N/A') . '</span>',
 

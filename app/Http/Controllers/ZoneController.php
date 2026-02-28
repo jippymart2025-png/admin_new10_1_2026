@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Zone;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -48,7 +49,6 @@ class ZoneController extends Controller
     {
         try {
             $zones = Zone::select('id', 'name', 'latitude', 'longitude', 'area', 'publish')
-                ->where('publish', 1)
                 ->orderBy('name', 'asc')
                 ->get();
 
@@ -216,7 +216,7 @@ class ZoneController extends Controller
     /**
      * Toggle zone publish status
      */
-    public function toggleStatus(Request $request, $id)
+    public function toggleStatus(Request $request, $id, ActivityLogger $logger)
     {
         try {
             \Log::info('=== Toggle Zone Status for ID: ' . $id);
@@ -231,21 +231,23 @@ class ZoneController extends Controller
                     'message' => 'Zone not found'
                 ], 404);
             }
-
+            $zoneName = $zone->name;
             // ALWAYS toggle - flip the current status
             $currentStatus = $zone->publish;
             $newStatus = $currentStatus ? 0 : 1;
 
-            \Log::info('Current status: ' . $currentStatus . ', New status (toggled): ' . $newStatus);
 
             // Use direct DB update to ensure it saves
             $updated = \DB::table('zone')
                 ->where('id', $id)
                 ->update(['publish' => $newStatus]);
 
-            \Log::info('DB update result: ' . $updated . ' row(s) affected');
 
             if ($updated !== false) {
+
+                // ✅ ADD LOGGER HERE (BEFORE RETURN)
+                $logger->log(auth()->user(), 'zone publish', 'updated', 'Zone:- ' . $zoneName . ' publish changed from ' . ($currentStatus ? 'Active' : 'Inactive') . ' to ' . ($newStatus ? 'Active' : 'Inactive'), $request);
+
                 \Log::info('✅ Zone status toggled successfully');
                 return response()->json([
                     'success' => true,

@@ -63,16 +63,15 @@ Route::middleware(['permission:marts,marts.create'])->group(function () {
 });
 Route::middleware(['permission:marts,marts.edit'])->group(function () {
     Route::get('/marts/edit/{id}', [App\Http\Controllers\MartController::class, 'edit'])->name('marts.edit');
+    Route::get('/api/marts/{id}', [App\Http\Controllers\MartController::class, 'getById'])->name('marts.getById');
 });
 Route::middleware(['permission:marts,marts.view'])->group(function () {
     Route::get('/marts/view/{id}', [App\Http\Controllers\MartController::class, 'view'])->name('marts.view');
 });
 Route::get('/marts/foods/{id}', [App\Http\Controllers\MartController::class, 'foods'])->name('marts.foods');
 Route::get('/marts/orders/{id}', [App\Http\Controllers\MartController::class, 'orders'])->name('marts.orders');
-// Mart API endpoints for categories and vendors
-Route::get('/api/marts/categories', [App\Http\Controllers\MartController::class, 'getCategories'])->name('api.marts.categories');
 Route::get('/api/marts/vendors', [App\Http\Controllers\MartController::class, 'getMartVendors'])->name('api.marts.vendors');
-
+Route::get('/marts/categories', [App\Http\Controllers\MartController::class, 'getCategories'])->name('marts.categories');
 
 // Restaurant Schedule Routes have been removed - auto-schedule functionality disabled
 Route::middleware(['permission:coupons,coupons'])->group(function () {
@@ -146,9 +145,11 @@ Route::middleware(['permission:foods,foods.delete'])->group(function () {
     Route::delete('/foods/{id}', [App\Http\Controllers\FoodController::class, 'destroy'])->name('foods.delete');
     Route::post('/foods/delete-multiple', [App\Http\Controllers\FoodController::class, 'deleteMultiple'])->name('foods.delete-multiple');
 });
+Route::post('/foods/{vendor}/recalculate-prices', [App\Http\Controllers\FoodController::class, 'recalculatePrices'])->name('foods.recalculatePrices');
+//Route::post('/foods/{vendor}/apply-subscription-commission', [App\Http\Controllers\RestaurantController::class, 'recalculateProductPrices'])->name('foods.applySubscriptionCommission');
+
 
 // Master Products Routes
-// Master Products import routes - must be before /master-products/{id} route to avoid conflicts
 Route::post('/master-products/import', [App\Http\Controllers\MasterProductController::class, 'import'])->name('master-products.import');
 Route::get('/master-products/download-template', [App\Http\Controllers\MasterProductController::class, 'downloadTemplate'])->name('master-products.download-template');
 Route::middleware(['permission:master-products,master-products'])->group(function () {
@@ -193,7 +194,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/mart-items/placeholder-image', [App\Http\Controllers\MartItemController::class, 'getPlaceholderImage'])->name('mart-items.placeholder-image');
     Route::get('/mart-items/currency-settings', [App\Http\Controllers\MartItemController::class, 'getCurrencySettings'])->name('mart-items.currency-settings');
 });
-
 // Mart Items EDIT Routes - MUST come before wildcard /mart-items/{id}
 Route::middleware(['auth'])->group(function () {
     Route::get('/mart-items/edit/{id}', [App\Http\Controllers\MartItemController::class, 'edit'])->name('mart-items.edit');
@@ -269,8 +269,8 @@ Route::middleware(['permission:category,categories.create'])->group(function () 
 });
 Route::middleware(['permission:category,categories.delete'])->group(function () {
     Route::get('/categories/delete/{id}', [App\Http\Controllers\CategoryController::class, 'delete'])->name('categories.delete');
-    Route::post('/categories/{id}/toggle', [App\Http\Controllers\CategoryController::class, 'togglePublish'])->name('categories.toggle');
 });
+Route::post('/categories/{id}/toggle', [App\Http\Controllers\CategoryController::class, 'togglePublish'])->name('categories.toggle');
 
 // Mart Categories Routes
 Route::middleware(['permission:mart-categories,mart-categories'])->group(function () {
@@ -540,6 +540,7 @@ Route::middleware(['permission:wallet-transaction,walletstransaction'])->group(f
     Route::get('/walletstransaction/{id}', [App\Http\Controllers\TransactionController::class, 'index'])->name('users.walletstransaction');
 });
 Route::post('order-status-notification', [App\Http\Controllers\OrderController::class, 'sendNotification'])->name('order-status-notification');
+Route::get('/wallet_coins_transaction/{id}', [App\Http\Controllers\TransactionController::class, 'walletCoinsIndex'])->name('users.wallet_coins_transaction');
 
 //notification routes
 Route::middleware(['permission:dynamic-notifications,dynamic-notification.index'])->group(function () {
@@ -564,7 +565,7 @@ Route::middleware(['permission:general-notifications,notification.send'])->group
     Route::get('/notification/dynamic-notification', [App\Http\Controllers\DynamicNotificationController::class, 'data'])->name('dynamic-notification.data');
 });
 Route::post('broadcastnotification', [App\Http\Controllers\NotificationController::class, 'broadcastnotification'])->name('broadcastnotification');
-
+Route::delete('/notification/delete/{id}', [App\Http\Controllers\NotificationController::class, 'destroy'])->name('notification.delete');
 
 Route::middleware(['permission:god-eye,map'])->group(function () {
     Route::get('/map', [App\Http\Controllers\MapController::class, 'index'])->name('map');
@@ -866,6 +867,7 @@ Route::middleware(['permission:reports,report.index'])->group(function () {
     Route::post('/reports/sales/data', [App\Http\Controllers\ReportController::class, 'salesData'])->name('reports.sales.data');
 });
 Route::get('/reports/user/data', [App\Http\Controllers\ReportController::class, 'userData'])->name('reports.userdata');
+Route::get('/reports/user/export', [App\Http\Controllers\ReportController::class, 'export']);
 
 
 //settlement routes
@@ -1391,14 +1393,6 @@ Route::middleware(['permission:on-board,onboard.edit'])->group(function () {
     Route::get('/on-board/save/{id}', [App\Http\Controllers\OnBoardController::class, 'show'])->name('on-board.save');
 });
 
-
-
-Route::middleware(['permission:vendors,vendors.edit'])->group(function () {
-
-    Route::get('/vendor/edit/{id}', [App\Http\Controllers\RestaurantController::class, 'vendorEdit'])->name('vendor.edit');
-
-});
-
 Route::middleware(['permission:subscription-history,subscription.history'])->group(function () {
     Route::get('/vendor/subscription-plan/history/{id?}', [App\Http\Controllers\RestaurantController::class, 'vendorSubscriptionPlanHistory'])->name('vendor.subscriptionPlanHistory');
 });
@@ -1415,22 +1409,6 @@ Route::post('/upload-image', [App\Http\Controllers\SettingsController::class, 'u
 Route::post('/upload-audio', [App\Http\Controllers\SettingsController::class, 'uploadAudio'])->name('upload.audio');
 Route::post('/upload-json', [App\Http\Controllers\SettingsController::class, 'uploadJson'])->name('upload.json');
 
-Route::middleware(['permission:vendors,vendors'])->group(function () {
-    Route::get('/vendors', [App\Http\Controllers\RestaurantController::class, 'vendors'])->name('vendors');
-});
-Route::middleware(['permission:vendors,vendors.create'])->group(function () {
-    Route::get('/vendors/create', [App\Http\Controllers\RestaurantController::class, 'vendorCreate'])->name('vendors.create');
-});
-Route::middleware(['permission:approve_vendors,approve.vendors.list'])->group(function () {
-    Route::get('/vendors/approved', [App\Http\Controllers\RestaurantController::class, 'vendors'])->name('vendors.approved');
-});
-Route::middleware(['permission:pending_vendors,pending.vendors.list'])->group(function () {
-    Route::get('/vendors/pending', [App\Http\Controllers\RestaurantController::class, 'vendors'])->name('vendors.pending');
-});
-Route::post('/vendors/import', [App\Http\Controllers\RestaurantController::class, 'importVendors'])->name('vendors.import');
-
-Route::get('/vendors/download-template', [App\Http\Controllers\RestaurantController::class, 'downloadVendorsTemplate'])->name('vendors.download-template');
-
 // Vendor API routes for SQL database
 // Note: Specific routes must come BEFORE wildcard routes
 Route::middleware(['permission:vendors,vendors'])->group(function () {
@@ -1441,48 +1419,55 @@ Route::middleware(['permission:vendors,vendors'])->group(function () {
     Route::get('/vendors/placeholder-image', [App\Http\Controllers\RestaurantController::class, 'getPlaceholderImage'])->name('vendors.placeholder-image');
 });
 
-// Debug route (place before wildcard routes)
-Route::get('/vendors/debug/{id}', [App\Http\Controllers\RestaurantController::class, 'debugVendor'])->name('vendors.debug');
-
-// Vendor data endpoint - accessible by vendors module access (used by both view and edit pages)
 Route::middleware(['permission:vendors,vendors'])->group(function () {
+    Route::get('/vendors', [App\Http\Controllers\RestaurantController::class, 'vendors'])->name('vendors');
+// Vendor data endpoint - accessible by vendors module access (used by both view and edit pages)
     Route::get('/vendors/{id}/data', [App\Http\Controllers\RestaurantController::class, 'getVendorById'])->name('vendors.getById');
+});
+Route::middleware(['permission:vendors,vendors.create'])->group(function () {
+    Route::get('/vendors/create', [App\Http\Controllers\RestaurantController::class, 'vendorCreate'])->name('vendors.create');
+    Route::post('/vendors', [App\Http\Controllers\RestaurantController::class, 'vendorStore'])->name('vendors.create.post');
 });
 
 Route::middleware(['permission:vendors,vendors.edit'])->group(function () {
+    Route::get('/vendor/edit/{id}', [App\Http\Controllers\RestaurantController::class, 'vendorEdit'])->name('vendor.edit');
     Route::put('/vendors/{id}', [App\Http\Controllers\RestaurantController::class, 'updateVendor'])->name('vendors.update');
-    Route::post('/vendors/{id}/toggle-status', [App\Http\Controllers\RestaurantController::class, 'toggleVendorStatus'])->name('vendors.toggle-status');
 });
 
-Route::middleware(['permission:vendors,vendors.create'])->group(function () {
-    Route::post('/vendors', [App\Http\Controllers\RestaurantController::class, 'creatrestaurants.orderseVendor'])->name('vendors.create.post');
+Route::middleware(['permission:approve_vendors,approve.vendors.list'])->group(function () {
+    Route::get('/vendors/approved', [App\Http\Controllers\RestaurantController::class, 'vendors'])->name('vendors.approved');
+});
+Route::middleware(['permission:pending_vendors,pending.vendors.list'])->group(function () {
+    Route::get('/vendors/pending', [App\Http\Controllers\RestaurantController::class, 'vendors'])->name('vendors.pending');
 });
 
 Route::middleware(['permission:vendors,vendors.delete'])->group(function () {
     Route::delete('/vendors/{id}', [App\Http\Controllers\RestaurantController::class, 'deleteVendor'])->name('vendors.delete');
 });
 
+Route::post('/vendors/import', [App\Http\Controllers\RestaurantController::class, 'importVendors'])->name('vendors.import');
+Route::get('/vendors/download-template', [App\Http\Controllers\RestaurantController::class, 'downloadVendorsTemplate'])->name('vendors.download-template');
+Route::post('/vendors/{id}/toggle-status', [App\Http\Controllers\RestaurantController::class, 'toggleVendorStatus'])->name('vendors.toggle-status');
+
 // Restaurant API routes for SQL database
 Route::middleware(['permission:restaurants,restaurants'])->group(function () {
-    Route::get('/restaurants/data', [App\Http\Controllers\RestaurantController::class, 'getRestaurantsData'])->name('restaurants.data');
     Route::get('/restaurants/categories', [App\Http\Controllers\RestaurantController::class, 'getCategories'])->name('restaurants.categories');
     Route::get('/restaurants/cuisines', [App\Http\Controllers\RestaurantController::class, 'getCuisines'])->name('restaurants.cuisines');
     Route::get('/restaurants/{id}/data', [App\Http\Controllers\RestaurantController::class, 'getRestaurantById'])->name('restaurants.getById');
     Route::get('/restaurants/{id}/stats', [App\Http\Controllers\RestaurantController::class, 'getRestaurantStats'])->name('restaurants.stats');
     Route::post('/restaurants/global-status', [App\Http\Controllers\RestaurantController::class, 'updateGlobalStatus'])->name('restaurants.global-status');
-    Route::get('/api/users/{id}', [App\Http\Controllers\UserController::class, 'getUserById'])->name('users.api.getById');
-    Route::get('/api/users/{id}/wallet-balance', [App\Http\Controllers\UserController::class, 'getWalletBalance'])->name('users.api.wallet-balance');
-//    Route::post('/users/wallet/add', [App\Http\Controllers\UserController::class, 'addWalletAmount'])->name('users.api.wallet.add');
+    Route::post('/users/wallet/add', [App\Http\Controllers\UserController::class, 'addWalletAmount'])->name('users.api.wallet.add');
     Route::get('/api/users/{id}/subscription-history', [App\Http\Controllers\UserController::class, 'getSubscriptionHistory'])->name('users.api.subscription-history');
     Route::get('/api/email-templates/{type}', [App\Http\Controllers\RestaurantController::class, 'getEmailTemplate'])->name('email-templates.get');
 });
-
-// Zone API endpoint (public or with minimal permission)
 Route::get('/api/zone/{id}', [App\Http\Controllers\ZoneController::class, 'getZoneById'])->name('zone.api.getById');
+Route::get('/api/users/{id}', [App\Http\Controllers\UserController::class, 'getUserById'])->name('users.api.getById');
+Route::get('/api/users/{id}/wallet-balance', [App\Http\Controllers\UserController::class, 'getWalletBalance'])->name('users.api.wallet-balance');
 
 // Restaurant routes
 Route::middleware(['permission:restaurants,restaurants'])->group(function () {
     Route::get('/restaurants', [App\Http\Controllers\RestaurantController::class, 'index'])->name('restaurants');
+    Route::get('/restaurants/data', [App\Http\Controllers\RestaurantController::class, 'getRestaurantsData'])->name('restaurants.data');
 });
 Route::get('/restaurants/export', [App\Http\Controllers\RestaurantController::class, 'export']);
 
@@ -1501,9 +1486,7 @@ Route::middleware(['permission:restaurants,restaurants.edit'])->group(function (
     Route::post('/restaurants/{id}/toggle-publish', [App\Http\Controllers\RestaurantController::class, 'toggleRestaurantPublishStatus'])->name('restaurants.toggle-publish');
     Route::post('/restaurants/{id}/subscription-limits', [App\Http\Controllers\RestaurantController::class, 'updateSubscriptionLimits'])->name('restaurants.subscription.limits');
 });
-Route::middleware(['permission:vendors,vendors.edit'])->group(function () {
-    Route::get('/vendor/edit/{id}', [App\Http\Controllers\RestaurantController::class, 'vendorEdit'])->name('vendor.edit');
-});
+
 Route::middleware(['permission:subscription-history,subscription.history'])->group(function () {
     Route::get('/vendor/subscription-plan/history/{id?}', [App\Http\Controllers\RestaurantController::class, 'vendorSubscriptionPlanHistory'])->name('vendor.subscriptionPlanHistory');
     Route::get('/vendor/subscription-plan/history-data', [App\Http\Controllers\RestaurantController::class, 'subscriptionHistoryData'])->name('vendor.subscriptionPlanHistory.data.all');
@@ -1574,4 +1557,5 @@ Route::prefix('cache-test')->group(function () {
     Route::get('/config', [App\Http\Controllers\CacheTestController::class, 'getCacheConfig'])->name('cache-test.config');
 
 });
-
+Route::get('/users/data/{id}', [App\Http\Controllers\AdminUserController::class, 'userData']);
+Route::post('/add/wallet_coins/{id}', [App\Http\Controllers\AdminUserController::class, 'addWalletCoins'])->name('add.wallet.coins');

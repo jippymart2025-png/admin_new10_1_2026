@@ -219,14 +219,16 @@
     }
     $(document).on("click", "a[name='notifications-delete']", function (e) {
         var id = this.id;
-        if(!confirm("{{trans('lang.delete_alert')}}")) return;
+        if(!confirm("Are you sure you want to delete?")) return;
         $('#data-table_processing').show();
         $.ajax({
-            url: '{{ url('/notification') }}/'+id,
+            url: '{{ url('/notification/delete') }}/'+id,
             method: 'DELETE',
             headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'}
-        }).done(function(){ window.location.reload(); })
-          .fail(function(){ $('#data-table_processing').hide(); alert('Delete failed'); });
+        }).done(function(){ window.location.reload();
+        })
+          .fail(function(){ $('#data-table_processing').hide(); alert('Delete failed');
+          });
     });
 </script>
 @endsection

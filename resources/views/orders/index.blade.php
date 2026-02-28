@@ -60,6 +60,7 @@
                                             <option value="" selected>Payment_Type</option>
                                             <option value="cod">Cash on Delivery</option>
                                             <option value="razorpay">Razorpay</option>
+                                            <option value="wallet">Wallet</option>
                                         </select>
                                     </div>
                                     <div class="select-box pl-3">
@@ -166,8 +167,22 @@
                                     <p class="mb-0 text-dark-2">{{trans('lang.order_table_text')}}</p>
                                 </div>
                                 <div class="card-header-right d-flex align-items-center">
-                                    <div class="card-header-btn mr-3">
-                                        <!-- <a class="btn-primary btn rounded-full" href="{!! route('users.create') !!}"><i class="mdi mdi-plus mr-2"></i>{{trans('lang.user_create')}}</a> -->
+                                    {{--                                    <div class="card-header-btn mr-3">--}}
+                                    {{--                                        <!-- <a class="btn-primary btn rounded-full" href="{!! route('users.create') !!}"><i class="mdi mdi-plus mr-2"></i>{{trans('lang.user_create')}}</a> -->--}}
+                                    {{--                                    </div>--}}
+                                    <div class="dropdown mr-3">
+                                        <button class="btn btn-outline-secondary dropdown-toggle" type="button"
+                                                id="columnToggleMenu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                            Columns
+                                        </button>
+
+                                        <div class="dropdown-menu p-3" aria-labelledby="columnToggleMenu" style="max-height:300px;overflow:auto; min-width: 320px; width: 320px;">
+                                            <div id="dynamicColumnToggleArea"></div>
+
+                                            <button id="showAllColumns" class="btn btn-light btn-sm mt-2 w-100">
+                                                Show All
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -296,17 +311,15 @@
     </style>
 @endsection
 @section('scripts')
-    <script src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
     <script type="text/javascript">
-        // MySQL-based DataTables - Firebase removed
-
         var vendor_id = '<?php echo $id; ?>';
         var append_list = '';
-        // Currency settings (loaded from config/session if needed, or use defaults)
         var currentCurrency = '<?php echo config("app.currency_symbol", "₹"); ?>';
         var currencyAtRight =<?php echo config("app.currency_symbol_at_right", false) ? "true" : "false"; ?>;
         var decimal_degits =<?php echo config("app.currency_decimal_digits", 2); ?>;
         var user_permissions = '<?php echo @session("user_permissions") ?>';
+        let ordersTable;
+        const ORDER_COLUMN_STORAGE_KEY = 'order_column_visibility_v1';
         user_permissions = Object.values(JSON.parse(user_permissions));
         var checkDeletePermission = false;
         if ($.inArray('orders.delete', user_permissions) >= 0) {
@@ -594,223 +607,207 @@
 
             console.log('📡 Initializing Orders DataTable...');
 
-            const table = $('#orderTable').DataTable({
-                pageLength: 30,
-                lengthMenu: [[10, 25, 30, 50, 100], [10, 25, 30, 50, 100]],
-                processing: true,
-                serverSide: true,
-                responsive: true,
-                columns: null, // Let DataTables auto-detect from table headers
-                ajax: {
-                    url: '{{ route("orders") }}',
-                    type: 'GET',
-                    data: function (d) {
-                        // Add filter parameters
-                        d.vendor_id = getId;
-                        d.user_id = userID;
-                        d.driver_id = driverID;
-                        d.status = $('.status_selector').val();
-                        d.zone_id = $('.zone_selector').val();
-                        d.order_type = $('.order_type_selector').val();
-                        d.payment_type = $('.payment_type_selector').val();
-                        d._cache_bust = new Date().getTime(); // Cache busting
+            $(document).ready(function (){
 
-                        // Date range - check both preset and custom
-                        var selectedRange = $('#date_range_selector').val();
-                        var daterangepicker = $('#daterange').data('daterangepicker');
+                ordersTable = $('#orderTable').DataTable({
+                    pageLength: 30,
+                    lengthMenu: [[10, 25, 30, 50, 100], [10, 25, 30, 50, 100]],
+                    processing: true,
+                    serverSide: true,
+                    responsive: true,
+                    columns: null, // Let DataTables auto-detect from table headers
+                    ajax: {
+                        url: '{{ route("orders") }}',
+                        type: 'GET',
+                        data: function (d) {
+                            // Add filter parameters
+                            d.vendor_id = getId;
+                            d.user_id = userID;
+                            d.driver_id = driverID;
+                            d.status = $('.status_selector').val();
+                            d.zone_id = $('.zone_selector').val();
+                            d.order_type = $('.order_type_selector').val();
+                            d.payment_type = $('.payment_type_selector').val();
+                            d._cache_bust = new Date().getTime(); // Cache busting
 
-                        console.log('📅 AJAX data - Selected range:', selectedRange);
-                        console.log('📅 AJAX data - Daterangepicker exists:', !!daterangepicker);
+                            // Date range - check both preset and custom
+                            var selectedRange = $('#date_range_selector').val();
+                            var daterangepicker = $('#daterange').data('daterangepicker');
 
-                        // Send date_range parameter for preset handling
-                        if (selectedRange) {
-                            d.date_range = selectedRange;
-                        }
+                            console.log('📅 AJAX data - Selected range:', selectedRange);
+                            console.log('📅 AJAX data - Daterangepicker exists:', !!daterangepicker);
 
-                        // Handle "all_orders" - don't send date filters
-                        if (selectedRange === 'all_orders') {
-                            console.log('📅 AJAX data - All orders selected, skipping date filter');
-                            // Don't set date_from/date_to - this will show all orders
-                        } else if (daterangepicker && $('#daterange span').html() != '{{trans("lang.select_range")}}') {
-                            // Always try to get date from daterangepicker if it has valid dates
-                            try {
-                                // Send full timestamp so last_24_hours / last_week works correctly
-                                d.date_from = daterangepicker.startDate.format('YYYY-MM-DD HH:mm:ss');
-                                d.date_to   = daterangepicker.endDate.format('YYYY-MM-DD HH:mm:ss');
-                                console.log('📅 AJAX data - Sending dates:', d.date_from, 'to', d.date_to);
-                            } catch (e) {
-                                console.error('❌ Error getting daterangepicker values:', e);
+                            // Send date_range parameter for preset handling
+                            if (selectedRange) {
+                                d.date_range = selectedRange;
                             }
-                        } else {
-                            console.log('📅 AJAX data - No date range set');
-                        }
 
-                        console.log('📡 Final AJAX params:', d);
-                    },
-                    dataSrc: function (json) {
-                        console.log('📥 Orders response:', json);
-                        console.log('📥 First row sample:', json.data && json.data[0]);
-
-                        // IMPORTANT: Re-format dates client-side for consistent display
-                        if (json.data && Array.isArray(json.data)) {
-                            var processedCount = 0;
-                            json.data.forEach(function (row, rowIndex) {
-                                // Find the date column (varies by context)
-                                // In most views, date is at index 4 or 5
-                                for (var i = 0; i < row.length; i++) {
-                                    var cell = row[i];
-                                    if (typeof cell === 'string' && cell.includes('dt-time')) {
-                                        // Extract date from HTML
-                                        var match = cell.match(/<span class="dt-time">(.*?)<\/span>/);
-                                        if (match && match[1]) {
-                                            var rawDate = match[1];
-
-                                            // Only log first 3 rows to avoid console spam
-                                            if (rowIndex < 3) {
-                                                console.log('📅 Raw date from server:', rawDate);
-                                            }
-
-                                            var formattedDate = formatDateTime(rawDate);
-
-                                            if (rowIndex < 3) {
-                                                console.log('📅 Formatted date:', formattedDate);
-                                            }
-
-                                            row[i] = '<span class="dt-time">' + formattedDate + '</span>';
-                                            processedCount++;
-                                        }
-                                    }
+                            // Handle "all_orders" - don't send date filters
+                            if (selectedRange === 'all_orders') {
+                                console.log('📅 AJAX data - All orders selected, skipping date filter');
+                                // Don't set date_from/date_to - this will show all orders
+                            } else if (daterangepicker && $('#daterange span').html() != '{{trans("lang.select_range")}}') {
+                                // Always try to get date from daterangepicker if it has valid dates
+                                try {
+                                    // Send full timestamp so last_24_hours / last_week works correctly
+                                    d.date_from = daterangepicker.startDate.format('YYYY-MM-DD HH:mm:ss');
+                                    d.date_to   = daterangepicker.endDate.format('YYYY-MM-DD HH:mm:ss');
+                                    console.log('📅 AJAX data - Sending dates:', d.date_from, 'to', d.date_to);
+                                } catch (e) {
+                                    console.error('❌ Error getting daterangepicker values:', e);
                                 }
-                            });
-                            console.log('✅ Processed ' + processedCount + ' date cells');
-                        }
-
-                        $('.order_count').text(json.recordsFiltered || 0);
-                        console.log('📊 Total orders:', json.recordsFiltered);
-                        $('#data-table_processing').hide();
-                        if (!json.data || !Array.isArray(json.data)) {
-                            return [];
-                        }
-                        return json.data;
-                    },
-                    error: function (xhr, error, thrown) {
-                        console.error('❌ DataTables error:', error, thrown);
-                        $('#data-table_processing').hide();
-                    }
-                },
-                order: (getId != '' || driverID || userID && checkDeletePermission) ? [[4, 'desc']] : (getId != '' || driverID || userID) ? ((checkDeletePermission) ? [[4, 'desc']] : [[3, 'desc']]) : ((checkDeletePermission) ? [[5, 'desc']] : [[4, 'desc']]),
-                columnDefs: [
-                    {
-                        targets: (getId != '' || driverID || userID && checkDeletePermission) ? 4 : (getId != '' || driverID || userID) ? ((checkDeletePermission) ? 4 : 3) : ((checkDeletePermission) ? 5 : 4),
-                        type: 'date',
-                        render: function (data) {
-                            return data;
-                        }
-                    },
-                    {
-                        orderable: false,
-                        targets: (getId != '' || driverID || userID && checkDeletePermission) ? [0, 7] : (getId != '' || driverID || userID) ? ((checkDeletePermission) ? [0, 7] : [6]) : (checkDeletePermission) ? [0, 8] : [7]
-                    },
-                    {
-                        // ✅ CENTER AMOUNT COLUMN
-                        targets: (checkDeletePermission ? 6 : 5),
-                        className: 'text-center'
-                    },
-                    {
-                        // ✅ Restaurant Wrap Column
-                        targets: (checkDeletePermission ? 2 : 1),
-                        render: function (data) {
-                            return `<div style="white-space:normal; max-width:150px; word-break:break-word;">${data}</div>`;
-                        }
-                    },
-                    {
-                        // ✅ Wrap Order Status Column
-                        targets: (checkDeletePermission ? 7 : 6),
-                        render: function (data) {
-                            return `<div style="white-space:normal; max-width:120px; word-break:break-word; text-align:center;font-size:10px;">${data}</div>`;
-                        }
-                    },
-                    {
-                        // Center action column (ALWAYS LAST)
-                        targets: -1,
-                        className: 'text-center',
-                        orderable: false
-                    }
-                ],
-                "language": {
-                    "zeroRecords": "{{trans("lang.no_record_found")}}",
-                    "emptyTable": "{{trans("lang.no_record_found")}}",
-                    "processing": ""
-                },
-                dom: 'lfrtipB',
-                buttons: [
-                    {
-                        extend: 'collection',
-                        text: '<i class="mdi mdi-cloud-download"></i> Export as',
-                        className: 'btn btn-info',
-                        buttons: [
-                            {
-                                extend: 'excelHtml5',
-                                text: 'Export Excel',
-                                exportOptions: {
-                                    columns: ':visible:not(:first-child):not(:last-child)',
-                                    format: {
-                                        body: function (data) {
-                                            return data
-                                                .replace(/\(.*?\)/g, '')
-                                                .replace(/<[^>]*>/g, '')
-                                                .trim();
-                                        }
-                                    }
-                                },
-                                title: 'orders',
-                            },
-                            {
-                                extend: 'csvHtml5',
-                                text: 'Export CSV',
-                                exportOptions: {
-                                    columns: ':visible:not(:first-child):not(:last-child)',
-                                    format: {
-                                        body: function (data) {
-                                            return data
-                                                .replace(/\(.*?\)/g, '')
-                                                .replace(/<[^>]*>/g, '')
-                                                .trim();
-                                        }
-                                    }
-                                },
-                                title: 'orders',
-                            },
-                            {
-                                extend: 'pdfHtml5',
-                                text: 'Export PDF',
-                                exportOptions: {
-                                    columns: ':visible:not(:first-child):not(:last-child)',
-                                    format: {
-                                        body: function (data) {
-                                            return data
-                                                .replace(/\(.*?\)/g, '')
-                                                .replace(/<[^>]*>/g, '')
-                                                .trim();
-                                        }
-                                    }
-                                },
-                                title: 'orders',
-                                orientation: 'landscape',
-                                pageSize: 'A4'
+                            } else {
+                                console.log('📅 AJAX data - No date range set');
                             }
-                        ]
-                    }
-                ],
-                initComplete: function () {
-                    $(".dataTables_filter").append($(".dt-buttons").detach());
-                    $('.dataTables_filter input').attr('placeholder', 'Search here...').attr('autocomplete', 'new-password').val('');
-                    $('.dataTables_filter label').contents().filter(function () {
-                        return this.nodeType === 3;
-                    }).remove();
-                }
-            });
 
+                            console.log('📡 Final AJAX params:', d);
+                        },
+                        dataSrc: function (json) {
+                            console.log('📥 Orders response:', json);
+                            console.log('📥 First row sample:', json.data && json.data[0]);
+
+                            // IMPORTANT: Re-format dates client-side for consistent display
+                            if (json.data && Array.isArray(json.data)) {
+                                var processedCount = 0;
+                                json.data.forEach(function (row, rowIndex) {
+                                    // Find the date column (varies by context)
+                                    // In most views, date is at index 4 or 5
+                                    for (var i = 0; i < row.length; i++) {
+                                        var cell = row[i];
+                                        if (typeof cell === 'string' && cell.includes('dt-time')) {
+                                            // Extract date from HTML
+                                            var match = cell.match(/<span class="dt-time">(.*?)<\/span>/);
+                                            if (match && match[1]) {
+                                                var rawDate = match[1];
+
+                                                // Only log first 3 rows to avoid console spam
+                                                if (rowIndex < 3) {
+                                                    console.log('📅 Raw date from server:', rawDate);
+                                                }
+
+                                                var formattedDate = formatDateTime(rawDate);
+
+                                                if (rowIndex < 3) {
+                                                    console.log('📅 Formatted date:', formattedDate);
+                                                }
+
+                                                row[i] = '<span class="dt-time">' + formattedDate + '</span>';
+                                                processedCount++;
+                                            }
+                                        }
+                                    }
+                                });
+                                console.log('✅ Processed ' + processedCount + ' date cells');
+                            }
+
+                            $('.order_count').text(json.recordsFiltered || 0);
+                            console.log('📊 Total orders:', json.recordsFiltered);
+                            $('#data-table_processing').hide();
+                            if (!json.data || !Array.isArray(json.data)) {
+                                return [];
+                            }
+                            return json.data;
+                        },
+                        error: function (xhr, error, thrown) {
+                            console.error('❌ DataTables error:', error, thrown);
+                            $('#data-table_processing').hide();
+                        }
+                    },
+                    order: (getId != '' || driverID || userID && checkDeletePermission) ? [[4, 'desc']] : (getId != '' || driverID || userID) ? ((checkDeletePermission) ? [[4, 'desc']] : [[3, 'desc']]) : ((checkDeletePermission) ? [[5, 'desc']] : [[4, 'desc']]),
+                    columnDefs: [
+                        {
+                            targets: (getId != '' || driverID || userID && checkDeletePermission) ? 4 : (getId != '' || driverID || userID) ? ((checkDeletePermission) ? 4 : 3) : ((checkDeletePermission) ? 5 : 4),
+                            type: 'date',
+                            render: function (data) {
+                                return data;
+                            }
+                        },
+                        {
+                            orderable: false,
+                            targets: (getId != '' || driverID || userID && checkDeletePermission) ? [0, 7] : (getId != '' || driverID || userID) ? ((checkDeletePermission) ? [0, 7] : [6]) : (checkDeletePermission) ? [0, 8] : [7]
+                        },
+                        {
+                            // ✅ CENTER AMOUNT COLUMN
+                            targets: (checkDeletePermission ? 6 : 5),
+                            className: 'text-center'
+                        },
+                        {
+                            // ✅ Restaurant Wrap Column
+                            targets: (checkDeletePermission ? 2 : 1),
+                            render: function (data) {
+                                return `<div style="white-space:normal; max-width:150px; word-break:break-word;">${data}</div>`;
+                            }
+                        },
+                        {
+                            // ✅ Wrap Order Status Column
+                            targets: (checkDeletePermission ? 7 : 6),
+                            render: function (data) {
+                                return `<div style="white-space:normal; max-width:120px; word-break:break-word; text-align:center;font-size:10px;">${data}</div>`;
+                            }
+                        },
+                        {
+                            // Center action column (ALWAYS LAST)
+                            targets: -1,
+                            className: 'text-center',
+                            orderable: false
+                        }
+                    ],
+                    "language": {
+                        "zeroRecords": "{{trans("lang.no_record_found")}}",
+                        "emptyTable": "{{trans("lang.no_record_found")}}",
+                        "processing": ""
+                    },
+                    dom: 'lfrtipB',
+                    buttons: [
+                        {
+                            extend: 'collection',
+                            text: '<i class="mdi mdi-cloud-download"></i> Export as',
+                            className: 'btn btn-info',
+                            buttons: [
+                                {
+                                    extend: 'excelHtml5',
+                                    text: 'Export Excel',
+                                    exportOptions: {
+                                        columns: ':visible:not(:first-child):not(:last-child)',
+                                    },
+                                    title: 'orders',
+                                },
+                                {
+                                    extend: 'csvHtml5',
+                                    text: 'Export CSV',
+                                    exportOptions: {
+                                        columns: ':visible:not(:first-child):not(:last-child)',
+                                    },
+                                    title: 'orders',
+                                },
+                                {
+                                    extend: 'pdfHtml5',
+                                    text: 'Export PDF',
+                                    exportOptions: {
+                                        columns: ':visible:not(:first-child):not(:last-child)',
+                                    },
+                                    title: 'orders',
+                                    orientation: 'landscape',
+                                    pageSize: 'A4'
+                                }
+                            ]
+                        }
+                    ],
+                    initComplete: function () {
+                        $(".dataTables_filter").append($(".dt-buttons").detach());
+                        $('.dataTables_filter input').attr('placeholder', 'Search here...').attr('autocomplete', 'new-password').val('');
+                        $('.dataTables_filter label').contents().filter(function () {
+                            return this.nodeType === 3;
+                        }).remove();
+                    },
+                });
+
+                ordersTable.on('init', function () {
+                    restoreOrderColumnState();
+                    buildColumnToggleList();
+                });
+
+            });
             function debounce(func, wait) {
                 let timeout;
                 return function (...args) {
@@ -893,6 +890,119 @@
                     }
                 });
             }
+        });
+        const orderColumnGroups = {
+            "General": [
+                { index: 1, label: "Restaurant" },
+                { index: 2, label: "Order Id" },
+                { index: 5, label: "Date" },
+                { index: 7, label: "Actions" }
+            ],
+            "People": [
+                { index: 6, label: "Client" },
+                { index: 11, label: "Drivers" }
+            ],
+            "Zone": [
+                { index: 3, label: "Zone" }
+            ],
+            "Finance": [
+                { index: 8, label: "Amount" }
+            ],
+            "Toggles": [
+                { index: 10, label: "Order Status" }
+            ]
+        };
+
+        function buildColumnToggleList() {
+            let html = '';
+
+            ordersTable.columns().every(function (index) {
+                let column = this;
+                let title = $(column.header()).text().trim();
+
+                if (!title) title = 'Select';
+
+                html += `
+            <div class="form-check">
+                <input
+                    class="form-check-input toggle-col"
+                    type="checkbox"
+                    id="order_col_${index}"
+                    data-col="${index}"
+                    ${column.visible() ? 'checked' : ''}>
+                <label class="form-check-label" for="order_col_${index}">
+                    ${title}
+                </label>
+            </div>
+        `;
+            });
+
+            $('#dynamicColumnToggleArea').html(html);
+        }
+
+        $(document).on('click','#dynamicColumnToggleArea', function (e) {
+            e.stopPropagation();
+        });
+
+        $(document).on('change', '.toggle-col', function () {
+            const colIndex = $(this).data('col');
+            ordersTable.column(colIndex).visible(this.checked);
+            saveOrderColumnState();
+        });
+
+        function saveOrderColumnState() {
+            let state = {};
+
+            ordersTable.columns().every(function (index) {
+                state[index] = this.visible();
+            });
+
+            localStorage.setItem(
+                ORDER_COLUMN_STORAGE_KEY,
+                JSON.stringify(state)
+            );
+        }
+        function restoreOrderColumnState() {
+            const savedState = localStorage.getItem(ORDER_COLUMN_STORAGE_KEY);
+            if (!savedState) return;
+
+            const state = JSON.parse(savedState);
+
+            Object.entries(state).forEach(([index, visible]) => {
+                if (ordersTable.column(index).length) {
+                    ordersTable.column(index).visible(visible);
+                }
+            });
+        }
+
+        $(document).ready(function () {
+
+            // Build column checkboxes AFTER table loads
+            setTimeout(buildColumnToggleList, 1000);
+
+            // --------------------------------------
+            // TOGGLE INDIVIDUAL COLUMN
+            // --------------------------------------
+            $(document).on("change", ".toggle-col", function () {
+                let colIndex = $(this).data("col");
+                let column = ordersTable.column(colIndex);
+
+                column.visible($(this).is(":checked"));
+            });
+
+            // --------------------------------------
+            // SHOW ALL COLUMNS
+            // --------------------------------------
+            $('#showAllColumns').on('click', function (e) {
+                e.stopPropagation();
+
+                ordersTable.columns().every(function () {
+                    this.visible(true);
+                });
+
+                $('.toggle-col').prop('checked', true);
+                saveOrderColumnState();
+            });
         });
     </script>
 @endsection

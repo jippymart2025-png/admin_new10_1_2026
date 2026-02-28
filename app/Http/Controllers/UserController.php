@@ -10,6 +10,7 @@ use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Validator;
@@ -925,7 +926,7 @@ class UserController extends Controller
             ]);
 
             // ✅ FIND DRIVER (ONLY BY id)
-            $driver = user::where('firebase_id', $id)->first();
+            $driver = AppUser::where('firebase_id', $id)->first();
 
             if (!$driver) {
                 return response()->json([
@@ -1163,6 +1164,33 @@ class UserController extends Controller
                 'lastName' => $user->lastName,
                 'email' => $user->email,
             ]
+        ]);
+    }
+
+    public function getUserById($id)
+    {
+        $user = AppUser::where('role', 'vendor')
+                ->where('firebase_id', $id)
+            ->select(
+                'firebase_id',
+                'id',
+                'email',
+                'firstName',
+                'lastName',
+                'phoneNumber'
+            )
+            ->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vendor not found'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'user' => $user
         ]);
     }
 }

@@ -282,37 +282,78 @@
                                                     <input type="checkbox" id="restaurants-list" value="restaurants"
                                                            name="restaurants[]" class="permission"
                                                         {{ in_array('restaurants', $permissions) ? 'checked' : '' }}>
-                                                    <label class="contol-label2"
+                                                    <label class="control-label2"
                                                            for="restaurants-list">{{ trans('lang.list') }}</label>
                                                     <input type="checkbox" id="restaurants-create"
                                                            value="restaurants.create" name="restaurants[]"
                                                            class="permission"
                                                         {{ in_array('restaurants.create', $permissions) ? 'checked' : '' }}>
-                                                    <label class="contol-label2"
+                                                    <label class="control-label2"
                                                            for="restaurants-create">{{ trans('lang.create') }}</label>
                                                     <input type="checkbox" id="restaurants-edit"
                                                            value="restaurants.edit" name="restaurants[]"
                                                            class="permission"
                                                         {{ in_array('restaurants.edit', $permissions) ? 'checked' : '' }}>
-                                                    <label class="contol-label2"
+                                                    <label class="control-label2"
                                                            for="restaurants-edit">{{ trans('lang.edit') }}</label>
                                                     <input type="checkbox" id="restaurants-view"
                                                            value="restaurants.view" name="restaurants[]"
                                                            class="permission"
                                                         {{ in_array('restaurants.view', $permissions) ? 'checked' : '' }}>
-                                                    <label class="contol-label2"
+                                                    <label class="control-label2"
                                                            for="restaurants-view">{{ trans('lang.view') }}</label>
                                                     <input type="checkbox" id="restaurants-delete"
                                                            value="restaurants.delete" name="restaurants[]"
                                                            class="permission"
                                                         {{ in_array('restaurants.delete', $permissions) ? 'checked' : '' }}>
-                                                    <label class="contol-label2"
+                                                    <label class="control-label2"
                                                            for="restaurants-delete">{{ trans('lang.delete') }}</label>
                                                     <input type="checkbox" id="restaurants-impersonate"
                                                            value="restaurants.impersonate" name="restaurants[]"
                                                            class="permission"
                                                         {{ in_array('restaurants.impersonate', $permissions) ? 'checked' : '' }}>
                                                     <label class="control-label2" for="restaurants-impersonate">Impersonate</label>
+                                                    <input type="checkbox" id="restaurants-publish"
+                                                           value="restaurants.publish" name="restaurants[]"
+                                                           class="permission"
+                                                        {{ in_array('restaurants.publish', $permissions) ? 'checked' : '' }}>
+                                                    <label class="control-label2" for="restaurants-publish">Publish</label>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
+                                                    <strong>Marts</strong>
+                                                </td>
+                                                <td>
+                                                    <input type="checkbox" id="marts-list" value="marts"
+                                                           name="marts[]" class="permission"
+                                                    {{ in_array('marts', $permissions) ? 'checked' : '' }}>
+                                                    <label class=" control-label2"
+                                                           for="marts-list">{{ trans('lang.list') }}</label>
+                                                    <input type="checkbox" id="marts-create"
+                                                           value="marts.create" name="marts[]"
+                                                           class="permission"
+                                                    {{ in_array('marts', $permissions) ? 'checked' : '' }}>
+                                                    <label class=" control-label2"
+                                                           for="marts-create">{{ trans('lang.create') }}</label>
+                                                    <input type="checkbox" id="marts-edit"
+                                                           value="marts.edit" name="marts[]"
+                                                           class="permission"
+                                                    {{ in_array('marts', $permissions) ? 'checked' : '' }}>
+                                                    <label class=" control-label2"
+                                                           for="marts-edit">{{ trans('lang.edit') }}</label>
+                                                    <input type="checkbox" id="marts-view"
+                                                           value="marts.view" name="marts[]"
+                                                           class="permission"
+                                                    {{ in_array('marts', $permissions) ? 'checked' : '' }}>
+                                                    <label class=" control-label2"
+                                                           for="marts.view">{{ trans('lang.view') }}</label>
+                                                    <input type="checkbox" id="marts-delete"
+                                                           value="marts.delete" name="marts[]"
+                                                           class="permission"
+                                                    {{ in_array('marts', $permissions) ? 'checked' : '' }}>
+                                                    <label class="contol-label2"
+                                                           for="marts-delete">{{ trans('lang.delete') }}</label>
                                                 </td>
                                             </tr>
                                             <tr>
@@ -340,11 +381,11 @@
                                                         {{ in_array('drivers.view', $permissions) ? 'checked' : '' }}>
                                                     <label class="contol-label2"
                                                            for="drivers-view">{{ trans('lang.view') }}</label>
-                                                    <input type="checkbox" id="driver-delete" value="driver.delete"
-                                                           name="driver[]" class="permission"
-                                                        {{ in_array('driver.delete', $permissions) ? 'checked' : '' }}>
+                                                    <input type="checkbox" id="drivers-delete" value="drivers.delete"
+                                                           name="drivers[]" class="permission"
+                                                        {{ in_array('drivers.delete', $permissions) ? 'checked' : '' }}>
                                                     <label class=" control-label2"
-                                                           for="driver-delete">{{ trans('lang.delete') }}</label>
+                                                           for="drivers-delete">{{ trans('lang.delete') }}</label>
                                                 </td>
                                             </tr>
                                             <tr>

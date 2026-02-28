@@ -769,8 +769,6 @@
     </div>
 @endsection
 @section('scripts')
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.26.0/moment.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/compressorjs/1.1.1/compressor.min.js" integrity="sha512-VaRptAfSxXFAv+vx33XixtIVT9A/9unb1Q8fp63y1ljF+Sbka+eMJWoDAArdm7jOYuLQHVx5v60TQ+t3EA8weA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script>
         const restaurantId = "{{ $id }}";
         const placeholderImage = '{{ asset('images/placeholder.png') }}';
@@ -966,6 +964,8 @@
                 try {
                     const cuisinesRes = await fetchJson(routes.cuisines);
                     availableCuisines = cuisinesRes && cuisinesRes.success ? cuisinesRes.data : [];
+                    console.log('Cuisines loaded:', availableCuisines);      // ← add this
+                    console.log('vendorCuisineID from restaurant:', restaurantRes.data.vendorCuisineID); // ← and this
                     populateCuisineSelect(availableCuisines);
                 } catch (e) {
                     console.warn('Unable to load cuisines', e);
@@ -1027,11 +1027,21 @@
             });
         }
 
+        // function populateCuisineSelect(cuisines) {
+        //     const $select = $('#restaurant_vendor_cuisines');
+        //     $select.empty().append('<option value="">Select Cuisine</option>');
+        //     cuisines.forEach(cuisine => {
+        //         $select.append($('<option></option>').attr('value', cuisine.id).text(cuisine.title));
+        //     });
+        // }
         function populateCuisineSelect(cuisines) {
             const $select = $('#restaurant_vendor_cuisines');
             $select.empty().append('<option value="">Select Cuisine</option>');
             cuisines.forEach(cuisine => {
-                $select.append($('<option></option>').attr('value', cuisine.id).text(cuisine.title));
+                // Ensure value is always a string to match .val() comparison
+                $select.append(
+                    $('<option></option>').attr('value', String(cuisine.id)).text(cuisine.title)
+                );
             });
         }
 
@@ -1047,19 +1057,18 @@
             });
         }
 
-        // Store vType globally to preserve it during save
-        let currentVType = 'restaurant';
 
         function populateForm(restaurant) {
             $('.restaurant_name').val(restaurant.title || '');
 
-            // Store vType from loaded data
-            currentVType = restaurant.vType || 'restaurant';
+            let vType = (restaurant.vType || 'restaurant').toLowerCase();
 
-            if (Array.isArray(restaurant.vendorCuisineID)) {
-                $('#restaurant_vendor_cuisines').val(restaurant.vendorCuisineID).trigger('change');
-            } else if (restaurant.vendorCuisineID) {
-                $('#restaurant_vendor_cuisines').val(restaurant.vendorCuisineID).trigger('change');
+            const rawCuisineID = restaurant.vendorCuisineID || restaurant.cuisineID || null;
+            if (rawCuisineID) {
+                const cuisineVal = Array.isArray(rawCuisineID)
+                    ? rawCuisineID.map(String)
+                    : String(rawCuisineID);
+                $('#restaurant_vendor_cuisines').val(cuisineVal).trigger('change');
             }
 
             if (Array.isArray(restaurant.categoryID)) {
@@ -1072,7 +1081,11 @@
             if (restaurant.countryCode) {
                 $('#country_selector1').val(restaurant.countryCode.replace('+', '')).trigger('change');
             }
-            $('#vendor_type').val(restaurant.vType ?? 'restaurant').trigger('change');
+            if (!['restaurant', 'mart'].includes(vType)) {
+                vType = 'restaurant';
+            }
+
+            $('#vendor_type').val(vType).trigger('change');
             $('.restaurant_phone').val(shortEditNumber(restaurant.phonenumber || ''));
             $('.restaurant_address').val(restaurant.location || '');
             $('#zone').val(restaurant.zoneId || '').trigger('change');
@@ -1143,7 +1156,6 @@
             populateWorkingHours(restaurant.workingHours || []);
 
 
-            // ⭐ Set Vendor Profile Route based on vendor_db_id
             // ⭐ Set Vendor Profile Route based on vendor_db_id
             if (restaurant.author) {
                 let route1 = '{{ route("vendor.edit", ":id") }}';

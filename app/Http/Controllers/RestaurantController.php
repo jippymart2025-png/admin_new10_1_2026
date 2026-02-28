@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Illuminate\Support\Facades\Hash;
@@ -102,13 +103,6 @@ class RestaurantController extends Controller
             });
         }
 
-//        if ($search !== '') {
-//            $q->where(function($query) use ($search) {
-//                $query->whereRaw("LOWER(subscription_plan) LIKE ?", ['%'.$search.'%'])
-//                    ->orWhere('user_id', 'like', '%'.$search.'%')
-//                    ->orWhere('payment_type', 'like', '%'.$search.'%');
-//            });
-//        }
 
         if ($search !== '') {
             $q->where(function ($query) use ($search) {
@@ -178,7 +172,7 @@ class RestaurantController extends Controller
             $planType = $planData['type'] ?? 'paid';
             $row[] = ucfirst($planType);
 
-            // ✅ ADD THIS ZONE LOGIC HERE
+            //  ZONE LOGIC HERE
             $zoneName = 'N/A';
             if ($vendor && !empty($vendor->zoneId)) {
                 $zone = DB::table('zone')->where('id', $vendor->zoneId)->first();
@@ -1540,41 +1534,68 @@ class RestaurantController extends Controller
             $searchValue = $request->input('search.value', '');
             $type = $request->input('type', 'all'); // all, pending, approved
 
-            // Build base query - use subquery to get unique vendors by firebase_id (like Firebase did)
-            // This ensures we only get one record per unique vendor
-            $subQuery = DB::table('users')
-                ->select(DB::raw('MAX(id) as max_id'))
-                ->where('role', 'vendor')
-                ->whereNotNull('firebase_id')
-                ->where('firebase_id', '!=', '')
-                ->groupBy('firebase_id');
-
-            // Apply type filter to subquery
-            if ($type === 'pending') {
-                $subQuery->where('active', '0');
-            } elseif ($type === 'approved') {
-                $subQuery->where('active', '1');
-            }
-
-            // Get the IDs from subquery
-            $uniqueIds = $subQuery->pluck('max_id')->toArray();
-
-            // Now build main query using those unique IDs
-//            $query = AppUser::whereIn('id', $uniqueIds);
+//            // Build base query - use subquery to get unique vendors by firebase_id (like Firebase did)
+//            // This ensures we only get one record per unique vendor
+//            $subQuery = DB::table('users')
+//                ->select(DB::raw('MAX(id) as max_id'))
+//                ->where('role', 'vendor')
+//                ->whereNotNull('firebase_id')
+//                ->where('firebase_id', '!=', '')
+//                ->groupBy('firebase_id');
+//
+//            // Apply type filter to subquery
+//            if ($type === 'pending') {
+//                $subQuery->where('active', '0');
+//            } elseif ($type === 'approved') {
+//                $subQuery->where('active', '1');
+//            }
+//
+//            // Get the IDs from subquery
+//            $uniqueIds = $subQuery->pluck('max_id')->toArray();
+//
+//            // Now build main query using those unique IDs
+////            $query = AppUser::whereIn('id', $uniqueIds);
+//            $query = AppUser::query()
+//                ->whereIn('users.id', $uniqueIds)
+//                ->leftJoin('vendors', 'vendors.id', '=', 'users.vendorID') // ✅ Correct join
+//                ->leftJoin('zone', 'vendors.zoneId', '=', 'zone.id') // ✅ Join zone table to get zone name
+//                ->select(
+//                    'users.*',
+//                    'vendors.zoneId as vendor_zoneId', // ✅ we pull zoneId from vendors table
+//                    'zone.name as zone_name' // ✅ we pull zone name from zone table
+//                );
             $query = AppUser::query()
-                ->whereIn('users.id', $uniqueIds)
-                ->leftJoin('vendors', 'vendors.id', '=', 'users.vendorID') // ✅ Correct join
-                ->leftJoin('zone', 'vendors.zoneId', '=', 'zone.id') // ✅ Join zone table to get zone name
+                ->leftJoin('vendors', 'vendors.id', '=', 'users.vendorID')
+                ->leftJoin('zone', 'vendors.zoneId', '=', 'zone.id')
                 ->select(
-                    'users.*',
-                    'vendors.zoneId as vendor_zoneId', // ✅ we pull zoneId from vendors table
-                    'zone.name as zone_name' // ✅ we pull zone name from zone table
+                    'users.id',
+                    'users.firebase_id',
+                    'users.firstName',
+                    'users.lastName',
+                    'users.email',
+                    'users.phoneNumber',
+                    'users.active',
+                    'users.isActive',
+                    'users.createdAt',
+                    'users.profilePictureURL',
+                    'users.vendorID',
+                    'vendors.zoneId as vendor_zoneId',
+                    'zone.name as zone_name'
+                )
+                ->whereIn('users.id',
+                    DB::table('users')
+                        ->select(DB::raw('MAX(id)'))
+                        ->where('role', 'vendor')
+                        ->whereNotNull('firebase_id')
+                        ->where('firebase_id', '!=', '')
+                        ->when($type === 'pending', fn($q) => $q->where('active', '0'))
+                        ->when($type === 'approved', fn($q) => $q->where('active', '1'))
+                        ->groupBy('firebase_id')
                 );
 
 
             // Apply additional filters if provided
             if ($request->has('vendor_type') && $request->vendor_type != '') {
-//                $query->where('vType', $request->vendor_type);
                 $query->where('users.vType', $request->vendor_type);
             }
 
@@ -1591,7 +1612,6 @@ class RestaurantController extends Controller
 
             // Apply date range filter
             // The createdAt field is stored as JSON string like "2025-10-16T07:13:41.487000Z"
-            // We need to strip quotes and compare
             if ($request->has('start_date') && $request->has('end_date')) {
                 $startDate = date('Y-m-d', strtotime($request->start_date));
                 $endDate = date('Y-m-d', strtotime($request->end_date));
@@ -1621,7 +1641,6 @@ class RestaurantController extends Controller
             // Apply ordering
             // If zone sort is requested, sort by zone name, otherwise by createdAt descending
             if (!empty($zoneSort)) {
-                // Sort by zone name (zone table already joined above)
                 $vendors = $query->orderBy('zone.name', $zoneSort)
                     ->orderByRaw("REPLACE(REPLACE(users.createdAt, '\"', ''), 'T', ' ') DESC")
                     ->skip($start)
@@ -1639,7 +1658,6 @@ class RestaurantController extends Controller
             // Build response data
             $data = [];
             foreach ($vendors as $vendor) {
-                // Parse createdAt date from JSON format "2025-10-16T07:13:41.487000Z"
                 $createdAtFormatted = '';
                 if ($vendor->createdAt) {
                     try {
@@ -1676,14 +1694,14 @@ class RestaurantController extends Controller
                     'profilePictureURL' => $vendor->profilePictureURL ?? '',
                     'active' => $vendor->active == '1' || $vendor->active === 'true' || $vendor->active === true,
                     'zoneId' => $vendor->vendor_zoneId ?? '',
-                    'zoneName' => $vendor->zone_name ?? '', // ✅ Include zone name from joined zone table
+                    'zoneName' => $vendor->zone_name ?? '',
                     'vType' => $vendor->vType ?? 'restaurant',
                     'vendorID' => $vendor->vendorID ?? '',
-                    'subscriptionPlanId' => $vendor->subscriptionPlanId ?? '',
-                    'subscription_plan' => $vendor->subscription_plan ? json_decode($vendor->subscription_plan, true) : null,
-                    'subscriptionExpiryDate' => $expiryDateFormatted,
-                    'subscriptionExpiryDateRaw' => $vendor->subscriptionExpiryDate ?? '',
-                    'userBankDetails' => $vendor->userBankDetails ? json_decode($vendor->userBankDetails, true) : null,
+//                    'subscriptionPlanId' => $vendor->subscriptionPlanId ?? '',
+//                    'subscription_plan' => $vendor->subscription_plan ? json_decode($vendor->subscription_plan, true) : null,
+//                    'subscriptionExpiryDate' => $expiryDateFormatted,
+//                    'subscriptionExpiryDateRaw' => $vendor->subscriptionExpiryDate ?? '',
+//                    'userBankDetails' => $vendor->userBankDetails ? json_decode($vendor->userBankDetails, true) : null,
                     'createdAt' => $createdAtFormatted,
                     'createdAtRaw' => $vendor->createdAt ?? '',
                     'isDocumentVerify' => $vendor->isDocumentVerify == '1' || $vendor->isDocumentVerify === 'true' || $vendor->isDocumentVerify === true,
@@ -1711,6 +1729,87 @@ class RestaurantController extends Controller
             ]);
         }
     }
+
+    /**
+     * Create new vendor
+     */
+    public function vendorStore(Request $request, ActivityLogger $logger)
+    {
+        try {
+            $request->validate([
+                'firstName' => 'required',
+                'lastName' => 'required',
+                'email' => 'required|email',
+                'password' => 'required|min:6',
+                'phoneNumber' => 'required',
+                'countryCode' => 'required'
+            ]);
+
+            // Check if email already exists
+            $existingVendor = AppUser::where('email', $request->email)->first();
+            if ($existingVendor) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Email already exists'
+                ], 400);
+            }
+
+            // Create vendor
+            $vendor = new AppUser();
+            $vendor->firstName = $request->firstName;
+            $vendor->lastName = $request->lastName;
+            $vendor->email = $request->email;
+            $vendor->password = Hash::make($request->password);
+            $vendor->phoneNumber = $request->phoneNumber;
+            $vendor->countryCode = $request->countryCode;
+            $vendor->role = 'vendor';
+            $vendor->vType = $request->vType ?? 'restaurant';
+            $vendor->active = $this->toBoolInt($request->input('active', 0));
+            $vendor->profilePictureURL = $request->profilePictureURL ?? '';
+            $vendor->provider = 'email';
+            $vendor->appIdentifier = 'web';
+            $vendor->isDocumentVerify = 0;
+            $vendor->createdAt = '"' . gmdate('Y-m-d\TH:i:s.u\Z') . '"';
+
+            if ($request->has('subscriptionPlanId')) {
+                $vendor->subscriptionPlanId = $request->subscriptionPlanId;
+            }
+            if ($request->has('subscription_plan')) {
+                $vendor->subscription_plan = json_encode($request->subscription_plan);
+            }
+            if ($request->has('subscriptionExpiryDate')) {
+                $vendor->subscriptionExpiryDate = $request->subscriptionExpiryDate;
+            }
+
+            // Generate unique firebase_id
+            $vendor->firebase_id = uniqid();
+            $vendor->_id = $vendor->firebase_id;
+
+
+            $vendor->save();
+
+            $logger->log(
+                auth()->user(),
+                'vendor',
+                'created',
+                'Vendor created: ' . trim($vendor->firstName . ' ' . $vendor->lastName),
+                $request
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Vendor created successfully',
+                'vendor_id' => $vendor->firebase_id
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error creating vendor: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error creating vendor: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
 
     /**
      * Get single vendor data by ID
@@ -1825,21 +1924,25 @@ class RestaurantController extends Controller
     /**
      * Update vendor data
      */
-    public function updateVendor(Request $request, $id)
+    public function updateVendor(Request $request, $id,ActivityLogger $logger)
     {
         try {
-            // Try to find vendor by multiple ID fields
-            $vendor = AppUser::where(function($query) use ($id) {
-                $query->where('firebase_id', $id)
-                    ->orWhere('_id', $id);
+//            // Try to find vendor by multiple ID fields
+//            $vendor = AppUser::where(function($query) use ($id) {
+//                $query->where('firebase_id', $id)
+//                    ->orWhere('_id', $id);
+//
+//                // Also try numeric ID if the input is numeric
+//                if (is_numeric($id)) {
+//                    $query->orWhere('id', $id);
+//                }
+//            })
+//                ->where('role', 'vendor')
+//                ->first();
 
-                // Also try numeric ID if the input is numeric
-                if (is_numeric($id)) {
-                    $query->orWhere('id', $id);
-                }
-            })
-                ->where('role', 'vendor')
-                ->first();
+            $vendor = AppUser::where('firebase_id', $id)
+                       ->where('role', 'vendor')
+                         ->first();
 
 
             if (!$vendor) {
@@ -1893,6 +1996,14 @@ class RestaurantController extends Controller
                     $vendorBusiness->save();
                 }
             }
+
+            $logger->log(
+                auth()->user(),
+                'vendor',
+                'updated',
+                'vendor updated: ' . $vendor->FirstName . ' ' . $vendor->LastName,
+                $request
+            );
 
             return response()->json([
                 'success' => true,
@@ -2006,80 +2117,6 @@ class RestaurantController extends Controller
         ]);
     }
 
-
-
-    /**
-     * Create new vendor
-     */
-    public function createVendor(Request $request)
-    {
-        try {
-            $request->validate([
-                'firstName' => 'required',
-                'lastName' => 'required',
-                'email' => 'required|email',
-                'password' => 'required|min:6',
-                'phoneNumber' => 'required',
-                'countryCode' => 'required'
-            ]);
-
-            // Check if email already exists
-            $existingVendor = AppUser::where('email', $request->email)->first();
-            if ($existingVendor) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Email already exists'
-                ], 400);
-            }
-
-            // Create vendor
-            $vendor = new AppUser();
-            $vendor->firstName = $request->firstName;
-            $vendor->lastName = $request->lastName;
-            $vendor->email = $request->email;
-            $vendor->password = Hash::make($request->password);
-            $vendor->phoneNumber = $request->phoneNumber;
-            $vendor->countryCode = $request->countryCode;
-            $vendor->role = 'vendor';
-            $vendor->vType = $request->vType ?? 'restaurant';
-            $vendor->active = $this->toBoolInt($request->input('active', 0));
-            $vendor->profilePictureURL = $request->profilePictureURL ?? '';
-            $vendor->provider = 'email';
-            $vendor->appIdentifier = 'web';
-            $vendor->isDocumentVerify = 0;
-            // Store createdAt in same JSON format as Firebase: "2025-10-16T07:13:41.487000Z"
-            $vendor->createdAt = '"' . gmdate('Y-m-d\TH:i:s.u\Z') . '"';
-
-            if ($request->has('subscriptionPlanId')) {
-                $vendor->subscriptionPlanId = $request->subscriptionPlanId;
-            }
-            if ($request->has('subscription_plan')) {
-                $vendor->subscription_plan = json_encode($request->subscription_plan);
-            }
-            if ($request->has('subscriptionExpiryDate')) {
-                $vendor->subscriptionExpiryDate = $request->subscriptionExpiryDate;
-            }
-
-            // Generate unique firebase_id
-            $vendor->firebase_id = uniqid();
-            $vendor->_id = $vendor->firebase_id;
-
-            $vendor->save();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Vendor created successfully',
-                'vendor_id' => $vendor->firebase_id
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Error creating vendor: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error creating vendor: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
     /**
      * Get placeholder image
      */
@@ -2114,11 +2151,10 @@ class RestaurantController extends Controller
             ], 500);
         }
     }
-
     /**
      * Create new restaurant
      */
-    public function createRestaurant(Request $request)
+    public function createRestaurant(Request $request,ActivityLogger $logger)
     {
         try {
             $restaurantData = $request->restaurantData;
@@ -2184,6 +2220,16 @@ class RestaurantController extends Controller
 
             $restaurant->save();
 
+            /** ✅ LOG AFTER SAVE (WORKING) */
+            $logger->log(
+                auth()->user(),
+                'restaurant',
+                'created',
+                'Restaurant created: ' . $restaurant->title,
+                $request
+            );
+
+
             // Update user vendorID if requested
             if ($request->updateUserVendorID && $user_id && $user_id !== 'admin_created') {
                 $user = AppUser::where('firebase_id', $user_id)
@@ -2225,6 +2271,7 @@ class RestaurantController extends Controller
             }
 
 
+
             return response()->json([
                 'success' => true,
                 'message' => 'Restaurant created successfully',
@@ -2249,13 +2296,16 @@ class RestaurantController extends Controller
             $length = $request->input('length', 10);
             $searchValue = $request->input('search.value', '');
 
-            // Build base query - get unique restaurants by id
-            $subQuery = DB::table('vendors')
-                ->select(DB::raw('MAX(id) as vendor_id'))
-                ->groupBy('id');
+//            // Build base query - get unique restaurants by id
+//            $subQuery = DB::table('vendors')
+//                ->select(DB::raw('MAX(id) as vendor_id'))
+//                ->groupBy('id');
+//
+//            $vendorIds = $subQuery->pluck('vendor_id')->toArray();
+//            $query = Vendor::whereIn('id', $vendorIds);
 
-            $vendorIds = $subQuery->pluck('vendor_id')->toArray();
-            $query = Vendor::whereIn('id', $vendorIds);
+             //Build base query
+            $query = Vendor::query();
 
             // Apply filters
             if ($request->has('restaurant_type') && $request->restaurant_type != '') {
@@ -2338,6 +2388,88 @@ class RestaurantController extends Controller
                 ->take($length)
                 ->get();
 
+//            // Base query - no select yet (used for count/stats)
+//            $query = Vendor::query()
+//                ->leftJoin('subscription_plans', 'subscription_plans.id', '=', 'vendors.subscriptionPlanId');
+//
+//// Apply filters
+//            if ($request->filled('restaurant_type') && $request->restaurant_type === 'true') {
+//                $query->where('dine_in_active', '!=', '');
+//            }
+//            if ($request->filled('zone')) {
+//                $query->where('vendors.zoneId', $request->zone);
+//            }
+//            if ($request->filled('vType')) {
+//                $query->where('vendors.vType', $request->vType);
+//            }
+//            if ($request->filled('business_model')) {
+//                $query->where('vendors.subscriptionPlanId', $request->business_model);
+//            }
+//            if ($request->filled('start_date') && $request->filled('end_date')) {
+//                $startDate = date('Y-m-d', strtotime($request->start_date));
+//                $endDate   = date('Y-m-d', strtotime($request->end_date));
+//                $query->whereRaw(
+//                    "DATE(REPLACE(REPLACE(vendors.createdAt, '\"', ''), 'T', ' ')) BETWEEN ? AND ?",
+//                    [$startDate, $endDate]
+//                );
+//            }
+//
+//// Count BEFORE search (uses query without select)
+//            $totalRecords = (clone $query)->count('vendors.id');
+//
+//// Apply search
+//            if (!empty($searchValue)) {
+//                $query->where(function ($q) use ($searchValue) {
+//                    $q->where('vendors.title',       'like', "%{$searchValue}%")
+//                        ->orWhere('vendors.location',   'like', "%{$searchValue}%")
+//                        ->orWhere('vendors.phonenumber','like', "%{$searchValue}%")
+//                        ->orWhere('vendors.description','like', "%{$searchValue}%");
+//                });
+//            }
+//
+//            $filteredRecords = (clone $query)->count('vendors.id');
+//
+//// Stats
+//            $statsQuery          = clone $query;
+//            $totalRestaurants    = (clone $statsQuery)->count('vendors.id');
+//            $activeRestaurants   = (clone $statsQuery)->where('vendors.reststatus', 1)->count('vendors.id');
+//            $inactiveRestaurants = (clone $statsQuery)->where('vendors.reststatus', 0)->count('vendors.id');
+//            $thirtyDaysAgo       = date('Y-m-d', strtotime('-30 days'));
+//            $newJoined           = (clone $statsQuery)
+//                ->whereRaw("DATE(REPLACE(REPLACE(vendors.createdAt, '\"', ''), 'T', ' ')) >= ?", [$thirtyDaysAgo])
+//                ->count('vendors.id');
+//
+//// NOW apply select + pagination at the very end
+//            $restaurants = $query
+//                ->select(
+//                    'vendors.id',
+//                    'vendors.title',
+//                    'vendors.photo',
+//                    'vendors.location',
+//                    'vendors.phonenumber',
+//                    'vendors.reststatus',
+//                    'vendors.isOpen',
+//                    'vendors.vType',
+//                    'vendors.author',
+//                    'vendors.authorName',
+//                    'vendors.authorProfilePic',
+//                    'vendors.zoneId',
+//                    'vendors.adminCommission',
+//                    'vendors.createdAt',
+//                    'vendors.walletAmount',
+//                    'vendors.subscriptionPlanId',
+//                    'vendors.subscriptionExpiryDate',
+//                    'subscription_plans.name  as plan_name',
+//                    'subscription_plans.place as plan_commission',
+//                    'vendors.best',
+//                    'vendors.gst',
+//                    'vendors.publish',
+//                )
+//                ->orderByRaw("REPLACE(REPLACE(vendors.createdAt, '\"', ''), 'T', ' ') DESC")
+//                ->skip($start)
+//                ->take($length)
+//                ->get();
+//
             // Build response data
             $data = [];
             foreach ($restaurants as $restaurant) {
@@ -2437,10 +2569,11 @@ class RestaurantController extends Controller
         }
     }
 
+
     /**
      * Apply global open/close status to restaurants in a given zone (MySQL).
      */
-    public function updateGlobalStatus(Request $request)
+    public function updateGlobalStatus(Request $request, ActivityLogger $logger)
     {
         $validated = $request->validate([
             'is_open' => 'required|boolean',
@@ -2467,6 +2600,17 @@ class RestaurantController extends Controller
                 'reststatus' => $status,
             ]);
 
+            $action = $status ? 'opened' : 'closed';
+            $scope  = $zoneId ? "Zone: {$zoneId}" : 'All zones';
+
+            $logger->log(
+                auth()->user(),
+                'restaurant_status',
+                'updated',
+                "Restaurants {$action} ({$scope})",
+                $request
+            );
+
             return response()->json([
                 'success' => true,
                 'updated' => $updatedCount,
@@ -2480,6 +2624,7 @@ class RestaurantController extends Controller
                 'is_open' => $validated['is_open'],
                 'error' => $e->getMessage(),
             ]);
+
 
             return response()->json([
                 'success' => false,
@@ -2625,7 +2770,7 @@ class RestaurantController extends Controller
     /**
      * Update restaurant data
      */
-    public function updateRestaurant(Request $request, $id)
+    public function updateRestaurant(Request $request, $id,ActivityLogger $logger)
     {
         try {
             // Try to find by string ID column first, then by numeric primary key
@@ -2691,6 +2836,8 @@ class RestaurantController extends Controller
 
             $restaurant->save();
 
+            $logger->log(auth()->user(), 'restaurant', 'updated', 'restaurant updated: ' . $restaurant->title . ' ' . $restaurant->email, $request);
+
             // Save story data if provided
             if ($request->has('storyData') && !empty($request->storyData)) {
                 $storyData = $request->storyData;
@@ -2701,7 +2848,7 @@ class RestaurantController extends Controller
                     // Convert array to comma-separated string
                     $videoUrlString = !empty($videoUrls) ? implode(',', $videoUrls) : null;
 
-                    $firestoreId = 'story_' . Str::uuid()->toString();
+                    $firestoreId = 'story_' . Str::random(20);
 
                     DB::table('story')->updateOrInsert(
                         ['vendor_id' => $restaurant->id],
@@ -2842,7 +2989,7 @@ class RestaurantController extends Controller
                     ->count();
 
                 // Maximum 9 best restaurants per zone
-                if ($bestCount >= 9) {
+                if ($bestCount >= 20) {
                     $zoneName = 'Unknown Zone';
                     if ($zoneId) {
                         $zone = DB::table('zone')->where('id', $zoneId)->first();
@@ -2855,7 +3002,7 @@ class RestaurantController extends Controller
                         'success' => false,
                         'message' => "Cannot set as best. Maximum 9 best restaurants allowed per zone. Zone '{$zoneName}' already has 9 best restaurants.",
                         'best_count' => $bestCount,
-                        'max_allowed' => 9
+                        'max_allowed' => 20
                     ], 422);
                 }
             }
@@ -2937,7 +3084,6 @@ class RestaurantController extends Controller
             $commission = 0; // default = NO commission
 
             if (empty($vendor->subscriptionPlanId)) {
-                // ✅ NO PLAN → Commission Plan
                 $commission = $defaultCommission;
             } else {
                 $plan = DB::table('subscription_plans')
@@ -2946,7 +3092,6 @@ class RestaurantController extends Controller
                     ->first();
 
                 if ($plan && stripos($plan->name, 'commission') !== false) {
-                    // ✅ Commission Plan
                     $commission = $defaultCommission;
                 }
             }
@@ -3036,7 +3181,7 @@ class RestaurantController extends Controller
     /**
      * Delete restaurant
      */
-    public function deleteRestaurant($id)
+    public function deleteRestaurant($id, ActivityLogger $logger,Request $request)
     {
         try {
             // Try to find by string ID column first, then by numeric primary key
@@ -3057,6 +3202,8 @@ class RestaurantController extends Controller
             $this->cleanupRestaurantRelations($restaurant->id, $restaurant->author);
 
             $restaurant->delete();
+
+            $logger->log(auth()->user(), 'restaurant', 'deleted', "Restaurant deleted: {$restaurant->title}", $request);
 
             return response()->json([
                 'success' => true,
@@ -3176,7 +3323,7 @@ class RestaurantController extends Controller
         try {
             DB::beginTransaction();
 
-            $firebaseId = (string) Str::uuid();
+            $firebaseId = Str::random(20);
             $currentTimestamp = '"' . gmdate('Y-m-d\TH:i:s.u\Z') . '"';
 
             $newUser = new AppUser();
@@ -3352,7 +3499,7 @@ class RestaurantController extends Controller
     private function generateVendorId(): string
     {
         do {
-            $id = 'rest_' . Str::uuid()->toString();
+            $id = 'rest_' . Str::random(20);
         } while (Vendor::where('id', $id)->exists());
 
         return $id;
@@ -3361,7 +3508,7 @@ class RestaurantController extends Controller
     private function generateVendorProductId(): string
     {
         do {
-            $id = 'product_' . Str::uuid()->toString();
+            $id = 'product_' . Str::random(20);
         } while (VendorProduct::where('id', $id)->exists());
 
         return $id;
@@ -3417,7 +3564,7 @@ class RestaurantController extends Controller
         try {
             $cuisines = DB::table('vendor_cuisines')
                 ->orderBy('title', 'asc')
-                ->select('id', 'title', 'photo')
+                ->select('id', 'title')
                 ->get();
 
             return response()->json([

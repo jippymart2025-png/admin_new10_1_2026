@@ -12,12 +12,12 @@ class TransactionController extends Controller
 
     public function __construct()
     {
-       $this->middleware('auth');
+        $this->middleware('auth');
     }
 
-    public function index($id='')
+    public function index($id = '')
     {
-        return view("transactions.index")->with('id',$id);
+        return view("transactions.index")->with('id', $id);
     }
 
     /**
@@ -85,7 +85,7 @@ class TransactionController extends Controller
             }
 
             // Sort filtered records
-            usort($filteredRecords, function($a, $b) use ($orderByField, $orderDirection) {
+            usort($filteredRecords, function ($a, $b) use ($orderByField, $orderDirection) {
                 $aValue = $a->$orderByField ?? '';
                 $bValue = $b->$orderByField ?? '';
 
@@ -167,5 +167,73 @@ class TransactionController extends Controller
                 'message' => 'Error fetching user details: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    public function walletCoinsIndex(Request $request, $firebaseId)
+    {
+        // 🔹 1️⃣ Find user by firebase_id
+        $user = \App\Models\AppUser::where('firebase_id', $firebaseId)->first();
+
+        if (!$user) {
+            abort(404, 'User not found');
+        }
+
+        // 🟢 Normal page load → return view
+        if (!$request->ajax()) {
+            return view('transactions.wallet_coins_index', [
+                'id' => $firebaseId,          // keep firebase id for routes
+                'userDbId' => $user->id       // optional if needed in blade
+            ]);
+        }
+
+        // 🔵 AJAX (DataTables)
+        $start  = (int) $request->input('start', 0);
+        $length = (int) $request->input('length', 10);
+        $search = $request->input('search.value', '');
+        $orderColumnIndex = $request->input('order.0.column', 0);
+        $orderDirection   = $request->input('order.0.dir', 'desc');
+
+        $columns = [
+            0 => 'id',
+            1 => 'type',
+            2 => 'coins',
+            3 => 'created_at',
+        ];
+
+        $orderBy = $columns[$orderColumnIndex] ?? 'created_at';
+
+        // 🔹 2️⃣ Use NUMERIC users.id here ✅
+        $query = DB::table('coin_ledger')
+            ->where('user_id', $user->id);
+
+        $recordsTotal = $query->count();
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('type', 'like', "%{$search}%")
+                    ->orWhere('coins', 'like', "%{$search}%")
+                    ->orWhere('reference_id', 'like', "%{$search}%");
+            });
+        }
+
+        $recordsFiltered = $query->count();
+
+        $data = $query
+            ->orderBy($orderBy, $orderDirection)
+            ->offset($start)
+            ->limit($length)
+            ->get()
+            ->map(function ($row) {
+                $row->formattedDate = \Carbon\Carbon::parse($row->created_at)
+                    ->format('D M d Y h:i A');
+                return $row;
+            });
+
+        return response()->json([
+            'draw'            => intval($request->input('draw')),
+            'recordsTotal'    => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data'            => $data,
+        ]);
     }
 }

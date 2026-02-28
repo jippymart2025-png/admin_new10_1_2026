@@ -64,7 +64,7 @@
                                     <div class="form-group row width-50">
                                         <label class="col-3 control-label">{{ trans('lang.email') }}</label>
                                         <div class="col-7">
-                                            <input type="email" class="form-control user_email" disabled required>
+                                            <input type="email" class="form-control user_email" required>
                                             <div class="form-text text-muted">
                                                 {{ trans('lang.user_email_help') }}
                                             </div>
@@ -83,7 +83,7 @@
                                                     </option>
                                                     <?php } ?>
                                                 </select>
-                                                <input type="text" class="form-control user_phone" disabled
+                                                <input type="text" class="form-control user_phone"
                                                     onkeypress="return chkNumbers(event,'error3')">
                                                 <div id="error3" class="err"></div>
                                             </div>
