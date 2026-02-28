@@ -235,9 +235,8 @@
                     </div>
                 </form>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-primary save">{{trans('submit')}}</a>
-                    </button>
-                    <button type="button" class="btn btn-primary" data-dismiss="modal" aria-label="Close">{{trans('close')}}</a></button>
+                    <button type="button" class="btn btn-primary save">{{trans('submit')}}</button>
+                    <button type="button" class="btn btn-primary" data-dismiss="modal" aria-label="Close">{{trans('close')}}</button>
                 </div>
             </div>
         </div>
@@ -269,7 +268,7 @@
         // ✅ SQL API VERSION - No Firebase!
         console.log('✅ User View using SQL API');
 
-        var id = "{{$id}}";
+        var id = {!! json_encode($id ?? '') !!};
         var photo = "";
         var placeholderImage = '{{ asset('images/placeholder.png') }}';
         var currentCurrency = '';
@@ -302,7 +301,7 @@
             await waitForSettings();
             // jQuery("#data-table_processing").show();
 
-            // Load user data from SQL API
+            // Load user data: GET /users/data/{id} (UserController::getUserData or AdminUserController::userData)
             $.ajax({
                 url: '{{ url("/users/data") }}/' + id,
                 method: 'GET',
@@ -514,9 +513,9 @@
             }
             console.log('✅ Adding wallet coins via SQL API');
 
-            // Add wallet coins via SQL API
+            // Add wallet coins: POST /add/wallet_coins/{id} -> AdminUserController::addWalletCoins (route: add.wallet.coins)
             $.ajax({
-                url: '{{ url("/add/wallet_coins") }}/' + id,
+                url: '{{ route("add.wallet.coins", ["id" => "PLACEHOLDER"]) }}'.replace('PLACEHOLDER', id),
                 method: 'POST',
                 dataType: 'json',
                 data: {

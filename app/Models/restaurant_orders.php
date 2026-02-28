@@ -38,36 +38,24 @@ class restaurant_orders extends Model
 
         $query = DB::table('restaurant_orders as ro')
             ->leftJoin('vendors as v', 'v.id', '=', 'ro.vendorID')
-            ->leftJoin('users as u_client', 'u_client.id', '=', 'ro.authorID')   // 👤 client
-            ->leftJoin('users as u_driver', 'u_driver.id', '=', 'ro.driverID')   // 🚗 driver
-            ->leftJoin('money_wallet_ledger as mwl', function ($join) {
-                $join->on('mwl.reference_id', '=', 'ro.id')
-                    ->where('mwl.type', 'ORDER_DEBIT');
-            })
+            ->leftJoin('users as u_client', 'u_client.id', '=', 'ro.authorID')
+            ->leftJoin('users as u_driver', 'u_driver.id', '=', 'ro.driverID')
             ->select(
                 'ro.id',
                 'ro.status',
                 'ro.takeAway',
                 'ro.createdAt',
                 'ro.toPayAmount',
-//                'ro.products',
-//                'ro.discount',
-//                'ro.deliveryCharge',
-//                'ro.tip_amount',
-//                'ro.payment_method',
-//                'ro.specialDiscount',
-               'ro.author',
+                'ro.author',
                 'ro.authorID',
                 'ro.driver',
                 'ro.driverID',
-//                'ro.promotion',
-//                'ro.refund_transaction_id',
                 'v.id as vendor_id',
                 'v.title as vendor_title',
                 'v.vType as vendor_type',
                 'v.zoneId as vendor_zone_id',
-                'u_client.firstName as client_first_name',
-                'u_client.lastName as client_last_name',
+                'u_client.firstName as user_first_name',
+                'u_client.lastName as user_last_name',
                 'u_client.phoneNumber as client_phone',
                 'u_client.email as client_email',
                 'u_driver.firstName as driver_first_name',

@@ -83,7 +83,21 @@ class OrderController extends Controller
                 $filters['date_to'] = 'all_orders';
             }
 
-            $result = \App\Models\restaurant_orders::fetchForDatatable($filters);
+            try {
+                $result = \App\Models\restaurant_orders::fetchForDatatable($filters);
+            } catch (\Throwable $e) {
+                \Log::error('Orders DataTables fetch error: ' . $e->getMessage(), [
+                    'exception' => $e,
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                return response()->json([
+                    'draw' => $draw,
+                    'recordsTotal' => 0,
+                    'recordsFiltered' => 0,
+                    'data' => [],
+                    'error' => config('app.debug') ? $e->getMessage() : 'Unable to load orders.',
+                ]);
+            }
 
             $rows = $result['rows'];
             $recordsFiltered = $result['recordsFiltered'];
@@ -412,6 +426,7 @@ class OrderController extends Controller
 
         // Load available drivers if needed
         $availableDrivers = [];
+
 
         $zoneDrivers = [];
 
