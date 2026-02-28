@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\FirebaseStorageService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -35,7 +36,6 @@ class MartBannerController extends Controller
         return view('martBanners.edit')->with('id', $id);
     }
 
-    // DataTables provider (SQL)
     public function data(Request $request)
     {
         $draw = (int) $request->input('draw', 1);
@@ -44,11 +44,20 @@ class MartBannerController extends Controller
         $search = strtolower((string) data_get($request->input('search'), 'value', ''));
 
         // Base query for total records
-        $baseQ = DB::table('mart_banners');
-        $totalRecords = $baseQ->count();
+//        $baseQ = DB::table('mart_banners');
+//        $totalRecords = $baseQ->count();
 
         // Filtered query
-        $q = DB::table('mart_banners');
+        $q = MartBanner::query()
+             ->select('id',
+                 'title',
+                 'position',
+                 'zoneTitle',
+                 'set_order',
+                 'is_publish',
+                 'photo'
+             );
+        $totalRecords = $q->count();
 
         // Apply search filter
         if ($search !== '') {
@@ -245,11 +254,12 @@ class MartBannerController extends Controller
     public function getZones()
     {
         try {
-            $zones = DB::table('zone')
+            $zones = cache::remember('zones:list', 600, function () {
+                return DB::table('zone')
                 ->where('publish', 1)
                 ->orderBy('name', 'asc')
                 ->get(['id', 'name']);
-
+            });
             return response()->json([
                 'success' => true,
                 'data' => $zones
@@ -269,10 +279,12 @@ class MartBannerController extends Controller
     public function getStores()
     {
         try {
-            $stores = DB::table('vendors')
+            $stores = cache::remember('stores:list', 600, function () {
+                return DB::table('vendors')
                 ->where('vType', 'mart')
                 ->orderBy('title', 'asc')
                 ->get(['id', 'title']);
+            });
 
             return response()->json([
                 'success' => true,
@@ -315,14 +327,15 @@ class MartBannerController extends Controller
             /**
              * 🛒 Main mart items query
              */
-            $itemsQuery = DB::table('mart_items')
-                ->join('vendors', 'mart_items.vendorID', '=', 'vendors.id')
-                ->where('vendors.vType', 'mart')
-                ->where(function ($q) {
-                    $q->whereNull('mart_items.publish')
-                        ->orWhere('mart_items.publish', 1);
-                });
-
+            $itemsQuery = cache::remember('itemsQuery', 600, function () {
+                return DB::table('mart_items')
+                    ->join('vendors', 'mart_items.vendorID', '=', 'vendors.id')
+                    ->where('vendors.vType', 'mart')
+                    ->where(function ($q) {
+                        $q->whereNull('mart_items.publish')
+                            ->orWhere('mart_items.publish', 1);
+                    });
+            });
             // Filter by store/vendor
             if (!empty($storeId)) {
                 $itemsQuery->where('mart_items.vendorID', $storeId);
@@ -367,11 +380,12 @@ class MartBannerController extends Controller
     public function getCategories()
     {
         try {
-            $categories = DB::table('mart_categories')
+            $categories = cache::remember('category:list', 600, function () {
+                return DB::table('mart_categories')
                 ->where('publish', 1)
                 ->orderBy('title', 'asc')
                 ->get(['id', 'title']);
-
+            });
             return response()->json([
                 'success' => true,
                 'data' => $categories

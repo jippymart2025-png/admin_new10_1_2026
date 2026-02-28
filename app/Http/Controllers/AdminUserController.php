@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\AppUser;
+use App\Models\CustomerWallet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminUserController extends Controller
@@ -141,173 +143,6 @@ class AdminUserController extends Controller
      * - CREATE INDEX idx_users_createdAt ON users(createdAt);
      * - CREATE INDEX idx_users_email ON users(email);
      */
-//    public function index(Request $request)
-//    {
-//        $limit  = (int) $request->query('limit', 10);
-//        $page   = (int) $request->query('page', 1);
-//        $active = $request->query('active');
-//        $zoneId = $request->query('zoneId');
-//        $search = trim((string) $request->query('search', ''));
-//
-//        $query = AppUser::query();
-//
-//        // Role filter
-//        $role = $request->query('role', 'customer');
-//        if ($role !== '') {
-//            $query->where('role', $role);
-//        }
-//
-//        /* =========================
-//           DATE RANGE FILTER (FIXED)
-//           ========================= */
-//
-//        $dateRange = $request->query('date_range');
-//        $from      = $request->query('from');
-//        $to        = $request->query('to');
-//
-//        // Always calculate in IST
-//        $nowIST = Carbon::now('Asia/Kolkata');
-//
-//        if ($dateRange !== 'all_orders') {
-//
-//            if ($from && $to) {
-//                // Frontend sends UTC
-//                $fromUtc = Carbon::parse($from, 'UTC');
-//                $toUtc   = Carbon::parse($to, 'UTC');
-//            } else {
-//                // Presets (IST → UTC)
-//                switch ($dateRange) {
-//                    case 'last_24_hours':
-//                        $fromUtc = $nowIST->copy()->subHours(24)->utc();
-//                        $toUtc   = $nowIST->copy()->utc();
-//                        break;
-//
-//                    case 'last_week':
-//                        $fromUtc = $nowIST->copy()->subDays(7)->startOfDay()->utc();
-//                        $toUtc   = $nowIST->copy()->endOfDay()->utc();
-//                        break;
-//
-//                    case 'last_month':
-//                        $fromUtc = $nowIST->copy()->subDays(30)->startOfDay()->utc();
-//                        $toUtc   = $nowIST->copy()->endOfDay()->utc();
-//                        break;
-//
-//                    default:
-//                        // Default = today (IST)
-//                        $fromUtc = $nowIST->copy()->startOfDay()->utc();
-//                        $toUtc   = $nowIST->copy()->endOfDay()->utc();
-//                }
-//            }
-//
-//            // Compare only ISO part (YYYY-MM-DD HH:MM:SS)
-//            $query->whereRaw(
-//                "SUBSTRING(REPLACE(createdAt,'\"',''),1,19) BETWEEN ? AND ?",
-//                [
-//                    $fromUtc->format('Y-m-d H:i:s'),
-//                    $toUtc->format('Y-m-d H:i:s')
-//                ]
-//            );
-//        }
-//
-//        /* =========================
-//           ACTIVE FILTER
-//           ========================= */
-//        if ($active !== null && $active !== '') {
-//            $query->where('active', (int) $active);
-//        }
-//
-//        /* =========================
-//           ZONE FILTER (JSON)
-//           ========================= */
-//        if (!empty($zoneId)) {
-//            $query->where(function ($q) use ($zoneId) {
-//                $q->whereRaw(
-//                    'JSON_SEARCH(shippingAddress, "one", ?, NULL, "$[*].zoneId") IS NOT NULL',
-//                    [$zoneId]
-//                )
-//                    ->orWhere('shippingAddress', 'like', "%\"zoneId\":\"$zoneId\"%");
-//            });
-//        }
-//
-//        /* =========================
-//           SEARCH
-//           ========================= */
-//        if ($search !== '') {
-//            $query->where(function ($q) use ($search) {
-//                $q->where('firstName', 'like', "%$search%")
-//                    ->orWhere('lastName', 'like', "%$search%")
-//                    ->orWhere('email', 'like', "%$search%")
-//                    ->orWhere('phoneNumber', 'like', "%$search%");
-//            });
-//        }
-//
-//        /* =========================
-//           PAGINATION
-//           ========================= */
-//        $total = (clone $query)->count();
-//
-//        $rows = $query->select(
-//            'id',
-//            'firebase_id',
-//            'firstName',
-//            'lastName',
-//            'email',
-//            'phoneNumber',
-//            'shippingAddress',
-//            'active',
-//            'isActive',
-//            'createdAt',
-//            'profilePictureURL'
-//        )
-//            ->orderByDesc('id')
-//            ->skip(($page - 1) * $limit)
-//            ->take($limit)
-//            ->get();
-//
-//        /* =========================
-//           RESPONSE FORMAT
-//           ========================= */
-//        $items = $rows->map(function ($u) {
-//
-//            $createdAtFormatted = '';
-//            if ($u->createdAt) {
-//                try {
-//                    $date = Carbon::parse(trim($u->createdAt, '"'))
-//                        ->timezone('Asia/Kolkata');
-//
-//                    $createdAtFormatted = $date->format('M d, Y h:i A');
-//                } catch (\Exception $e) {
-//                    $createdAtFormatted = (string) $u->createdAt;
-//                }
-//            }
-//
-//            return [
-//                'id'        => (string) ($u->firebase_id ?: $u->id),
-//                'firstName' => $u->firstName,
-//                'lastName'  => $u->lastName,
-//                'fullName'  => trim(($u->firstName ?? '') . ' ' . ($u->lastName ?? '')),
-//                'email'     => (string) ($u->email ?? ''),
-//                'phoneNumber' => (string) ($u->phoneNumber ?? ''),
-//                'zoneId'    => $u->shippingAddress
-//                    ? self::extractZoneFromShippingAddress($u->shippingAddress)
-//                    : '',
-//                'createdAt' => $createdAtFormatted,
-//                'active'    => ($u->active == 1 || $u->isActive == 1) ? 1 : 0,
-//                'profilePictureURL' => $u->profilePictureURL,
-//            ];
-//        });
-//
-//        return response()->json([
-//            'status' => true,
-//            'data'   => $items,
-//            'meta'   => [
-//                'page'     => $page,
-//                'limit'    => $limit,
-//                'total'    => $total,
-//                'has_more' => ($page * $limit) < $total,
-//            ],
-//        ]);
-//    }
     public function index(Request $request)
     {
         $limit = (int) $request->query('limit', 10);
@@ -316,7 +151,12 @@ class AdminUserController extends Controller
         $zoneId = $request->query('zoneId');
         $search = trim((string) $request->query('search', ''));
 
-        $query = AppUser::query();
+        $query = AppUser::with([
+            'customerWallet:user_id,coin_balance',
+            'latestDailyCheckin:user_id,streak_day_number',
+            'referralUsed',
+            'referredBy'
+        ]);
 
         // Only customers by default unless role is specified
         $role = $request->query('role', 'customer');
@@ -329,15 +169,10 @@ class AdminUserController extends Controller
         $from = $request->query('from');
         $to = $request->query('to');
 
-        // Handle date range presets
         // Note: createdAt is stored as JSON string format (e.g., "2025-12-19T09:50:00.000000+05:30")
-        // We need to extract and parse the date properly
         if ($dateRange === 'last_24_hours') {
             $startDateTime = Carbon::now('Asia/Kolkata')->subDay()->format('Y-m-d H:i:s');
             $endDateTime = Carbon::now('Asia/Kolkata')->format('Y-m-d H:i:s');
-            // Extract date part from JSON string and compare
-//            $query->whereRaw("SUBSTRING(REPLACE(createdAt, '\"', ''), 1, 19) >= ? AND SUBSTRING(REPLACE(createdAt, '\"', ''), 1, 19) <= ?",
-//                [$startDateTime, $endDateTime]);
             $query->whereRaw("
     STR_TO_DATE(
         REPLACE(SUBSTRING(createdAt, 1, 19), 'T', ' '),
@@ -409,8 +244,6 @@ class AdminUserController extends Controller
                     ->orWhere('lastName', 'like', "%$search%")
                     ->orWhere('email', 'like', "%$search%")
                     ->orWhere('phoneNumber', 'like', "%$search%");
-                // Removed createdAt LIKE search - it's inefficient and rarely used
-                // If date search is needed, use date range filters instead
             });
         }
 
@@ -439,9 +272,6 @@ class AdminUserController extends Controller
 
         $items = $rows->map(function ($u) {
             $fullName = trim(($u->firstName ?? '') . ' ' . ($u->lastName ?? ''));
-
-            // Extract zoneId from shippingAddress JSON using helper method
-            // Only parse JSON if shippingAddress exists (optimization)
             $zoneId = $u->shippingAddress
                 ? \App\Http\Controllers\UserController::extractZoneFromShippingAddress($u->shippingAddress)
                 : '';
@@ -467,6 +297,23 @@ class AdminUserController extends Controller
                 }
             }
 
+            $walletCoins = optional($u->customerWallet)->coin_balance ?? 0;
+            $streak = optional($u->latestDailyCheckin)->streak_day_number ?? 0;
+            $referredBy = null;
+            $referralCodeUsed = null;
+
+            if ($u->referredBy) {
+                $referredBy = [
+                    'name'  => trim($u->referredBy->firstName . ' ' . $u->referredBy->lastName),
+                    'email' => $u->referredBy->email,
+                ];
+            }
+
+//            if ($u->referralUsed) {
+//                $referralCodeUsed = $u->referralUsed->referral_code;
+//            }
+
+
             return [
                 'id' => (string) ($u->firebase_id ?: $u->id),
                 'firstName' => $u->firstName,
@@ -479,7 +326,12 @@ class AdminUserController extends Controller
 //                'active' => in_array((string) $u->active, ['1','true'], true) || (bool) ($u->isActive ?? 0),
                 'active' => ($u->active == 1 || $u->isActive == 1) ? 1 : 0,
                 'profilePictureURL' => $u->profilePictureURL,
-            ];
+                'walletCoins' => $walletCoins,
+                'streak' => $streak,
+                'myReferralCode' => $u->referral_code,
+                'referredBy' => $referredBy,
+//                'referralCodeUsed' => $referralCodeUsed,
+                ];
         })->all();
 
         return response()->json([
@@ -713,5 +565,147 @@ class AdminUserController extends Controller
             'excel' => $this->exportExcel($users),
             default => abort(404),
         };
+    }
+    public function userData($id)
+    {
+        $user = AppUser::with([
+            'customerWallet:user_id,coin_balance,money_balance_paise',
+//            'latestDailyCheckin:user_id,streak_day_number',
+            'referredBy'
+        ])->where('firebase_id', $id)
+//            ->orWhere('id', $id)
+            ->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        $shippingAddress = $user->shippingAddress;
+
+        if (is_string($shippingAddress)) {
+            $shippingAddress = json_decode($shippingAddress, true);
+        }
+
+        $referredBy = null;
+
+
+        if ($user->referredBy) {
+            $referredBy = [
+                'name'  => trim($user->referredBy->firstName . ' ' . $user->referredBy->lastName),
+                'email' => $user->referredBy->email,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => (string) ($user->firebase_id ?: $user->id),
+                'firstName' => $user->firstName,
+                'lastName' => $user->lastName,
+                'email' => $user->email,
+                'phoneNumber' => $user->phoneNumber,
+                'wallet_amount' => $user->wallet_amount ?? 0,
+                'walletCoins' => optional($user->customerWallet)->coin_balance ?? 0,
+//                'walletCoinsBalance' => optional($user->customerWallet)->money_balance_paise ?? 0,
+                'walletCoinsBalance' => number_format((optional($user->customerWallet)->money_balance_paise ?? 0) / 100, 2, '.', ''),
+                'streak' => optional($user->latestDailyCheckin)->streak_day_number ?? 0,
+                'profilePictureURL' => $user->profilePictureURL,
+                'referredBy' => $referredBy,
+                'shippingAddress' =>$shippingAddress,
+            ]
+        ]);
+    }
+
+    public function addWalletCoins(Request $request, $id)
+    {
+        DB::beginTransaction();
+
+        try {
+            $request->validate([
+                'coins' => 'required|integer',
+            ]);
+
+            // Support id OR firebase_id
+            $user = AppUser::where('id', $id)
+                ->orWhere('firebase_id', $id)
+                ->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found'
+                ], 404);
+            }
+
+            $coins = (int) $request->coins;
+
+            $wallet = DB::table('customer_wallet')
+                ->where('user_id', $user->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($wallet) {
+                DB::table('customer_wallet')
+                    ->where('user_id', $user->id)
+                    ->update([
+                        'coin_balance' => $wallet->coin_balance + $coins,
+                        'updated_at' => now(),
+                    ]);
+            } else {
+                DB::table('customer_wallet')->insert([
+                    'user_id' => $user->id,
+                    'coin_balance' => $coins,
+                    'money_balance_paise' => 0,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            // 🟢 INSERT COIN LEDGER HISTORY (THIS WAS MISSING)
+//            DB::table('coin_ledger')->insert([
+//                'user_id'         => $user->id,
+//                'type'            => 'REWARDED',
+//                'coins'           => $coins,
+////                'reference_id'    => 'admin_' . $user->id . '_' . time(),
+////                'metadata'        => json_encode([
+////                    'by'     => 'admin',
+////                    'reason' => 'manual_wallet_adjustment'
+////                ]),
+////                'idempotency_key' => 'admin_credit_' . Str::random(10),
+//                'created_at'      => now(),
+//            ]);
+            $coins = (int) $coins; // ensure integer
+
+            $type = $coins < 0 ? 'ADJUSTMENT' : 'REWARDED';
+
+            DB::table('coin_ledger')->insert([
+                'user_id'    => $user->id,
+                'type'       => $type,
+                'coins'      => $coins,
+                'created_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Wallet coins added successfully',
+                'walletCoins' => DB::table('customer_wallet')
+                    ->where('user_id', $user->id)
+                    ->value('coin_balance')
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Wallet Error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong'
+            ], 500);
+        }
     }
 }

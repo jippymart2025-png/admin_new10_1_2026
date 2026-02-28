@@ -1124,7 +1124,7 @@ input[type="number"]::-webkit-inner-spin-button {
         if ($('#restaurant_cuisines option').length <= 1) {
             console.log('⚠️ Categories not preloaded, fetching via AJAX...');
             $.ajax({
-                url: '{{ route("api.marts.categories") }}',
+                url: '{{ route("marts.categories") }}',
                 method: 'GET',
                 success: function(response) {
                     console.log('✅ Mart categories loaded from SQL:', response);

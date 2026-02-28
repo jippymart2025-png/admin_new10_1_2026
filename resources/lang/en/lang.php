@@ -1507,11 +1507,31 @@ return [
 
     'app_setting_payfast_return_url' => 'Return url',
 
-    'active_deactive' => '(Activate/Deactivate)',
+    'active_deactivate' => '(Activate/Deactivate)',
 
     'payfast' => 'Payfast',
 
+    'delete_alert' => 'Are you sure you want to delete this record?',
+
+    'advertisement_setting' => 'Advertisement Setting',
+
+    'self_delivery_setting' => 'Self Delivery Setting',
+
+    'order_ringtone_setting' => 'Order Ringtone Setting',
+
+    'enable_adv_feature_help' => 'Enable Advertisement Feature',
+
+    'audio_information' => 'Audio Information',
+
+    'enable_self_delivery_help' => 'Enable self Delivery Information',
+
+    'enable_self_delivery' => 'Self Delivery',
+
+    'enable_adv_feature' => 'Advertisement Feature',
+
     'website_color_settings' => 'Website Color',
+
+    'owner_detail_not_fount' => 'Owner Detail Not Fount',
 
     'flutterWave' => 'FlutterWave',
 
@@ -1655,7 +1675,7 @@ return [
 
     'mercadopago' => 'MercadoPago',
 
-    'menu_items' => 'Banner Items',
+    'menu_items' => 'Banners',
 
     'menu_items_create' => 'Create Banner Items',
 
@@ -1663,7 +1683,7 @@ return [
 
     'menu_items_table' => 'Banner Items List',
 
-    'mart_banner_items' => 'Mart Banner Items',
+    'mart_banner_items' => 'Mart Banners',
 
     'photo' => 'Photo',
 
@@ -2650,6 +2670,7 @@ return [
     'import_instruction_4'=>'Boolean fields (publish, nonveg, isAvailable) should be "true" or "false".',
     'promotions_and_offers'=>'Promotions & Offers',
     'brands' => 'Brands',
+    'brands_and_media' => 'Brands & Media',
     'brands_plural' => 'Brands',
     'brands_table' => 'Brands Table',
     'brands_table_text' => 'View and manage all the brands',

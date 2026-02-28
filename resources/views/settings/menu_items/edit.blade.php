@@ -71,9 +71,13 @@
                             <input type="radio" class="redirect_type" value="product" name="redirect_type" id="product">
                             <label class="custom-control-label">{{trans('lang.product')}}</label>
                         </div>
-                        <div class="radio-form col-md-4">
+                        <div class="radio-form col-md-2">
                             <input type="radio" class="redirect_type" value="external_link" name="redirect_type" id="external_links">
                             <label class="custom-control-label">{{trans('lang.external_link')}}</label>
+                        </div>
+                        <div class="radio-form col-md-2">
+                            <input type="radio" class="redirect_type" name="redirect_type" id="none" value="none">
+                            <label class="custom-control-label">None</label>
                         </div>
                     </div>
                     <div class="form-group row width-50" id="vendor_div" style="display: none;">
@@ -124,6 +128,7 @@
         } else {
             $('#vendor_div').hide(); $('#product_div').hide(); $('#external_link_div').show();
         }
+        // ✅ if "none" → do NOTHING
     }
     $("input[name='redirect_type']:radio").change(toggleRedirectUI);
 
@@ -259,7 +264,8 @@
             }
         });
 
-        $(".edit-setting-btn").click(function(){
+        $(".edit-setting-btn").click(function(e){
+            e.preventDefault();
             $(".error_top").hide().html('');
             var title = $(".title").val();
             if(!title){ $(".error_top").show().html('<p>{{trans('lang.title_error')}}</p>'); window.scrollTo(0,0); return; }
@@ -270,12 +276,31 @@
             fd.append('position', $('#position').val() || 'top');
             fd.append('zoneId', $('#zoneId').val() || '');
             fd.append('zoneTitle', $('#zoneId option:selected').text() || '');
-            fd.append('redirect_type', $(".redirect_type:checked").val() || 'external_link');
-            var redirect_id = '';
-            if($("#store").is(':checked')) redirect_id = $('#storeId').val()||'';
-            else if($("#product").is(':checked')) redirect_id = $('#productId').val()||'';
-            else if($("#external_links").is(':checked')) redirect_id = $('#external_link').val()||'';
-            fd.append('redirect_id', redirect_id);
+            var redirectType = $(".redirect_type:checked").val();
+
+// ✅ NONE selected → send NULLs
+            if (redirectType === 'none' || !redirectType) {
+                fd.append('redirect_type', '');
+                fd.append('redirect_id', '');
+            }
+            else {
+                fd.append('redirect_type', redirectType);
+
+                let redirect_id = '';
+
+                if (redirectType === 'store') {
+                    redirect_id = $('#storeId').val() || '';
+                }
+                else if (redirectType === 'product') {
+                    redirect_id = $('#productId').val() || '';
+                }
+                else if (redirectType === 'external_link') {
+                    redirect_id = $('#external_link').val() || '';
+                }
+
+                fd.append('redirect_id', redirect_id);
+            }
+
             var fileInput = $("input[type='file']")[0];
             if (fileInput && fileInput.files && fileInput.files[0]) { fd.append('photo', fileInput.files[0]); }
 

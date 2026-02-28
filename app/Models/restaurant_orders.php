@@ -40,24 +40,28 @@ class restaurant_orders extends Model
             ->leftJoin('vendors as v', 'v.id', '=', 'ro.vendorID')
             ->leftJoin('users as u_client', 'u_client.id', '=', 'ro.authorID')   // 👤 client
             ->leftJoin('users as u_driver', 'u_driver.id', '=', 'ro.driverID')   // 🚗 driver
+            ->leftJoin('money_wallet_ledger as mwl', function ($join) {
+                $join->on('mwl.reference_id', '=', 'ro.id')
+                    ->where('mwl.type', 'ORDER_DEBIT');
+            })
             ->select(
                 'ro.id',
                 'ro.status',
                 'ro.takeAway',
                 'ro.createdAt',
                 'ro.toPayAmount',
-                'ro.products',
-                'ro.discount',
-                'ro.deliveryCharge',
-                'ro.tip_amount',
-                'ro.payment_method',
-                'ro.specialDiscount',
-                'ro.author',
+//                'ro.products',
+//                'ro.discount',
+//                'ro.deliveryCharge',
+//                'ro.tip_amount',
+//                'ro.payment_method',
+//                'ro.specialDiscount',
+               'ro.author',
                 'ro.authorID',
                 'ro.driver',
                 'ro.driverID',
-                'ro.promotion',
-                'ro.refund_transaction_id',
+//                'ro.promotion',
+//                'ro.refund_transaction_id',
                 'v.id as vendor_id',
                 'v.title as vendor_title',
                 'v.vType as vendor_type',
@@ -93,7 +97,6 @@ class restaurant_orders extends Model
             });
         }
 
-        // 📌 Date Filter (supports Today, Last 24h, Last Week, Last Month, Custom, All Orders)
         // Check for "all_orders" flag first
         if ($dateFrom === 'all_orders' && $dateTo === 'all_orders') {
             // Show all orders - skip date filtering entirely
@@ -124,7 +127,7 @@ class restaurant_orders extends Model
         // ✅ Universal Search
         if ($searchValue !== '') {
             $query->where(function ($q) use ($searchValue) {
-                $q->orWhereRaw('LOWER(ro.id) LIKE ?', ["%{$searchValue}%"])
+                $q->orWhere('ro.id', 'like', "%{$searchValue}%")
                     ->orWhereRaw('LOWER(v.title) LIKE ?', ["%{$searchValue}%"])
                     ->orWhereRaw('LOWER(ro.status) LIKE ?', ["%{$searchValue}%"])
 
@@ -144,16 +147,40 @@ class restaurant_orders extends Model
             });
         }
 
-        // ✅ Count & Paginate
-        $recordsFiltered = (clone $query)->count();
+        // ✅ TOTAL COUNT (without date filter & search)
+        $totalQuery = DB::table('restaurant_orders as ro');
+
+        if ($vendorId !== '') $totalQuery->where('ro.vendorID', $vendorId);
+        if ($userId !== '') $totalQuery->where('ro.authorID', $userId);
+        if ($driverId !== '') $totalQuery->where('ro.driverID', $driverId);
+
+        $recordsTotal = $totalQuery->count();
+
+
+         // ✅ FILTERED COUNT (clone full filtered query BEFORE pagination)
+        $filteredQuery = clone $query;
+
+        $recordsFiltered = $filteredQuery->count();
+
+
+         // ✅ PAGINATION
         $rows = $query->orderBy($orderBy, $orderDir)
             ->skip($start)
             ->take($length)
             ->get();
 
+
+//        // ✅ Count & Paginate
+//        $recordsFiltered = (clone $query)->count();
+//        $rows = $query->orderBy($orderBy, $orderDir)
+//            ->skip($start)
+//            ->take($length)
+//            ->get();
+
         return [
             'rows' => $rows,
             'recordsFiltered' => $recordsFiltered,
+            'recordsTotal' => $recordsTotal,
         ];
     }
 

@@ -59,8 +59,8 @@
             <a class="nav-link " href="">
                <img src="{{ asset('/images/users/user-new.png') }}" alt="user" class="profile-pic"></a>
                <div class="nav-item-user">
-{{--                <h5 class="text-dark mb-0">{{  Auth::user()->firstName }}</h5>--}}
-                <p class="mb-0">{{ Auth::user()->email }}</p>
+                <h5 class="text-dark mb-0">{{  Auth::user()->name }}</h5>
+{{--                <p class="mb-0">{{ Auth::user()->email }}</p>--}}
                </div>
              </div>
             <div class="dropdown-menu dropdown-menu-right scale-up">

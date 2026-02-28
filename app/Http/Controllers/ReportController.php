@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AppUser;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
@@ -109,7 +113,6 @@ class ReportController extends Controller
         ]);
     }
 
-    // Return sales report rows based on filters
     public function salesData(Request $request)
     {
         $vendorId = $request->input('vendor_id');
@@ -278,9 +281,8 @@ class ReportController extends Controller
         $start  = intval($request->start,0);
         $length = intval($request->length,10);
         $zoneId = $request->input('zone_id', '');
-        $search = $request->input('search', '');
+        $search = $request->input('search.value');
 
-        // Build query
         $query = DB::table('users as u')
             ->select(
                 'u.id as user_id',
@@ -290,36 +292,38 @@ class ReportController extends Controller
                 'u.email',
                 'u.phoneNumber as phone',
                 'u.shippingAddress',
+                DB::raw('(SELECT COUNT(*)FROM restaurant_orders as ro WHERE ro.authorID = u.firebase_id  OR ro.authorID = u.id) as order_count'),
                 DB::raw('(SELECT MAX(ro.createdAt) FROM restaurant_orders as ro WHERE ro.authorID = u.firebase_id OR ro.authorID = u.id) as last_order_date')
             )
             ->where('u.role', 'customer');
 
-        // Apply search filter in SQL (more efficient)
         if (!empty($search)) {
             $searchTerm = '%' . $search . '%';
             $query->where(function($q) use ($searchTerm) {
                 $q->where('u.firstName', 'like', $searchTerm)
-                  ->orWhere('u.lastName', 'like', $searchTerm)
-                  ->orWhere('u.email', 'like', $searchTerm)
-                  ->orWhere('u.phoneNumber', 'like', $searchTerm)
-                  ->orWhere('u.id', 'like', $searchTerm);
+                    ->orWhere('u.lastName', 'like', $searchTerm)
+                    ->orWhere('u.email', 'like', $searchTerm)
+                    ->orWhere('u.phoneNumber', 'like', $searchTerm)
+                    ->orWhere('u.id', 'like', $searchTerm);
             });
         }
 
-        // Apply zone filter in SQL using JSON search (if zone is specified)
         if (!empty($zoneId)) {
             $query->where(function($q) use ($zoneId) {
                 $q->whereRaw('JSON_SEARCH(shippingAddress, "one", ?, NULL, "$[*].zoneId") IS NOT NULL', [$zoneId])
-                  ->orWhereRaw('JSON_EXTRACT(shippingAddress, "$[0].zoneId") = ?', [$zoneId])
-                  ->orWhere('shippingAddress', 'like', '%"zoneId":"' . $zoneId . '"%');
+                    ->orWhereRaw('JSON_EXTRACT(shippingAddress, "$[0].zoneId") = ?', [$zoneId])
+                    ->orWhere('shippingAddress', 'like', '%"zoneId":"' . $zoneId . '"%');
             });
         }
+
+        $recordsTotal = Cache::remember('customer_total_count', now()->addMinutes(10), fn () => DB::table('users')->where('role', 'customer')->count());
+        $recordsFiltered = (clone $query)->count();
 
         $users = $query
             ->skip($start)
             ->take($length)
             ->get();
-        // Get all zone names at once for efficiency
+
         $allZoneIds = [];
         foreach ($users as $user) {
             $zoneIdFromAddress = $this->extractZoneFromShippingAddress($user->shippingAddress);
@@ -336,13 +340,14 @@ class ReportController extends Controller
             }
         }
 
-        // Process users to extract zone information and format data
         $userReport = [];
         foreach ($users as $user) {
             $zoneIdFromAddress = $this->extractZoneFromShippingAddress($user->shippingAddress);
             $zoneName = !empty($zoneIdFromAddress) && isset($zones[$zoneIdFromAddress])
                 ? $zones[$zoneIdFromAddress]
                 : '-';
+            $addressData = $this->extractAddressFields($user->shippingAddress);
+
 
             $userReport[] = (object)[
                 'user_id' => $user->user_id,
@@ -351,19 +356,11 @@ class ReportController extends Controller
                 'phone' => $user->phone ?? '-',
                 'zone' => $zoneName,
                 'zoneId' => $zoneIdFromAddress,
+                'address'  => $addressData['locality'],
+                'count' => $user->order_count,
                 'last_order_date' => $user->last_order_date
             ];
         }
-
-        // Sort by last_order_date descending
-        usort($userReport, function($a, $b) {
-            $dateA = $a->last_order_date ? strtotime($a->last_order_date) : 0;
-            $dateB = $b->last_order_date ? strtotime($b->last_order_date) : 0;
-            return $dateB - $dateA;
-        });
-
-        // Get total count for statistics
-        $totalCount = DB::table('users')->where('role', 'customer')->count();
 
         // If this is an AJAX request, return JSON
         if ($request->ajax() || $request->wantsJson()) {
@@ -371,16 +368,95 @@ class ReportController extends Controller
                 'success' => true,
                 'data' => $userReport,
                 'count' => count($userReport),
-                'total' => $totalCount,
-                        'draw' => $draw
-
+                'recordsTotal' => $recordsTotal,
+                'recordsFiltered' => $recordsFiltered,
+                'draw' => $draw,
             ]);
         }
 
-        // Otherwise return view (for initial page load - empty data, will load via AJAX)
         $userReport = [];
         return view('reports.user-report', compact('userReport'));
+   }
+
+
+    private function extractAddressFields($shippingAddress)
+    {
+        if (empty($shippingAddress)) {
+            return [
+                'label'     => '-',
+                'address'   => '-',
+                'addressAs' => '-',
+                'landmark'  => '-',
+                'city'      => '-',
+                'pincode'   => '-',
+                'locality'  => '-',
+            ];
+        }
+
+        // If already an array
+        if (is_array($shippingAddress)) {
+            $addresses = $shippingAddress;
+        }
+
+        // If JSON string
+        elseif (is_string($shippingAddress)) {
+
+            $decoded = json_decode($shippingAddress, true);
+
+            // ❌ Not JSON → plain string
+            if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+                return [
+                    'label'     => '-',
+                    'address'   => '-',
+                    'addressAs' => '-',
+                    'landmark'  => '-',
+                    'city'      => '-',
+                    'pincode'   => '-',
+                    'locality'  => $shippingAddress, // keep string as locality
+                ];
+            }
+
+            $addresses = $decoded;
+        }
+
+        else {
+            return [
+                'label'     => '-',
+                'address'   => '-',
+                'addressAs' => '-',
+                'landmark'  => '-',
+                'city'      => '-',
+                'pincode'   => '-',
+                'locality'  => '-',
+            ];
+        }
+
+        // Ensure first address exists
+        if (!isset($addresses[0]) || !is_array($addresses[0])) {
+            return [
+                'label'     => '-',
+                'address'   => '-',
+                'addressAs' => '-',
+                'landmark'  => '-',
+                'city'      => '-',
+                'pincode'   => '-',
+                'locality'  => '-',
+            ];
+        }
+
+        $addr = $addresses[0];
+
+        return [
+            'label'     => $addr['label']     ?? '-',
+            'address'   => $addr['address']   ?? '-',
+            'addressAs' => $addr['addressAs'] ?? '-',
+            'landmark'  => $addr['landmark']  ?? '-',
+            'city'      => $addr['city']      ?? '-',
+            'pincode'   => $addr['pincode']   ?? '-',
+            'locality'  => $addr['locality']  ?? '-',
+        ];
     }
+
 
     /**
      * Extract zoneId from shippingAddress JSON
@@ -417,6 +493,165 @@ class ReportController extends Controller
         }
 
         return $zoneId;
+    }
+    private function exportCSV($users)
+    {
+        return new StreamedResponse(function () use ($users) {
+            $handle = fopen('php://output', 'w');
+
+            // CSV Header
+            fputcsv($handle, [
+                'user_id',
+                'Name',
+                'Email',
+                'Phone',
+                'Zone',
+                'address',
+                'count',
+                'last_order_date'
+            ]);
+
+            foreach ($users as $user) {
+
+                // Format createdAt with Asia/Kolkata timezone
+                $createdAtFormatted = '';
+                if ($user->createdAt) {
+                    try {
+                        $dateStr = is_string($user->createdAt) ? trim($user->createdAt, '"') : $user->createdAt;
+                        $date = Carbon::parse($dateStr);
+                        $date->setTimezone('Asia/Kolkata');
+                        $createdAtFormatted = $date->format('M d, Y h:i A');
+                    } catch (\Exception $e) {
+                        $createdAtFormatted = '';
+                    }
+                }
+
+                fputcsv($handle, [
+                    $user->user_id,
+                    trim(($user->firstName ?? '') . ' ' . ($user->lastName ?? '')),
+                    $user->email ?? '',
+                    $user->phoneNumber ?? '',
+                    $user->zone_name ?? '-',
+                    $user->zone_id ?? '-',
+                    $user->address ?? '-',
+                    $user->order_count,
+                    $user->last_order_date ?? 'Not Assigned',
+                ]);
+
+            }
+
+            fclose($handle);
+        }, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="reportUsers.csv"',
+        ]);
+    }
+
+    private function exportExcel($users)
+    {
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\ReportUserExport($users),
+            'reportUsers.xlsx'
+        );
+    }
+
+    public function export(Request $request)
+    {
+        $query = AppUser::query();
+
+        // Zone filter - search in shippingAddress JSON column (same as index method)
+        $zoneId = $request->input('zoneId', $request->query('zoneId'));
+        if (!empty($zoneId) && $zoneId !== '') {
+            $query->where(function($q) use ($zoneId) {
+                // Use JSON_EXTRACT for better performance (MySQL 5.7+)
+                $q->whereRaw('JSON_SEARCH(shippingAddress, "one", ?, NULL, "$[*].zoneId") IS NOT NULL', [$zoneId])
+                    ->orWhereRaw('JSON_EXTRACT(shippingAddress, "$[0].zoneId") = ?', [$zoneId])
+                    ->orWhere('shippingAddress', 'like', "%\"zoneId\":\"$zoneId\"%"); // Fallback for older MySQL
+            });
+        }
+
+
+        // Search
+        $search = trim((string) ($request->input('search', $request->query('search', ''))));
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('firstName', 'like', "%$search%")
+                    ->orWhere('lastName', 'like', "%$search%")
+                    ->orWhere('email', 'like', "%$search%")
+                    ->orWhere('phoneNumber', 'like', "%$search%");
+            });
+        }
+
+        // ORDER - Only fetch needed columns for export
+        $users = $query->select(
+            'id',
+            'firebase_id',
+            'firstName',
+            'lastName',
+            'email',
+            'phoneNumber',
+            'shippingAddress',
+            'active',
+            'isActive',
+            'createdAt',
+        )->orderByDesc('id')->get();
+//
+//        // Extract zoneId from shippingAddress and fetch zone names
+        $zoneIds = [];
+        foreach ($users as $user) {
+            $zoneId = \App\Http\Controllers\UserController::extractZoneFromShippingAddress($user->shippingAddress);
+            if (!empty($zoneId)) {
+                $zoneIds[] = $zoneId;
+            }
+        }
+//
+//        // Fetch zone names for all zoneIds
+        $zones = [];
+        if (!empty($zoneIds)) {
+            $zoneRecords = DB::table('zone')
+                ->whereIn('id', array_unique($zoneIds))
+                ->pluck('name', 'id')
+                ->toArray();
+            $zones = $zoneRecords;
+        }
+
+
+        $users = $users->map(function ($user) use ($zones) {
+
+            // user_id
+            $user->user_id = $user->firebase_id ?: $user->id;
+
+            // zone
+            $zoneId = \App\Http\Controllers\UserController::extractZoneFromShippingAddress($user->shippingAddress);
+//            $user->zone_id = $zoneId;
+            $user->zone_name = !empty($zoneId) && isset($zones[$zoneId])
+                ? $zones[$zoneId]
+                : '-';
+
+            // address (safe helper)
+            $addressData = $this->extractAddressFields($user->shippingAddress);
+            $user->address = $addressData['address'] . ', ' . $addressData['locality'];
+
+            // order data (MUST exist in query or preloaded)
+            $user->order_count = $user->order_count ?? 0;
+            $user->last_order_date = $user->last_order_date ?? '-';
+
+            return $user;
+        });
+
+
+        if ($request->type === 'pdf' && $users->count() > 500) {
+            return response()->json([
+                'success' => false,
+                'message' => 'PDF export is limited to 200 records. Use Excel or CSV for full data.'
+            ], 422);
+        }
+
+        return match ($request->type) {
+            'csv'   => $this->exportCSV($users),
+            'excel' => $this->exportExcel($users),
+            default => abort(404),
+        };
     }
 }
 

@@ -186,28 +186,37 @@
             }
         });
 
-        $(document).on('change', '.toggle-publish', function(){
-            var id = $(this).data('id');
-            var publish = $(this).is(':checked');
-            var categoryName = $(this).closest('tr').find('a').text().trim();
-            var action = publish ? 'published' : 'unpublished';
+        $(document).on('change', '.toggle-publish', function () {
+            const checkbox = $(this);              // ✅ store reference
+            const id = checkbox.data('id');
+            const publish = checkbox.is(':checked');
+            const categoryName = checkbox.closest('tr').find('a').text().trim();
+            const action = publish ? 'published' : 'unpublished';
 
-            $.post({
-                url: '{{ url('/categories') }}' + '/' + id + '/toggle',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                data: { publish: publish },
-                success: function(response) {
+            $.ajax({
+                url: '{{ route("categories.toggle", ":id") }}'.replace(':id', id),
+                type: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                data: {
+                    publish: publish ? 1 : 0
+                },
+                success: function (response) {
                     console.log('✅ Category publish toggled:', response);
 
-                    // Log activity
                     if (typeof logActivity === 'function') {
-                        logActivity('categories', action, action.charAt(0).toUpperCase() + action.slice(1) + ' category: ' + categoryName);
+                        logActivity(
+                            'categories',
+                            action,
+                            action.charAt(0).toUpperCase() + action.slice(1) +
+                            ' category: ' + categoryName
+                        );
                     }
                 },
-                error: function(xhr, status, error) {
-                    console.error('❌ Error toggling publish:', error);
-                    // Revert checkbox on error
-                    $(this).prop('checked', !publish);
+                error: function () {
+                    console.error('❌ Error toggling publish');
+                    checkbox.prop('checked', !publish); // ✅ now works
                 }
             });
         });

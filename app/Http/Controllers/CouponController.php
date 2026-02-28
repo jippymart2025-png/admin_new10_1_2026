@@ -50,9 +50,19 @@ class CouponController extends Controller
         $totalRecords = $baseQ->count();
 
         // Filtered query
+//        $q = DB::table('coupons as c')
+//            ->leftJoin('vendors as v','v.id','=','c.resturant_id')
+//            ->select('c.*','v.title as vendorTitle','v.vType as vendorType');
         $q = DB::table('coupons as c')
-            ->leftJoin('vendors as v','v.id','=','c.resturant_id')
-            ->select('c.*','v.title as vendorTitle','v.vType as vendorType');
+            ->leftJoin('vendors as v', 'v.id', '=', 'c.resturant_id')
+            ->leftJoin('used_coupons as uc', 'uc.couponId', '=', 'c.id')
+            ->select(
+                'c.*',
+                'v.title as vendorTitle',
+                'v.vType as vendorType',
+                DB::raw('COUNT(uc.id) as used_count')
+            )
+            ->groupBy('c.id');
 
         if ($vendorId !== '') {
             $q->where(function($qq) use ($vendorId){
@@ -92,7 +102,7 @@ class CouponController extends Controller
                 $discountText = $symbolAtRight ? ($discount.$symbol) : ($symbol.$discount);
             }
             $itemValue = $r->item_value !== null ? (string)$r->item_value : '';
-            $usageLimit = '<span style="display:none;">'.(int)($r->usageLimit ?? 0).'</span>';
+//            $usageLimit = '<span style="display:none;">'.(int)($r->usageLimit ?? 0).'</span>';
             $privacy = $r->isPublic ? '<td class="success"><span class="badge badge-success py-2 px-3">'.trans('lang.public').'</span></td>'
                                     : '<td class="danger"><span class="badge badge-danger py-2 px-3">'.trans('lang.private').'</span></td>';
             $ctype = e($r->cType ?: '');
@@ -118,6 +128,7 @@ class CouponController extends Controller
             $toggle = $r->isEnabled ? '<label class="switch"><input type="checkbox" '.($expired?'disabled ':'').'checked data-id="'.$r->id.'" class="toggle-enable"><span class="slider round"></span></label>'
                                     : '<label class="switch"><input type="checkbox" '.($expired?'disabled ':'').'data-id="'.$r->id.'" class="toggle-enable"><span class="slider round"></span></label>';
             $desc = e($r->description ?: '');
+            $usedCount = (int) ($r->used_count ?? 0);
             $actionsHtml = '<span class="action-btn"><a href="'.$editUrl.'"><i class="mdi mdi-lead-pencil" title="Edit"></i></a>';
             if ($canDelete) {
                 $actionsHtml .= ' <a href="javascript:void(0)" data-id="'.$r->id.'" class="delete-coupon"><i class="mdi mdi-delete" title="Delete"></i></a>';
@@ -125,9 +136,9 @@ class CouponController extends Controller
             $actionsHtml .= '</span>';
             if ($canDelete) {
                 $select = '<td class="delete-all"><input type="checkbox" class="is_open" dataId="'.$r->id.'"><label class="col-3 control-label"></label></td>';
-                $data[] = [ $select, $code, $discountText, $itemValue, $usageLimit, $privacy, $ctype, $restaurant, $expires, $toggle, $desc, $actionsHtml ];
+                $data[] = [ $select, $code, $discountText, $itemValue,  $privacy, $ctype, $restaurant, $expires, $toggle, $desc, $usedCount,$actionsHtml ];
             } else {
-                $data[] = [ $code, $discountText, $itemValue, $usageLimit, $privacy, $ctype, $restaurant, $expires, $toggle, $desc, $actionsHtml ];
+                $data[] = [ $code, $discountText, $itemValue, $privacy, $ctype, $restaurant, $expires, $toggle, $desc, $usedCount, $actionsHtml ];
             }
         }
         return response()->json([

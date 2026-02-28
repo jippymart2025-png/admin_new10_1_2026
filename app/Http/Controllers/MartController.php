@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
@@ -17,14 +18,12 @@ class MartController extends Controller
 
     public function index()
     {
-        // If DataTables request, return JSON
         if (request()->has('draw')) {
             $request = request();
             $draw = (int) ($request->input('draw', 1));
             $orderColumnIdx = (int) data_get($request->input('order'), '0.column', 0);
             $orderDir = strtolower((string) data_get($request->input('order'), '0.dir', 'desc')) === 'asc' ? 'asc' : 'desc';
 
-            // Orderable columns mapping (keep minimal/reliable)
             $orderable = [
                 0 => 'v.createdAt',
                 1 => 'v.title',
@@ -169,11 +168,59 @@ class MartController extends Controller
         }
 
         // Regular page load: pass zones for filters
-        $zones = \Illuminate\Support\Facades\DB::table('zone')
-            ->where('publish', 1)
-            ->orderBy('name', 'asc')
-            ->get(['id','name']);
+        $zones = Cache::remember('Zones-list', 300, function () {
+            return DB::table('zone')
+                ->where('publish', 1)
+                ->orderBy('name', 'asc')
+                ->get(['id','name']);
+        });
+
         return view('mart.index', compact('zones'));
+    }
+
+    public function getById($id)
+    {
+        try {
+            $mart = DB::table('vendors')->where('id', $id)->where('vType', 'mart')->first();
+
+            if (!$mart) {
+                return response()->json(['success' => false, 'message' => 'Mart not found'], 404);
+            }
+
+            $data = (array) $mart;
+
+            // Decode JSON fields stored as strings
+            foreach (['categoryID', 'categoryTitle', 'photos', 'restaurantMenuPhotos',
+                         'specialDiscount', 'workingHours', 'filters', 'adminCommission', 'DeliveryCharge'] as $field) {
+                if (isset($data[$field]) && is_string($data[$field])) {
+                    $decoded = json_decode($data[$field], true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        $data[$field] = $decoded;
+                    }
+                }
+            }
+
+            // Attach story data — use DB::table to avoid missing model error
+            try {
+                $story = DB::table('story')->where('vendorID', $id)->first();
+                if ($story) {
+                    $videoUrl = $story->videoUrl ?? null;
+                    $data['story'] = [
+                        'videoUrl'       => is_string($videoUrl) ? json_decode($videoUrl, true) : (array)$videoUrl,
+                        'videoThumbnail' => $story->videoThumbnail ?? '',
+                    ];
+                }
+            } catch (\Throwable $e) {
+                // Story table may not exist — skip silently
+                \Log::warning('Story fetch skipped for mart ' . $id . ': ' . $e->getMessage());
+            }
+
+            return response()->json(['success' => true, 'data' => $data]);
+
+        } catch (\Exception $e) {
+            \Log::error('getById mart failed: ' . $e->getMessage(), ['id' => $id, 'trace' => $e->getTraceAsString()]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     public function create()

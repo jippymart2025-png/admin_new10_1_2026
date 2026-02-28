@@ -18,9 +18,12 @@
                        </div>
                     </div>
                     <div class="d-flex top-title-right align-self-center">
-                       <div class="card-header-right">
-                            <a href="javascript:void(0)" data-toggle="modal" data-target="#addWalletModal"class="btn-primary btn rounded-full add-wallate"><i class="mdi mdi-plus mr-2"></i>{{trans('lang.add_wallet_amount')}}</a>
-                       </div>
+{{--                       <div class="card-header-right mr-2">--}}
+{{--                            <a href="javascript:void(0)" data-toggle="modal" data-target="#addWalletModal" class="btn-primary btn rounded-full add-wallate"><i class="mdi mdi-plus mr-2"></i>{{trans('lang.add_wallet_amount')}}</a>--}}
+{{--                       </div>--}}
+                        <div class="card-header-right mr-2">
+                            <a href="javascript:void(0)" data-toggle="modal" data-target="#addWalletCoinsModal" class="btn-primary btn rounded-full add-wallet-coins"><i class="mdi mdi-plus mr-2"></i>Add Wallet Coins</a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -35,13 +38,16 @@
                 <li>
                     <a href="{{route('orders')}}?userId={{$id}}">{{trans('lang.tab_orders')}}</a>
                 </li>
+{{--                <li>--}}
+{{--                    <a href="{{route('users.walletstransaction',$id)}}">{{trans('lang.wallet_transaction')}}</a>--}}
+{{--                </li>--}}
                 <li>
-                    <a href="{{route('users.walletstransaction',$id)}}">{{trans('lang.wallet_transaction')}}</a>
+                    <a href="{{route('users.wallet_coins_transaction',$id)}}">Wallet Coins Transactions</a>
                 </li>
             </ul>
         </div>
         <div class="row">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="card card-box-with-icon bg--1">
                     <div class="card-body d-flex justify-content-between align-items-center">
                        <div class="card-box-with-content">
@@ -52,14 +58,36 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+{{--            <div class="col-md-2">--}}
+{{--                <div class="card card-box-with-icon bg--3">--}}
+{{--                    <div class="card-body d-flex justify-content-between align-items-center">--}}
+{{--                       <div class="card-box-with-content">--}}
+{{--                        <h4 class="text-dark-2 mb-1 h4 wallet_balance" id="wallet_balance">$0.00</h4>--}}
+{{--                        <p class="mb-0 small text-dark-2">{{trans('lang.wallet_Balance')}}</p>--}}
+{{--                       </div>--}}
+{{--                        <span class="box-icon ab"><img src="{{ asset('images/total_payment.png') }}"></span>--}}
+{{--                    </div>--}}
+{{--                </div>--}}
+{{--            </div>--}}
+            <div class="col-md-2">
                 <div class="card card-box-with-icon bg--3">
                     <div class="card-body d-flex justify-content-between align-items-center">
-                       <div class="card-box-with-content">
-                        <h4 class="text-dark-2 mb-1 h4 wallet_balance" id="wallet_balance">$0.00</h4>
-                        <p class="mb-0 small text-dark-2">{{trans('lang.wallet_Balance')}}</p>
-                       </div>
-                        <span class="box-icon ab"><img src="{{ asset('images/total_payment.png') }}"></span>
+                        <div class="card-box-with-content">
+                            <h4 class="text-dark-2 mb-1 h4 wallet_coins" id="wallet_coins">0</h4>
+                            <p class="mb-0 small text-dark-2">Wallet Coins</p>
+                        </div>
+                        <span class="box-icon ab"><img src="{{ asset('images/coins.png') }}"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card card-box-with-icon bg--2">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div class="card-box-with-content">
+                            <h4 class="text-dark-2 mb-1 h4 wallet_coins_balance" id="wallet_coins_balance">0</h4>
+                            <p class="mb-0 small text-dark-2">Coins Wallet Amount</p>
+                        </div>
+                        <span class="box-icon ab"><img src="{{ asset('images/walletCoins.png') }}"></span>
                     </div>
                 </div>
             </div>
@@ -74,10 +102,10 @@
            </div>
            <div class="card-body">
               <!-- Loading indicator -->
-              <div id="user-data-loading" style="text-align: center; padding: 40px;">
-                  <i class="fa fa-spinner fa-spin" style="font-size: 48px; color: #007cff;"></i>
-                  <p style="margin-top: 15px; color: #666;">Loading user details...</p>
-              </div>
+               <div id="user-data-loading" class="ring-loader">
+                   <div class="ring"></div>
+                   <p>Loading user details...</p>
+               </div>
 
               <!-- User data content (hidden until loaded) -->
               <div class="row" id="user-data-content" style="display: none;">
@@ -100,6 +128,10 @@
                                         <label class="mb-0 font-wi font-semibold text-dark-2">{{trans('lang.user_phone')}}</label>
                                         <span class="phone"></span>
                                     </li>
+                                    <li class="d-flex align-items-center mb-2">
+                                        <label class="mb-0 font-wi font-semibold text-dark-2">Referred By</label>
+                                        <span class="referred_by"></span>
+                                    </li>
                                 </ul>
                             </div>
                         </div>
@@ -119,63 +151,119 @@
               </div>
 
               <!-- Error message container -->
-              <div id="user-data-error" style="display: none; text-align: center; padding: 40px;">
-                  <i class="fa fa-exclamation-triangle" style="font-size: 48px; color: #f44336;"></i>
-                  <p style="margin-top: 15px; color: #666;" class="error-message"></p>
-                  <button onclick="location.reload()" class="btn btn-primary mt-3">
-                      <i class="fa fa-refresh"></i> Reload Page
-                  </button>
-              </div>
+{{--              <div id="user-data-error" style="display: none; text-align: center; padding: 40px;">--}}
+{{--                  <i class="fa fa-exclamation-triangle" style="font-size: 48px; color: #f44336;"></i>--}}
+{{--                  <p style="margin-top: 15px; color: #666;" class="error-message"></p>--}}
+{{--                  <button onclick="location.reload()" class="btn btn-primary mt-3">--}}
+{{--                      <i class="fa fa-refresh"></i> Reload Page--}}
+{{--                  </button>--}}
+{{--              </div>--}}
            </div>
         </div>
        </div>
     </div>
 </div>
-    <div class="modal fade" id="addWalletModal" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered location_modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title locationModalTitle">{{trans('lang.add_wallet_amount')}}</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <form class="">
-                        <div class="form-row">
-                            <div class="form-group row">
-                                <div class="form-group row width-100">
-                                    <label class="col-12 control-label">{{trans('lang.amount')}}</label>
-                                    <div class="col-12">
-                                        <input type="number" name="amount" class="form-control" id="amount">
-                                        <div id="wallet_error" style="color:red"></div>
-                                    </div>
+{{--    <div class="modal fade" id="addWalletModal" tabindex="-1" role="dialog" aria-hidden="true">--}}
+{{--        <div class="modal-dialog modal-dialog-centered location_modal">--}}
+{{--            <div class="modal-content">--}}
+{{--                <div class="modal-header">--}}
+{{--                    <h5 class="modal-title locationModalTitle">{{trans('lang.add_wallet_amount')}}</h5>--}}
+{{--                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">--}}
+{{--                        <span aria-hidden="true">&times;</span>--}}
+{{--                    </button>--}}
+{{--                </div>--}}
+{{--                <div class="modal-body">--}}
+{{--                    <form class="">--}}
+{{--                        <div class="form-row">--}}
+{{--                            <div class="form-group row">--}}
+{{--                                <div class="form-group row width-100">--}}
+{{--                                    <label class="col-12 control-label">{{trans('lang.amount')}}</label>--}}
+{{--                                    <div class="col-12">--}}
+{{--                                        <input type="number" name="amount" class="form-control" id="amount">--}}
+{{--                                        <div id="wallet_error" style="color:red"></div>--}}
+{{--                                    </div>--}}
+{{--                                </div>--}}
+{{--                                <div class="form-group row width-100">--}}
+{{--                                    <label class="col-12 control-label">{{trans('lang.note')}}</label>--}}
+{{--                                    <div class="col-12">--}}
+{{--                                        <input type="text" name="note" class="form-control" id="note">--}}
+{{--                                    </div>--}}
+{{--                                </div>--}}
+{{--                                <div class="form-group row width-100">--}}
+{{--                                    <div id="user_account_not_found_error" class="align-items-center" style="color:red">--}}
+{{--                                    </div>--}}
+{{--                                </div>--}}
+{{--                            </div>--}}
+{{--                        </div>--}}
+{{--                    </form>--}}
+{{--                    <div class="modal-footer">--}}
+{{--                        <button type="button" class="btn btn-primary save-form-btn">{{trans('submit')}}</a>--}}
+{{--                        </button>--}}
+{{--                        <button type="button" class="btn btn-primary" data-dismiss="modal"--}}
+{{--                                aria-label="Close">{{trans('close')}}</a>--}}
+{{--                        </button>--}}
+{{--                    </div>--}}
+{{--                </div>--}}
+{{--            </div>--}}
+{{--        </div>--}}
+{{--    </div>--}}
+ <div class="modal fade" id="addWalletCoinsModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered location_modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title locationModalTitle">Add Wallet Coins</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form class="">
+                    <div class="form-row">
+                        <div class="form-group row">
+                            <div class="form-group row width-100">
+                                <label class="col-12 control-label">Coins</label>
+                                <div class="col-12">
+                                    <input type="number" name="coins" class="form-control" id="coins">
+                                    <div id="walletCoins_error" style="color:red"></div>
                                 </div>
-                                <div class="form-group row width-100">
-                                    <label class="col-12 control-label">{{trans('lang.note')}}</label>
-                                    <div class="col-12">
-                                        <input type="text" name="note" class="form-control" id="note">
-                                    </div>
-                                </div>
-                                <div class="form-group row width-100">
-                                    <div id="user_account_not_found_error" class="align-items-center" style="color:red">
-                                    </div>
+                            </div>
+                            <div class="form-group row width-100">
+                                <div id="user_account_not_found_error" class="align-items-center" style="color:red">
                                 </div>
                             </div>
                         </div>
-                    </form>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-primary save-form-btn">{{trans('submit')}}</a>
-                        </button>
-                        <button type="button" class="btn btn-primary" data-dismiss="modal"
-                                aria-label="Close">{{trans('close')}}</a>
-                        </button>
                     </div>
+                </form>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary save">{{trans('submit')}}</a>
+                    </button>
+                    <button type="button" class="btn btn-primary" data-dismiss="modal" aria-label="Close">{{trans('close')}}</a></button>
                 </div>
             </div>
         </div>
     </div>
+</div>
 @endsection
+<style>
+    .ring-loader {
+        text-align: center;
+        padding: 40px;
+    }
+
+    .ring {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #eee;
+        border-top: 4px solid #fc8019;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
 @section('scripts')
     <script>
         // ✅ SQL API VERSION - No Firebase!
@@ -212,7 +300,7 @@
         $(document).ready(async function () {
             console.log('✅ Loading user data from SQL API');
             await waitForSettings();
-            jQuery("#data-table_processing").show();
+            // jQuery("#data-table_processing").show();
 
             // Load user data from SQL API
             $.ajax({
@@ -222,7 +310,7 @@
                 success: function(response) {
                     if (!response.success || !response.data) {
                         console.error('❌ Failed to load user data');
-                        jQuery("#data-table_processing").hide();
+                        // jQuery("#data-table_processing").hide();
                         $('#user-data-loading').hide();
                         $('#user-data-error').show();
                         $('#user-data-error .error-message').text('Failed to load user data');
@@ -252,6 +340,25 @@
                         $('.phone').html("{{trans('lang.not_mentioned')}}");
                     }
 
+                    // Display Referred By
+                    if (user.referredBy) {
+
+                        let html = '';
+
+                        if (user.referredBy.name) {
+                            html += `<strong>${user.referredBy.name}</strong>`;
+                        }
+
+                        if (user.referredBy.email) {
+                            html += `<br><small class="text-muted">${user.referredBy.email}</small>`;
+                        }
+
+                        $('.referred_by').html(html);
+
+                    } else {
+                        $('.referred_by').html('<span class="text-muted">Not Referred</span>');
+                    }
+
                     // Display total orders
                     $("#total_orders").text(user.totalOrders || 0);
 
@@ -266,6 +373,19 @@
                         wallet_balance = currentCurrency + "" + parseFloat(wallet_balance).toFixed(decimal_degits);
                     }
                     $('.wallet_balance').html(wallet_balance);
+
+                    var wallet_coins = 0;
+                    if (user.walletCoins != null && !isNaN(user.walletCoins)) {
+                        wallet_coins = user.walletCoins;
+                    }
+                    $('.wallet_coins').html(wallet_coins);
+
+                    var wallet_coins_balance =0;
+                    if(user.walletCoinsBalance != null && !isNaN(user.walletCoinsBalance)){
+                        wallet_coins_balance = user.walletCoinsBalance;
+                    }
+                    $('.wallet_coins_balance').html(`₹${wallet_coins_balance}`);
+
 
                     // Display profile image
                     var image = "";
@@ -381,6 +501,55 @@
                         icon: 'error',
                         title: 'Error',
                         text: 'Failed to add wallet amount. Please try again.',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            });
+        });
+        $(".save").click(function () {
+            var coins = $('#coins').val();
+            if (coins == '') {
+                $('#walletCoins_error').text('unable to add coins')
+                return false;
+            }
+            console.log('✅ Adding wallet coins via SQL API');
+
+            // Add wallet coins via SQL API
+            $.ajax({
+                url: '{{ url("/add/wallet_coins") }}/' + id,
+                method: 'POST',
+                dataType: 'json',
+                data: {
+                    coins: coins,
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        console.log('✅ Wallet coins added successfully:', response);
+
+                        // Show success message
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: 'Wallet coins added successfully',
+                            confirmButtonText: 'OK'
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        console.error('❌ Failed to add wallet coins:', response.message);
+                        $('#user_account_not_found_error').text(response.message || '{{trans("lang.user_detail_not_found")}}');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('❌ Error adding wallet coins:', error);
+                    console.error('Response:', xhr.responseText);
+
+                    // Show error message
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to add wallet coins. Please try again.',
                         confirmButtonText: 'OK'
                     });
                 }

@@ -207,6 +207,25 @@
                         <p class="mb-0 text-dark-2">{{trans('lang.restaurants_table_text')}}</p>
                     </div>
                     <div class="card-header-right d-flex align-items-center">
+                        <!-- COLUMN TOGGLE DROPDOWN -->
+                        <div class="dropdown mr-3">
+                            <button class="btn btn-outline-secondary dropdown-toggle rounded-full"
+                                    type="button"
+                                    id="restaurantColumnToggleMenu"
+                                    data-toggle="dropdown">
+                                Columns
+                            </button>
+
+                            <div class="dropdown-menu p-3"
+                                 style="max-height:300px; overflow:auto; min-width: 320px; width: 320px;">
+                                <div id="restaurantColumnToggleArea"></div>
+
+                                <button id="showAllRestaurantColumns"
+                                        class="btn btn-light btn-sm mt-2 w-100">
+                                    Show All
+                                </button>
+                            </div>
+                        </div>
                         <div class="card-header-btn mr-3">
                         <a href="{!! route('restaurants.create') !!}" class="btn-primary btn rounded-full"><i class="mdi mdi-plus mr-2"></i>{{trans('lang.create_restaurant')}}</a>
                         </div>
@@ -217,8 +236,10 @@
                                 <table id="storeTable"
                                     class="display nowrap table table-hover table-striped table-bordered table table-striped"
                                     cellspacing="0" width="100%">
+
                                     <thead>
                                         <tr>
+
                                             <?php if (in_array('restaurants.delete', json_decode(@session('user_permissions'), true))) { ?>
                                             <?php if (in_array('restaurants.delete', json_decode(@session('user_permissions'), true))) { ?>
                                                 <th class="delete-all"><input type="checkbox" id="is_active"><label
@@ -238,7 +259,9 @@
                                             <th>Plan ExpiryDate</th>
                                             <th>Best</th>
                                             <th>GST</th>
+                                          <?php if (in_array('restaurants.publish', json_decode(@session('user_permissions'), true))) { ?>
                                             <th>Publish</th>
+                                            <?php } ?>
                                             <th>{{trans('lang.actions')}}</th>
                                         </tr>
                                     </thead>
@@ -327,6 +350,8 @@
     window.selectedRestaurantType = '';
     window.selectedBusinessModel = '';
     window.selectedCuisine = '';
+    let restaurantTable;
+    const RESTAURANT_COLUMN_STORAGE_KEY = 'restaurant_column_visibility_v1';
 
     // Load currency from SQL (if you have a currency endpoint, otherwise hardcode)
     $.ajax({
@@ -414,6 +439,14 @@
     var checkDeletePermission = false;
     if ($.inArray('restaurants.delete', user_permissions) >= 0) {
         checkDeletePermission = true;
+    }
+    var checkImpersonatePermission = false;
+    if ($.inArray('restaurants.impersonate', user_permissions) >= 0) {
+        checkImpersonatePermission = true;
+    }
+    var checkPublishPermission = false;
+    if ($.inArray('restaurants.publish', user_permissions) >= 0) {
+        checkPublishPermission = true;
     }
     var cloneSourceVendorId = null;
     var zoneIdToName = {}; // Map zone IDs to names
@@ -564,201 +597,218 @@
             ],
             fileName: "{{trans('lang.restaurant_table')}}",
         };
-        const table = $('#storeTable').DataTable({
-            pageLength: 30,
-            lengthMenu: [[10,30, 50, 100], [10,30, 50, 100,]],
-            processing: false,
-            serverSide: true,
-            responsive: true,
-            ajax: function(data, callback, settings) {
-                const start = data.start;
-                const length = data.length;
-                const searchValue = data.search.value.toLowerCase();
 
-                if (searchValue.length >= 3 || searchValue.length === 0) {
-                    $('#data-table_processing').show();
-                }
 
-                console.log('Fetching restaurants from SQL...');
 
-                // Build request data with filters
-                var requestData = {
-                    start: start,
-                    length: length,
-                    draw: data.draw,
-                    search: { value: searchValue },
-                    zone: window.selectedZone || '',
-                    restaurant_type: window.selectedRestaurantType || '',
-                    business_model: window.selectedBusinessModel || ''
-                    // vType: window.selectedBusinessModel || ''
-                };
+        $(document).ready(function () {
 
-                // Fetch from SQL backend
-                $.ajax({
-                    url: '{{ route("restaurants.data") }}',
-                    method: 'GET',
-                    data: requestData,
-                    success: async function(response) {
-                        console.log('Restaurants loaded from SQL:', response.data.length);
+            restaurantTable = $('#storeTable').DataTable({
+                pageLength: 30,
+                lengthMenu: [[10, 30, 50, 100], [10, 30, 50, 100,]],
+                processing: false,
+                serverSide: true,
+                responsive: true,
+                ajax: function (data, callback, settings) {
+                    const start = data.start;
+                    const length = data.length;
+                    const searchValue = data.search.value.toLowerCase();
 
-                        const rawRecords = Array.isArray(response.data) ? response.data : [];
+                    if (searchValue.length >= 3 || searchValue.length === 0) {
+                        $('#data-table_processing').show();
+                    }
 
-                        if (rawRecords.length === 0) {
-                            // $('.rest_count').text('00');
-                            // $('.rest_active_count').text('00');
-                            // $('.rest_inactive_count').text('00');
-                            // $('.new_joined_rest').text('00');
-                            // ⭐ ALWAYS update counts after filters
+                    console.log('Fetching restaurants from SQL...');
+
+                    // Build request data with filters
+                    var requestData = {
+                        start: start,
+                        length: length,
+                        draw: data.draw,
+                        search: {value: searchValue},
+                        zone: window.selectedZone || '',
+                        restaurant_type: window.selectedRestaurantType || '',
+                        business_model: window.selectedBusinessModel || ''
+                        // vType: window.selectedBusinessModel || ''
+                    };
+
+                    // Fetch from SQL backend
+                    $.ajax({
+                        url: '{{ route("restaurants.data") }}',
+                        method: 'GET',
+                        data: requestData,
+                        success: async function (response) {
+                            console.log('Restaurants loaded from SQL:', response.data.length);
+
+                            const rawRecords = Array.isArray(response.data) ? response.data : [];
+
+                            if (rawRecords.length === 0) {
+                                // $('.rest_count').text('00');
+                                // $('.rest_active_count').text('00');
+                                // $('.rest_inactive_count').text('00');
+                                // $('.new_joined_rest').text('00');
+                                // ⭐ ALWAYS update counts after filters
+                                $('.rest_count').text(response.stats.total);
+                                $('.rest_active_count').text(response.stats.active);
+                                $('.rest_inactive_count').text(response.stats.inactive);
+                                $('.new_joined_rest').text(response.stats.new_joined);
+
+                                $('#data-table_processing').hide();
+                                callback({
+                                    draw: data.draw,
+                                    recordsTotal: response.recordsTotal || 0,
+                                    recordsFiltered: response.recordsFiltered || 0,
+                                    data: [],
+                                    filteredData: []
+                                });
+                                return;
+                            }
+
+                            // // Update statistics from response
+                            // $('.rest_count').text(response.stats.total);
+                            // $('.rest_active_count').text(response.stats.active);
+                            // $('.rest_inactive_count').text(response.stats.inactive);
+                            // $('.new_joined_rest').text(response.stats.new_joined);
+
+                            // ⭐ ALWAYS update counts here as well
                             $('.rest_count').text(response.stats.total);
                             $('.rest_active_count').text(response.stats.active);
                             $('.rest_inactive_count').text(response.stats.inactive);
                             $('.new_joined_rest').text(response.stats.new_joined);
 
+                            // Build table rows
+                            let records = [];
+                            const exportableRecords = [];
+
+                            for (let restaurant of rawRecords) {
+                                var rowData = await buildHTML(restaurant);
+                                records.push(rowData);
+
+                                exportableRecords.push({
+                                    id: restaurant.id || '',
+                                    title: restaurant.title || '',
+                                    authorName: restaurant.authorName || '',
+                                    zoneName: restaurant.zone_name || restaurant.zoneName || (restaurant.zoneId ? (zoneIdToName[restaurant.zoneId] || '') : ''),
+                                    phonenumber: restaurant.phonenumber || '',
+                                    createdAt: restaurant.createdAtFormatted || restaurant.createdAt || '',
+                                    location: restaurant.location || ''
+                                });
+                            }
+
                             $('#data-table_processing').hide();
                             callback({
                                 draw: data.draw,
-                                recordsTotal: response.recordsTotal || 0,
-                                recordsFiltered: response.recordsFiltered || 0,
+                                recordsTotal: response.recordsTotal,
+                                recordsFiltered: response.recordsFiltered,
+                                data: records,
+                                filteredData: exportableRecords
+                            });
+                        },
+                        error: function (error) {
+                            console.error("Error fetching restaurants from SQL:", error);
+                            $('#data-table_processing').hide();
+                            $('.rest_count').text('00');
+                            $('.rest_active_count').text('00');
+                            $('.rest_inactive_count').text('00');
+                            $('.new_joined_rest').text('00');
+                            callback({
+                                draw: data.draw,
+                                recordsTotal: 0,
+                                recordsFiltered: 0,
                                 data: [],
                                 filteredData: []
                             });
-                            return;
                         }
-
-                        // // Update statistics from response
-                        // $('.rest_count').text(response.stats.total);
-                        // $('.rest_active_count').text(response.stats.active);
-                        // $('.rest_inactive_count').text(response.stats.inactive);
-                        // $('.new_joined_rest').text(response.stats.new_joined);
-
-                        // ⭐ ALWAYS update counts here as well
-                        $('.rest_count').text(response.stats.total);
-                        $('.rest_active_count').text(response.stats.active);
-                        $('.rest_inactive_count').text(response.stats.inactive);
-                        $('.new_joined_rest').text(response.stats.new_joined);
-
-                        // Build table rows
-                        let records = [];
-                        const exportableRecords = [];
-
-                        for (let restaurant of rawRecords) {
-                            var rowData = await buildHTML(restaurant);
-                            records.push(rowData);
-
-                            exportableRecords.push({
-                                id: restaurant.id || '',
-                                title: restaurant.title || '',
-                                authorName: restaurant.authorName || '',
-                                zoneName: restaurant.zone_name || restaurant.zoneName || (restaurant.zoneId ? (zoneIdToName[restaurant.zoneId] || '') : ''),
-                                phonenumber: restaurant.phonenumber || '',
-                                createdAt: restaurant.createdAtFormatted || restaurant.createdAt || '',
-                                location: restaurant.location || ''
-                            });
-                        }
-
-                        $('#data-table_processing').hide();
-                        callback({
-                            draw: data.draw,
-                            recordsTotal: response.recordsTotal,
-                            recordsFiltered: response.recordsFiltered,
-                            data: records,
-                            filteredData: exportableRecords
-                        });
-                    },
-                    error: function(error) {
-                        console.error("Error fetching restaurants from SQL:", error);
-                        $('#data-table_processing').hide();
-                        $('.rest_count').text('00');
-                        $('.rest_active_count').text('00');
-                        $('.rest_inactive_count').text('00');
-                        $('.new_joined_rest').text('00');
-                        callback({
-                            draw: data.draw,
-                            recordsTotal: 0,
-                            recordsFiltered: 0,
-                            data: [],
-                            filteredData: []
-                        });
-                    }
-                });
-            },
-            order: (checkDeletePermission) ? [[5, 'desc']] : [[4, 'desc']],
-            columnDefs: [
-                {
-                    targets: (checkDeletePermission) ? 5 : 4,
-                    type: 'date',
-                    render: function(data) {
-                        return data;
-                    }
+                    });
                 },
-                { orderable: false, targets: (checkDeletePermission) ? [0, 5, 6, 10, 11, 12] : [4, 5, 10, 11, 12] }, // Best (10), GST (11), and Publish (12) columns are not sortable
-            ],
+                order: (checkDeletePermission) ? [[5, 'desc']] : [[4, 'desc']],
+                columnDefs: [
+                    {
+                        targets: (checkDeletePermission) ? 5 : 4,
+                        type: 'date',
+                        render: function (data) {
+                            return data;
+                        }
+                    },
+                    {
+                        orderable: false,
+                        targets: (checkDeletePermission && checkPublishPermission)
+                            ? [0, 5, 6, 10, 11, ...(checkPublishPermission ? [12] : [])]
+                            : [4, 5, 10, 11, ...(checkPublishPermission ? [12] : [])]
+                    }
+                    ],
+            // {orderable: false, targets: (checkDeletePermission) ? [0, 5, 6, 10, 11, 12] : [4, 5, 10, 11, 12]}, // Best (10), GST (11), and Publish (12) columns are not sortable
+
             "language": {
-                "zeroRecords": "{{trans('lang.no_record_found')}}",
-                "emptyTable": "{{trans('lang.no_record_found')}}",
-                "processing": ""
-            },
-            dom: 'lfrtipB',
-            buttons: [
-                {
-                    extend: 'collection',
-                    text: '<i class="mdi mdi-cloud-download"></i> Export as',
-                    className: 'btn btn-info',
-                    // buttons: [
-                    //     {
-                    //         extend: 'excelHtml5',
-                    //         text: 'Export Excel',
-                    //         exportOptions: {
-                    //             columns: ':visible:not(:first-child):not(:last-child)'
-                    //         },
-                    //         title: 'restaurants',
-                    //     },
-                    //     {
-                    //         extend: 'pdfHtml5',
-                    //         text: 'Export PDF',
-                    //         exportOptions: {
-                    //             columns: ':visible:not(:first-child):not(:last-child)'
-                    //         },
-                    //         title: 'restaurants',
-                    //     },
-                    //     {
-                    //         extend: 'csvHtml5',
-                    //         text: 'Export CSV',
-                    //         exportOptions: {
-                    //             columns: ':visible:not(:first-child):not(:last-child)'
-                    //         },
-                    //         title: 'restaurants',
-                    //     }
-                    // ]
-                    buttons: [
-                        {
-                            text: 'Export CSV',
-                            action: function () {
-                                exportRestaurants('csv');
-                            }
-                        },
-                        {
-                            text: 'Export PDF',
-                            action: function () {
-                                exportRestaurants('pdf');
-                            }
-                        },
-                        {
-                            text: 'Export EXCEL',
-                            action: function () {
-                                exportRestaurants('excel');
-                            }
-                        },
-                    ]
+                    "zeroRecords": "{{trans('lang.no_record_found')}}",
+                    "emptyTable": "{{trans('lang.no_record_found')}}",
+                    "processing": ""
+                },
+                dom: 'lfrtipB',
+                buttons: [
+                    {
+                        extend: 'collection',
+                        text: '<i class="mdi mdi-cloud-download"></i> Export as',
+                        className: 'btn btn-info',
+                        // buttons: [
+                        //     {
+                        //         extend: 'excelHtml5',
+                        //         text: 'Export Excel',
+                        //         exportOptions: {
+                        //             columns: ':visible:not(:first-child):not(:last-child)'
+                        //         },
+                        //         title: 'restaurants',
+                        //     },
+                        //     {
+                        //         extend: 'pdfHtml5',
+                        //         text: 'Export PDF',
+                        //         exportOptions: {
+                        //             columns: ':visible:not(:first-child):not(:last-child)'
+                        //         },
+                        //         title: 'restaurants',
+                        //     },
+                        //     {
+                        //         extend: 'csvHtml5',
+                        //         text: 'Export CSV',
+                        //         exportOptions: {
+                        //             columns: ':visible:not(:first-child):not(:last-child)'
+                        //         },
+                        //         title: 'restaurants',
+                        //     }
+                        // ]
+                        buttons: [
+                            {
+                                text: 'Export CSV',
+                                action: function () {
+                                    exportRestaurants('csv');
+                                }
+                            },
+                            {
+                                text: 'Export PDF',
+                                action: function () {
+                                    exportRestaurants('pdf');
+                                }
+                            },
+                            {
+                                text: 'Export EXCEL',
+                                action: function () {
+                                    exportRestaurants('excel');
+                                }
+                            },
+                        ]
+                    }
+                ],
+                initComplete: function () {
+                    $(".dataTables_filter").append($(".dt-buttons").detach());
+                    $('.dataTables_filter input').attr('placeholder', 'Search here...').attr('autocomplete', 'new-password').val('');
+                    $('.dataTables_filter label').contents().filter(function () {
+                        return this.nodeType === 3;
+                    }).remove();
                 }
-            ],
-            initComplete: function() {
-                $(".dataTables_filter").append($(".dt-buttons").detach());
-                $('.dataTables_filter input').attr('placeholder', 'Search here...').attr('autocomplete','new-password').val('');
-                $('.dataTables_filter label').contents().filter(function() {
-                    return this.nodeType === 3;
-                }).remove();
-            }
+            });
+            restaurantTable.on('init.dt', function () {
+                restoreRestaurantColumnState();
+                buildRestaurantColumnToggle();
+            });
         });
         function debounce(func, wait) {
             let timeout;
@@ -985,37 +1035,86 @@
         var publishChecked = isPublish ? 'checked' : '';
         var publishTitle = isPublish ? 'Unpublish restaurant' : 'Publish restaurant';
 
-        publishHtml = `<label class="switch">
+        if(checkPublishPermission) {
+            publishHtml = `<label class="switch">
             <input type="checkbox" class="toggle-publish-switch" data-restaurant-id="${val.id}" data-restaurant-name="${val.title || 'Restaurant'}" data-current-publish="${isPublish ? 1 : 0}" ${publishChecked} title="${publishTitle}">
             <span class="slider"></span>
         </label>`;
-        html.push(publishHtml);
+            html.push(publishHtml);
+        }
 
         var active = val.isActive;
         var vendorId = val.id;
-        var food_url = '{{route("restaurants.foods",":id")}}';
-        food_url = food_url.replace(":id", vendorId);
-        var vendor_url = '{{route("restaurants.orders",":id")}}';
-        vendor_url = vendor_url.replace(":id", vendorId);
+
+        // Build URLs
+        var food_url = '{{ route("restaurants.foods", ":id") }}'.replace(':id', vendorId);
+        var vendor_url = '{{ route("restaurants.orders", ":id") }}'.replace(':id', vendorId);
+
         var actionHtml = '';
-        actionHtml += `<span class="action-btn">
-            <a href="${food_url}"><i class="mdi mdi-food" title="Foods"></i></a>
-            <a href="${vendor_url}"><i class="mdi mdi-view-list" title="Orders"></i></a>
-            <a href="javascript:void(0)" vendor_id="${val.id}" author="${val.author}" name="vendor-clone" title="Copy"><i class="mdi mdi-content-copy"></i></a>
-            <a href="${route_view}"><i class="mdi mdi-eye" title="View"></i></a>
-            <a href="${route1}"><i class="mdi mdi-lead-pencil" title="Edit"></i></a>
-            <a href="javascript:void(0)" class="impersonate-restaurant-btn" data-restaurant-id="${val.id}" data-restaurant-name="${val.title || 'Unknown Restaurant'}" title="Login as Restaurant"><i class="mdi mdi-account-switch text-primary"></i></a>`;
-        if (checkDeletePermission) {
-            actionHtml += `<a id="${val.id}" author="${val.author}" name="vendor-delete" class="delete-btn" href="javascript:void(0)" title="Delete"><i class="mdi mdi-delete"></i></a>`;
+        actionHtml += `<span class="action-btn">`;
+
+        actionHtml += `
+    <a href="${food_url}">
+        <i class="mdi mdi-food" title="Foods"></i>
+    </a>
+
+    <a href="${vendor_url}">
+        <i class="mdi mdi-view-list" title="Orders"></i>
+    </a>
+
+    <a href="javascript:void(0)"
+       vendor_id="${val.id}"
+       author="${val.author}"
+       name="vendor-clone"
+       title="Copy">
+        <i class="mdi mdi-content-copy"></i>
+    </a>
+
+    <a href="${route_view}">
+        <i class="mdi mdi-eye" title="View"></i>
+    </a>
+
+    <a href="${route1}">
+        <i class="mdi mdi-lead-pencil" title="Edit"></i>
+    </a>
+`;
+
+        // ✅ Impersonate permission
+        if (checkImpersonatePermission) {
+            actionHtml += `
+        <a href="javascript:void(0)"
+           class="impersonate-restaurant-btn"
+           data-restaurant-id="${val.id}"
+           data-restaurant-name="${val.title || 'Unknown Restaurant'}"
+           title="Login as Restaurant">
+            <i class="mdi mdi-account-switch text-primary"></i>
+        </a>
+    `;
         }
+
+         // ✅ Delete permission
+        if (checkDeletePermission) {
+            actionHtml += `
+        <a href="javascript:void(0)"
+           id="${val.id}"
+           author="${val.author}"
+           name="vendor-delete"
+           class="delete-btn"
+           title="Delete">
+            <i class="mdi mdi-delete"></i>
+        </a>
+    `;
+        }
+
         actionHtml += `</span>`;
+
         html.push(actionHtml);
         return html;
+
     }
 
     // Zone names are now loaded from SQL and displayed immediately via zoneIdToName mapping
     // No need for async zone name fetching
-
 
     $("#is_active").click(function () {
         $("#storeTable .is_open").prop('checked', $(this).prop('checked'));
@@ -1612,5 +1711,134 @@
 
         window.location.href = '/restaurants/export?' + $.param(params);
     }
+    // --------------------------------------
+    // AUTO BUILD COLUMN TOGGLE LIST
+    // --------------------------------------
+    let BASE_OFFSET = 0;
+
+    if (checkDeletePermission) BASE_OFFSET += 1;
+
+    const IDX = {
+        RESTAURANT_INFO: BASE_OFFSET + 0,
+        OWNER_INFO: BASE_OFFSET + 1,
+        ZONE: BASE_OFFSET + 2,
+        ADMIN_COMMISSION: BASE_OFFSET + 3,
+        DATE: BASE_OFFSET + 4,
+        WALLET: BASE_OFFSET + 5,
+        PLAN_NAME: BASE_OFFSET + 6,
+        PLAN_COMMISSION: BASE_OFFSET + 7,
+        PLAN_EXPIRY: BASE_OFFSET + 8,
+        BEST: BASE_OFFSET + 9,
+        GST: BASE_OFFSET + 10,
+        PUBLISH: checkPublishPermission ? BASE_OFFSET + 11 : null,
+        ACTIONS: BASE_OFFSET + (checkPublishPermission ? 12 : 11)
+    };
+
+    const restaurantColumnGroups = {
+        "General": [
+            ...(checkDeletePermission ? [{ index: 0, label: "All" }] : []),
+            { index: IDX.RESTAURANT_INFO, label: "Restaurant Info" },
+            { index: IDX.OWNER_INFO, label: "Owner Info" },
+            { index: IDX.DATE, label: "Date" },
+            { index: IDX.ACTIONS, label: "Actions" }
+        ],
+        "Zone": [
+            { index: IDX.ZONE, label: "Zone" }
+        ],
+        "Plan": [
+            { index: IDX.PLAN_NAME, label: "Plan Name" },
+            { index: IDX.PLAN_COMMISSION, label: "Plan Commission" },
+            { index: IDX.PLAN_EXPIRY, label: "Plan Expiry Date" }
+        ],
+        "Finance": [
+            { index: IDX.ADMIN_COMMISSION, label: "Admin Commission" },
+            { index: IDX.WALLET, label: "Wallet History" }
+        ],
+        "Toggles": [
+            { index: IDX.BEST, label: "Best" },
+            { index: IDX.GST, label: "Gst" },
+            ...(checkPublishPermission ? [{ index: IDX.PUBLISH, label: "Publish" }] : [])
+        ]
+    };
+
+    function buildRestaurantColumnToggle() {
+        let html = '';
+
+        Object.keys(restaurantColumnGroups).forEach(section => {
+            html += `
+            <div class="mb-2">
+                <strong class="text-muted d-block mb-1">${section}</strong>
+        `;
+
+            restaurantColumnGroups[section].forEach(col => {
+                let column = restaurantTable.column(col.index);
+
+                html += `
+                <div class="form-check ml-2">
+                    <input class="form-check-input restaurant-toggle-col"
+                           type="checkbox"
+                           data-col="${col.index}"
+                           id="col_${col.index}"
+                           ${column ? 'checked' : ''}>
+
+                    <label class="form-check-label" for="col_${col.index}">
+                        ${col.label}
+                    </label>
+                </div>
+            `;
+            });
+
+            html += `</div><hr class="my-2">`;
+        });
+
+        $('#restaurantColumnToggleArea').html(html);
+    }
+    // 🔒 Keep dropdown OPEN when clicking inside column toggle area
+    $(document).on('click', '#restaurantColumnToggleArea','#showAllRestaurantColumns', function (e) {
+        e.stopPropagation();
+    });
+
+    $(document).on('change', '.restaurant-toggle-col', function () {
+        let colIndex = $(this).data('col');
+        let visible = this.checked;
+        restaurantTable.column(colIndex).visible(this.checked);
+        saveRestaurantColumnState();
+    });
+
+    function saveRestaurantColumnState() {
+        let state = {};
+
+        restaurantTable.columns().every(function (index) {
+            state[index] = this.visible();
+        });
+
+        localStorage.setItem(
+            RESTAURANT_COLUMN_STORAGE_KEY,
+            JSON.stringify(state)
+        );
+    }
+    function restoreRestaurantColumnState() {
+        let savedState = localStorage.getItem(RESTAURANT_COLUMN_STORAGE_KEY);
+
+        if (!savedState) return;
+
+        let state = JSON.parse(savedState);
+
+        restaurantTable.columns().every(function (index) {
+            if (state.hasOwnProperty(index)) {
+                this.visible(state[index]);
+            }
+        });
+    }
+
+        $('#showAllRestaurantColumns').on('click', function () {
+
+            $('.restaurant-toggle-col').prop('checked', true);
+
+            restaurantTable.columns().every(function () {
+                this.visible(true);
+            });
+            saveRestaurantColumnState();
+    });
 </script>
 @endsection

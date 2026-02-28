@@ -121,7 +121,7 @@ class MenuPeriodController extends Controller
             'from'=>'required|string|max:50',
             'to'=>'required|string|max:50',
         ]);
-        $id = (string) Str::uuid();
+        $id = Str::random(20);
         Mealtime::create([
             'id'=>$id,
             'label'=>$request->input('label'),

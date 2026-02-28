@@ -5,6 +5,7 @@ use App\Models\Driver;
 use App\Models\ReviewAttribute;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
@@ -19,269 +20,6 @@ class OrderController extends Controller
             'getLatestOrderId',
             'getOrder'
         ]);
-    }
-
-//    public function index(Request $request, $id = '')
-//    {
-//        $status = $request->query('status');
-//
-//        $query = \App\Models\restaurant_orders::query();
-//
-//        if ($status) {
-//            $query->where('status', $status);
-//        }
-//
-//        $orders = $query->orderBy('id', 'desc')->paginate(10);
-//
-//        // Load zones from MySQL
-//        $zones = DB::table('zone')
-//            ->where('publish', 1)
-//            ->orderBy('name', 'asc')
-//            ->get(['id', 'name']);
-//
-//        // ✅ Pass both $status and $id to the view
-//        return view('orders.index', compact('orders', 'status', 'id', 'zones'));
-//    }
-
-    public function edit($id)
-    {
-        // Fetch order from MySQL with joins
-        $order = DB::table('restaurant_orders as ro')
-            ->leftJoin('vendors as v', 'v.id', '=', 'ro.vendorID')
-            ->leftJoin('users as u', 'u.id', '=', 'ro.authorID')
-            ->leftJoin('users as d', 'd.id', '=', 'ro.driverID')
-            ->leftJoin('zone as z', 'z.id', '=', 'v.zoneId')
-            ->where('ro.id', $id)
-            ->select(
-                'ro.*',
-                'v.id as vendor_db_id',
-                'v.title as vendor_title',
-                'v.vType as vendor_type',
-                'v.photo as vendor_photo',
-                'v.phonenumber as vendor_phone',
-                'v.location as vendor_location',
-                'v.zoneId as vendor_zone_id',
-                'u.id as user_db_id',
-                'u.firstName as user_first_name',
-                'u.lastName as user_last_name',
-                'u.email as user_email',
-                'u.phoneNumber as user_phone',
-                'd.id as driver_db_id',
-                'd.firstName as driver_first_name',
-                'd.lastName as driver_last_name',
-                'd.email as driver_email',
-                'd.phoneNumber as driver_phone',
-                'z.name as zone_name'
-            )
-            ->first();
-
-        if (!$order) {
-            abort(404, 'Order not found');
-        }
-
-        // Parse JSON fields
-        $order->products = !empty($order->products) ? json_decode($order->products, true) : [];
-        $order->author = !empty($order->author) ? json_decode($order->author, true) : [];
-        $order->driver = !empty($order->driver) ? json_decode($order->driver, true) : [];
-        $order->address = !empty($order->address) ? json_decode($order->address, true) : [];
-        $order->vendor = !empty($order->vendor) ? json_decode($order->vendor, true) : [];
-        $order->specialDiscount = !empty($order->specialDiscount) ? json_decode($order->specialDiscount, true) : null;
-        $order->calculatedCharges = $this->decodeJsonField($order->calculatedCharges ?? null);
-        $order->refund_transaction_id = !empty($order->refund_transaction_id) ? json_decode($order->refund_transaction_id, true) : null;
-        $vendorId = $order->vendorID;
-//        dd($vendorId);
-
-        $zoneId = DB::table('vendors')
-            ->where('id', $vendorId)
-            ->value('zoneId');
-//        dd($zoneId);
-
-        // Load currency settings
-        $currency = DB::table('currencies')
-            ->where('isActive', true)
-            ->first();
-
-        // Load zones for driver assignment
-        $zones = DB::table('zone')
-            ->where('publish', 1)
-            ->orderBy('name', 'asc')
-            ->get(['id', 'name']);
-
-        // Load available drivers if needed
-        $availableDrivers = [];
-
-        $zoneDrivers = [];
-
-        if ($zoneId) {
-            $zoneDrivers  = User::where('role', 'driver')
-                ->where('zoneId', $zoneId)
-                ->where('active', 1)
-                ->get()
-                ->map(function ($user) {
-                    return [
-                        'id' => $user->id,
-                        'firstName' => $user->firstName,
-                        'lastName' => $user->lastName,
-                        'phoneNumber' => $user->phoneNumber,
-                    ];
-                });
-
-        }
-//        dd($availableDrivers);
-
-        if (!empty($order->driverID)) {
-            // Already has driver
-        } else {
-            // Load available drivers for assignment
-            $availableDrivers = DB::table('users')
-                ->where('role', 'driver')
-                ->where('isActive', true)
-                ->select('id', 'firstName', 'lastName', 'phoneNumber', 'email')
-                ->get();
-        }
-
-        // Mirror mobile app billing logic for admin view
-        $order->calculatedBillDetails = $this->calculateOrderBillDetails($order);
-
-        return view('orders.edit', compact('order', 'currency', 'zones', 'availableDrivers', 'zoneDrivers','id'));
-    }
-
-    public function sendNotification(Request $request)
-    {
-
-        $orderStatus=$request->orderStatus;
-
-        // Email notifications removed to prevent resource issues on shared hosting
-
-        if(Storage::disk('local')->has('firebase/credentials.json') && ($orderStatus=="restaurantorders Accepted" || $orderStatus=="restaurantorders Rejected"|| $orderStatus=="restaurantorders Completed" || $orderStatus=="Driver Accepted")){
-
-            $client= new Google_Client();
-            $client->setAuthConfig(storage_path('app/firebase/credentials.json'));
-            $client->addScope('https://www.googleapis.com/auth/firebase.messaging');
-            $client->refreshTokenWithAssertion();
-            $client_token = $client->getAccessToken();
-            $access_token = $client_token['access_token'];
-
-            $fcm_token = $request->fcm;
-
-            if(!empty($access_token) && !empty($fcm_token)){
-
-                $projectId = env('FIREBASE_PROJECT_ID');
-                $url = 'https://fcm.googleapis.com/v1/projects/'.$projectId.'/messages:send';
-
-                $data = [
-                    'message' => [
-                        'notification' => [
-                            'title' => $request->subject,
-                            'body' => $request->message,
-                        ],
-                        'token' => $fcm_token,
-                    ],
-                ];
-
-                $headers = array(
-                    'Content-Type: application/json',
-                    'Authorization: Bearer '.$access_token
-                );
-
-                $ch = curl_init();
-                curl_setopt($ch, CURLOPT_URL, $url);
-                curl_setopt($ch, CURLOPT_POST, true);
-                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-
-                $result = curl_exec($ch);
-                if ($result === FALSE) {
-                    die('FCM Send Error: ' . curl_error($ch));
-                }
-                curl_close($ch);
-                $result=json_decode($result);
-
-                $response = array();
-                $response['success'] = true;
-                $response['message'] = 'Notification successfully sent.';
-                $response['result'] = $result;
-
-            }else{
-                $response = array();
-                $response['success'] = false;
-                $response['message'] = 'Missing sender id or token to send notification.';
-            }
-
-        }else{
-            $response = array();
-            $response['success'] = false;
-            $response['message'] = 'Firebase credentials file not found.';
-        }
-
-        return response()->json($response);
-    }
-
-    /**
-     * Public method to send email notifications (for direct API calls) - DISABLED
-     */
-    public function sendOrderEmailNotificationPublic(Request $request)
-    {
-        // Email notifications disabled to prevent resource issues on shared hosting
-        return response()->json([
-            'success' => false,
-            'message' => 'Email notifications are disabled'
-        ]);
-    }
-
-    // Email notification methods removed to prevent resource issues on shared hosting
-
-    // Helper methods removed along with email functionality
-
-    public function orderprint($id){
-        // Fetch order from MySQL with joins (same as edit)
-        $order = DB::table('restaurant_orders as ro')
-            ->leftJoin('vendors as v', 'v.id', '=', 'ro.vendorID')
-            ->leftJoin('users as u', 'u.id', '=', 'ro.authorID')
-            ->leftJoin('users as d', 'd.id', '=', 'ro.driverID')
-            ->where('ro.id', $id)
-            ->select(
-                'ro.*',
-                'v.id as vendor_db_id',
-                'v.title as vendor_title',
-                'v.vType as vendor_type',
-                'v.photo as vendor_photo',
-                'v.phonenumber as vendor_phone',
-                'v.location as vendor_location',
-                'u.id as user_db_id',
-                'u.firstName as user_first_name',
-                'u.lastName as user_last_name',
-                'u.email as user_email',
-                'u.phoneNumber as user_phone',
-                'd.id as driver_db_id',
-                'd.firstName as driver_first_name',
-                'd.lastName as driver_last_name',
-                'd.email as driver_email',
-                'd.phoneNumber as driver_phone'
-            )
-            ->first();
-
-        if (!$order) {
-            abort(404, 'Order not found');
-        }
-
-        // Parse JSON fields
-        $order->products = !empty($order->products) ? json_decode($order->products, true) : [];
-        $order->author = !empty($order->author) ? json_decode($order->author, true) : [];
-        $order->driver = !empty($order->driver) ? json_decode($order->driver, true) : [];
-        $order->address = !empty($order->address) ? json_decode($order->address, true) : [];
-        $order->vendor = !empty($order->vendor) ? json_decode($order->vendor, true) : [];
-        $order->specialDiscount = !empty($order->specialDiscount) ? json_decode($order->specialDiscount, true) : null;
-
-        // Load currency settings
-        $currency = DB::table('currencies')
-            ->where('isActive', true)
-            ->first();
-
-        return view('orders.print', compact('order', 'currency', 'id'));
     }
 
     /**
@@ -398,6 +136,7 @@ class OrderController extends Controller
                 if (empty($clientName)) {
                     $clientName = $this->extractNameFromJson($row->author);
                 }
+
                 if (empty($clientName)) {
                     $clientName = 'N/A';
                 }
@@ -532,7 +271,7 @@ class OrderController extends Controller
 //
 //                if ($paymentMethod === 'cod') {
 //                    // COD → show amount
-                    $rowCells[] = '<span class="text-green">' . e($amountText) . '</span>';
+                $rowCells[] = '<span class="text-green">' . e($amountText) . '</span>';
 //                } else {
 ////                    // Online payment → show tick
 ////                    $rowCells[] =
@@ -568,8 +307,9 @@ class OrderController extends Controller
 
             return response()->json([
                 'draw' => $draw,
-                'recordsTotal' => $recordsFiltered,
-                'recordsFiltered' => $recordsFiltered,
+                'recordsTotal' => $result['recordsTotal'],
+                'recordsFiltered' => $result['recordsFiltered'],
+
                 'data' => $data,
             ]);
         }
@@ -577,14 +317,279 @@ class OrderController extends Controller
         // Regular page load - return view with zones
         $status = $request->query('status');
 
-        // Load zones from MySQL
+        $zones = Cache::remember('zones_list', 300, function () {
+            return DB::table('zone')
+                ->where('publish', 1)
+                ->orderBy('name', 'asc')
+                ->get(['id', 'name']);
+        });
+
+        return view('orders.index', compact('status', 'id', 'zones'));
+    }
+
+    public function edit($id)
+    {
+        // Fetch order from MySQL with joins
+        $order = DB::table('restaurant_orders as ro')
+            ->leftJoin('vendors as v', 'v.id', '=', 'ro.vendorID')
+            ->leftJoin('users as u', 'u.id', '=', 'ro.authorID')
+            ->leftJoin('users as d', 'd.id', '=', 'ro.driverID')
+            ->leftJoin('zone as z', 'z.id', '=', 'v.zoneId')
+            ->where('ro.id', $id)
+            ->select(
+                'ro.*',
+                'v.id as vendor_db_id',
+                'v.title as vendor_title',
+                'v.vType as vendor_type',
+                'v.photo as vendor_photo',
+                'v.phonenumber as vendor_phone',
+                'v.location as vendor_location',
+                'v.zoneId as vendor_zone_id',
+                'u.id as user_db_id',
+                'u.firstName as user_first_name',
+                'u.lastName as user_last_name',
+                'u.email as user_email',
+                'u.phoneNumber as user_phone',
+                'd.id as driver_db_id',
+                'd.firstName as driver_first_name',
+                'd.lastName as driver_last_name',
+                'd.email as driver_email',
+                'd.phoneNumber as driver_phone',
+                'z.name as zone_name'
+            )
+            ->first();
+
+        if (!$order) {
+            abort(404, 'Order not found');
+        }
+
+
+        // Parse JSON fields
+        $order->products = !empty($order->products) ? json_decode($order->products, true) : [];
+        $order->author = !empty($order->author) ? json_decode($order->author, true) : [];
+        $order->driver = !empty($order->driver) ? json_decode($order->driver, true) : [];
+        $order->address = !empty($order->address) ? json_decode($order->address, true) : [];
+        $order->vendor = !empty($order->vendor) ? json_decode($order->vendor, true) : [];
+        $order->specialDiscount = !empty($order->specialDiscount) ? json_decode($order->specialDiscount, true) : null;
+        $order->calculatedCharges = $this->decodeJsonField($order->calculatedCharges ?? null);
+        $order->refund_transaction_id = !empty($order->refund_transaction_id) ? json_decode($order->refund_transaction_id, true) : null;
+        $vendorId = $order->vendorID;
+//        dd($vendorId);
+
+//        $walletDebitPaise = DB::table('money_wallet_ledger')
+//            ->where('reference_id', $id)      // order id
+//            ->where('type', 'ORDER_DEBIT')
+//            ->sum('amount_paise');
+//
+//        $order->wallet_used_amount = $walletDebitPaise > 0
+//            ? number_format($walletDebitPaise / 100, 2, '.', '')
+//            : 0;
+
+        $walletDebitPaise = DB::table('money_wallet_ledger')
+            ->where('reference_id', $order->id)
+            ->where('type', 'ORDER_DEBIT')
+            ->sum('amount_paise');
+
+// Ledger stores negative values → convert to positive rupees
+        $order->wallet_used_amount = abs($walletDebitPaise) / 100;
+
+        $zoneId = DB::table('vendors')
+            ->where('id', $vendorId)
+            ->value('zoneId');
+//        dd($zoneId);
+
+        // Load currency settings
+        $currency = DB::table('currencies')
+            ->where('isActive', true)
+            ->first();
+
+        // Load zones for driver assignment
         $zones = DB::table('zone')
             ->where('publish', 1)
             ->orderBy('name', 'asc')
             ->get(['id', 'name']);
 
-        return view('orders.index', compact('status', 'id', 'zones'));
+
+        // Load available drivers if needed
+        $availableDrivers = [];
+
+        $zoneDrivers = [];
+
+        if ($zoneId) {
+            $zoneDrivers  = User::where('role', 'driver')
+                ->where('zoneId', $zoneId)
+                ->where('active', 1)
+                ->get()
+                ->map(function ($user) {
+                    return [
+                        'id' => $user->id,
+                        'firstName' => $user->firstName,
+                        'lastName' => $user->lastName,
+                        'phoneNumber' => $user->phoneNumber,
+                    ];
+                });
+
+        }
+//        dd($availableDrivers);
+
+        if (!empty($order->driverID)) {
+            // Already has driver
+        } else {
+            // Load available drivers for assignment
+            $availableDrivers = DB::table('users')
+                ->where('role', 'driver')
+                ->where('isActive', true)
+                ->select('id', 'firstName', 'lastName', 'phoneNumber', 'email')
+                ->get();
+        }
+
+        // Mirror mobile app billing logic for admin view
+        $order->calculatedBillDetails = $this->calculateOrderBillDetails($order);
+
+        return view('orders.edit', compact('order', 'currency', 'zones', 'availableDrivers', 'zoneDrivers','id',));
     }
+
+    public function sendNotification(Request $request)
+    {
+
+        $orderStatus=$request->orderStatus;
+
+        // Email notifications removed to prevent resource issues on shared hosting
+
+        if(Storage::disk('local')->has('firebase/credentials.json') && ($orderStatus=="restaurantorders Accepted" || $orderStatus=="restaurantorders Rejected"|| $orderStatus=="restaurantorders Completed" || $orderStatus=="Driver Accepted")){
+
+            $client= new Google_Client();
+            $client->setAuthConfig(storage_path('app/firebase/credentials.json'));
+            $client->addScope('https://www.googleapis.com/auth/firebase.messaging');
+            $client->refreshTokenWithAssertion();
+            $client_token = $client->getAccessToken();
+            $access_token = $client_token['access_token'];
+
+            $fcm_token = $request->fcm;
+
+            if(!empty($access_token) && !empty($fcm_token)){
+
+                $projectId = env('FIREBASE_PROJECT_ID');
+                $url = 'https://fcm.googleapis.com/v1/projects/'.$projectId.'/messages:send';
+
+                $data = [
+                    'message' => [
+                        'notification' => [
+                            'title' => $request->subject,
+                            'body' => $request->message,
+                        ],
+                        'token' => $fcm_token,
+                    ],
+                ];
+
+                $headers = array(
+                    'Content-Type: application/json',
+                    'Authorization: Bearer '.$access_token
+                );
+
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+
+                $result = curl_exec($ch);
+                if ($result === FALSE) {
+                    die('FCM Send Error: ' . curl_error($ch));
+                }
+                curl_close($ch);
+                $result=json_decode($result);
+
+                $response = array();
+                $response['success'] = true;
+                $response['message'] = 'Notification successfully sent.';
+                $response['result'] = $result;
+
+            }else{
+                $response = array();
+                $response['success'] = false;
+                $response['message'] = 'Missing sender id or token to send notification.';
+            }
+
+        }else{
+            $response = array();
+            $response['success'] = false;
+            $response['message'] = 'Firebase credentials file not found.';
+        }
+
+        return response()->json($response);
+    }
+
+    /**
+     * Public method to send email notifications (for direct API calls) - DISABLED
+     */
+    public function sendOrderEmailNotificationPublic(Request $request)
+    {
+        // Email notifications disabled to prevent resource issues on shared hosting
+        return response()->json([
+            'success' => false,
+            'message' => 'Email notifications are disabled'
+        ]);
+    }
+
+    // Email notification methods removed to prevent resource issues on shared hosting
+
+    // Helper methods removed along with email functionality
+
+    public function orderprint($id){
+        // Fetch order from MySQL with joins (same as edit)
+        $order = DB::table('restaurant_orders as ro')
+            ->leftJoin('vendors as v', 'v.id', '=', 'ro.vendorID')
+            ->leftJoin('users as u', 'u.id', '=', 'ro.authorID')
+            ->leftJoin('users as d', 'd.id', '=', 'ro.driverID')
+            ->where('ro.id', $id)
+            ->select(
+                'ro.*',
+                'v.id as vendor_db_id',
+                'v.title as vendor_title',
+                'v.vType as vendor_type',
+                'v.photo as vendor_photo',
+                'v.phonenumber as vendor_phone',
+                'v.location as vendor_location',
+                'u.id as user_db_id',
+                'u.firstName as user_first_name',
+                'u.lastName as user_last_name',
+                'u.email as user_email',
+                'u.phoneNumber as user_phone',
+                'd.id as driver_db_id',
+                'd.firstName as driver_first_name',
+                'd.lastName as driver_last_name',
+                'd.email as driver_email',
+                'd.phoneNumber as driver_phone'
+            )
+            ->first();
+
+        if (!$order) {
+            abort(404, 'Order not found');
+        }
+
+        // Parse JSON fields
+        $order->products = !empty($order->products) ? json_decode($order->products, true) : [];
+        $order->author = !empty($order->author) ? json_decode($order->author, true) : [];
+        $order->driver = !empty($order->driver) ? json_decode($order->driver, true) : [];
+        $order->address = !empty($order->address) ? json_decode($order->address, true) : [];
+        $order->vendor = !empty($order->vendor) ? json_decode($order->vendor, true) : [];
+        $order->specialDiscount = !empty($order->specialDiscount) ? json_decode($order->specialDiscount, true) : null;
+
+
+
+        $currency = Cache::remember('currencies_list', 600, function () {
+            return DB::table('currencies')
+            ->where('isActive', true)
+            ->first();
+        });
+
+        return view('orders.print', compact('order', 'currency', 'id'));
+    }
+
 
     private function calculateOrderBillDetails($order): array
     {
@@ -1370,8 +1375,8 @@ class OrderController extends Controller
                 try {
                     $drivers = DB::table('users')
                         ->where('role', 'driver')
-                        ->whereNotNull('orderRequestData')
-                        ->get(['id', 'orderRequestData']);
+                        ->where('orderRequestData', 'like', "%$id%")
+                        ->get();
 
                     foreach ($drivers as $driver) {
                         $raw = $driver->orderRequestData;
@@ -1454,10 +1459,12 @@ class OrderController extends Controller
 
     public function getLatestOrderId()
     {
-        $last = DB::table('restaurant_orders')
+        $last = Cache::remember('latest_order_id', 30, function () {
+            return DB::table('restaurant_orders')
             ->select('id')
             ->orderByRaw('CAST(SUBSTRING(id, 6) AS UNSIGNED) DESC') // from "Jippy30001018"
             ->first();
+        });
 
         return response()->json(['latest_id' => $last->id ?? '']);
     }

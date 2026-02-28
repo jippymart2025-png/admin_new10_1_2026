@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Vendor;
+use App\Models\VendorProduct;
+use App\Models\Zone;
 use App\Services\FirebaseStorageService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -45,11 +49,18 @@ class MenuItemController extends Controller
         $zoneFilter = (string) $request->input('zoneId', '');
 
         // Base query
-        $baseQ = DB::table('menu_items');
+        $baseQ = MenuItem::query();
         $totalRecords = $baseQ->count();
 
         // Filtered query
-        $q = DB::table('menu_items');
+        $q = MenuItem::query()->select(
+            'id',
+            'title',
+            'position',
+            'photo',
+            'is_publish',
+            'zoneId',
+        );
 
         // Apply zone filter
         if ($zoneFilter !== '') {
@@ -134,10 +145,12 @@ class MenuItemController extends Controller
             'zoneTitle' => $request->input('zoneTitle'),
         ]);
 
-        // Log activity
-        \Log::info('✅ Menu item created:', ['id' => $id, 'title' => $request->input('title')]);
 
-        return response()->json(['success'=>true,'id'=>$id]);
+        return response()->json([
+            'message' => 'banner created successfully',
+            'success'=>true,
+            'id'=>$id
+        ]);
     }
 
     public function update(Request $request, $id)
@@ -172,10 +185,10 @@ class MenuItemController extends Controller
             'zoneTitle' => $request->input('zoneTitle'),
         ]);
 
-        // Log activity
-        \Log::info('✅ Menu item updated:', ['id' => $id, 'title' => $request->input('title')]);
-
-        return response()->json(['success'=>true]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Menu item updated successfully'
+        ]);
     }
 
     public function togglePublish($id)
@@ -187,9 +200,7 @@ class MenuItemController extends Controller
         $doc->is_publish = $doc->is_publish ? 0 : 1;
         $doc->save();
 
-        // Log activity
         $action = $doc->is_publish ? 'published' : 'unpublished';
-        \Log::info('✅ Menu item ' . $action . ':', ['id' => $id, 'title' => $doc->title]);
 
         return response()->json(['success' => true, 'is_publish' => (bool) $doc->is_publish]);
     }
@@ -204,8 +215,6 @@ class MenuItemController extends Controller
         $title = $doc->title;
         $doc->delete();
 
-        // Log activity
-        \Log::info('✅ Menu item deleted:', ['id' => $id, 'title' => $title]);
 
         return response()->json(['success' => true, 'message' => 'Menu item deleted successfully']);
     }
@@ -219,8 +228,6 @@ class MenuItemController extends Controller
 
         $count = MenuItem::whereIn('id', $ids)->delete();
 
-        // Log activity
-        \Log::info('✅ Menu items bulk deleted:', ['count' => $count, 'ids' => $ids]);
 
         return response()->json(['success' => true, 'message' => $count . ' menu items deleted successfully', 'count' => $count]);
     }
@@ -233,23 +240,30 @@ class MenuItemController extends Controller
         try {
             $zoneId = $request->input('zoneId', '');
 
-            $query = DB::table('vendors')
-                ->select('id', 'title', 'zoneId')
-                ->where('reststatus', 1)
-                ->orderBy('title', 'asc');
+            $cacheKey = $zoneId
+                ? "stores:list:zone:$zoneId"
+                : "stores:list:all";
 
-            if ($zoneId) {
-                $query->where('zoneId', $zoneId);
-            }
+            $stores = Cache::remember($cacheKey, 600, function () use ($zoneId) {
+                $q = Vendor::query()
+                    ->select('id', 'title', 'zoneId')
+                    ->orderBy('title', 'asc');
 
-            $stores = $query->get();
+                if ($zoneId) {
+                    $q->where('zoneId', $zoneId);
+                }
+
+                return $q->get(); // ✅ DATA is cached
+            });
 
             return response()->json([
                 'success' => true,
+                'cached' => true,
                 'data' => $stores
             ]);
+
         } catch (\Exception $e) {
-            \Log::error('Error fetching stores: ' . $e->getMessage());
+            \Log::error('Error fetching stores: '.$e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error fetching stores'
@@ -260,28 +274,65 @@ class MenuItemController extends Controller
     /**
      * Get all products from vendor_products table (for dropdown)
      */
+//    public function getProducts(Request $request)
+//    {
+//        try {
+//            $storeId = $request->input('storeId', '');
+//
+//            $query = Cache::remember('products', 600, function () {
+//                return VendorProduct::query()
+//                    ->select('id', 'name', 'vendorID')
+//                    ->where('publish', 1)
+//                    ->orderBy('name', 'asc');
+//            });
+//
+//            if ($storeId) {
+//                $query->where('vendorID', $storeId);
+//            }
+//
+//            $products = $query->get();
+//
+//            return response()->json([
+//                'success' => true,
+//                'data' => $products
+//            ]);
+//        } catch (\Exception $e) {
+//            \Log::error('Error fetching products: ' . $e->getMessage());
+//            return response()->json([
+//                'success' => false,
+//                'message' => 'Error fetching products'
+//            ], 500);
+//        }
+//    }
     public function getProducts(Request $request)
     {
         try {
             $storeId = $request->input('storeId', '');
 
-            $query = DB::table('vendor_products')
-                ->select('id', 'name', 'vendorID')
-                ->where('publish', 1)
-                ->orderBy('name', 'asc');
+            $cacheKey = $storeId
+                ? "products:list:vendor:$storeId"
+                : "products:list:all";
 
-            if ($storeId) {
-                $query->where('vendorID', $storeId);
-            }
+            $products = Cache::remember($cacheKey, 600, function () use ($storeId) {
+                $q = VendorProduct::query()
+                    ->select('id', 'name', 'vendorID')
+                    ->where('publish', 1)
+                    ->orderBy('name', 'asc');
 
-            $products = $query->get();
+                if ($storeId) {
+                    $q->where('vendorID', $storeId);
+                }
+
+                return $q->get();
+            });
 
             return response()->json([
                 'success' => true,
+                'cached' => true,
                 'data' => $products
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error fetching products: ' . $e->getMessage());
+            \Log::error('Error fetching products: '.$e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error fetching products'
@@ -289,27 +340,37 @@ class MenuItemController extends Controller
         }
     }
 
+
     /**
      * Get all zones for dropdown
      */
     public function getZones()
     {
         try {
-            $zones = DB::table('zone')
-                ->where('publish', 1)
-                ->orderBy('name', 'asc')
-                ->get(['id', 'name']);
+            $zones = Cache::remember('bannerZones:list', now()->addMinutes(10), function () {
+                return Zone::query()
+                    ->select('id', 'name')
+                    ->where('publish', 1)
+                    ->orderBy('name', 'asc')
+                    ->get();
+            });
 
             return response()->json([
                 'success' => true,
+                'cached' => true,
                 'data' => $zones
             ]);
+
         } catch (\Exception $e) {
-            \Log::error('Error fetching zones: ' . $e->getMessage());
+            \Log::error('Error fetching zones', [
+                'error' => $e->getMessage()
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error fetching zones'
             ], 500);
         }
     }
+
 }

@@ -139,10 +139,10 @@
                                         <th>User ID</th>
                                         <th>User Name</th>
                                         <th>User Type</th>
-                                        <th>Role</th>
+                                        <th class="text-center">Role</th>
                                         <th>Module</th>
                                         <th>Action</th>
-                                        <th>Description</th>
+                                        <th class="text-center">Description</th>
                                         <!-- <th>IP Address</th> -->
                                         <th>Timestamp</th>
                                     </tr>
@@ -196,7 +196,8 @@ $(document).ready(function() {
 
     // Initialize DataTable with server-side processing
     const table = $('#activityLogsTable').DataTable({
-        pageLength: 10,
+        pageLength: 30,
+        lengthMenu: [[10, 30, 50, 100], [10, 30, 50, 100,]],
         processing: true,
         serverSide: true,
         responsive: true,
@@ -221,7 +222,7 @@ $(document).ready(function() {
             { data: 'description', name: 'description', orderable: true },
             { data: 'created_at', name: 'created_at', orderable: true }
         ],
-        order: [[7, 'desc']], // Sort by timestamp descending
+        order: [[7, 'desc']],
         columnDefs: [
             {
                 orderable: true,
@@ -231,7 +232,8 @@ $(document).ready(function() {
         "language": {
             "zeroRecords": "{{trans('lang.no_record_found')}}",
             "emptyTable": "{{trans('lang.no_record_found')}}",
-            "processing": '<i class="fa fa-spinner fa-spin fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
+            "processing": ""
+            // "processing": '<i class="fa fa-spinner fa-spin fa-3x fa-fw"></i><span class="sr-only">Loading...</span>'
         },
         dom: 'lfrtipB',
         buttons: [

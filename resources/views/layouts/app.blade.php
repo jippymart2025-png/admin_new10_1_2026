@@ -48,6 +48,36 @@
     <!-- Global Activity Logger - Load after jQuery -->
     <script src="{{ asset('js/global-activity-logger.js') }}"></script>
 
+    <!-- Fonts -->
+    <link rel="dns-prefetch" href="//fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css?family=Nunito" rel="stylesheet">
+
+    <!-- jQuery - Load early to avoid $ not defined errors -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+    <!-- Global Activity Logger - Load after jQuery -->
+    <script src="{{ asset('js/global-activity-logger.js') }}"></script>
+
+    <!-- DataTables -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+
+    <!-- Buttons Extension CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+
+    <!-- Buttons Extension JS -->
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+
+    <!-- Required for Excel / PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
     <!--
     ========================================
     FIREBASE COMPLETELY DISABLED
@@ -2560,7 +2590,7 @@
                 position: "top",
                 showConfirmButton: false,
                 showCloseButton: true,
-                timer: 10000,
+                timer: 12000,
                 timerProgressBar: true,
                 target: wrapper,
                 didOpen: (toast) => {

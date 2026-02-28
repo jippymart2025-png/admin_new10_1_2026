@@ -231,7 +231,6 @@ class NotificationController extends Controller
                 'role' => $request->role,
                 'createdAt' => now()->toIso8601String(), // Use createdAt (camelCase) to match table
             ]);
-            \Log::info('✅ Notification saved to SQL database', ['id' => $notificationId]);
 
             // Return success message
             if ($pushSent) {
@@ -396,6 +395,17 @@ class NotificationController extends Controller
             'success' => false,
             'message' => 'Firebase push notifications are not configured. Please configure Firebase credentials to send push notifications.'
         ]);
+    }
+
+    public function destroy($id){
+
+        $notification = DB::table('notifications')->where('id', $id)->first();
+
+        DB::table('notifications')->where('id', $id)->delete();
+
+        return response()->json([$notification,
+          'message' => "Notification successfully destroyed."]);
+
     }
 
 }

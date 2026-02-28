@@ -34,7 +34,7 @@ class ImpersonationController extends Controller
         }
 
 //        $restaurantPanel = config('app.restaurant_panel_url', 'http://127.0.0.1:8001');
-        $restaurantPanel = env('RESTAURANT_PANEL_URL', 'http://127.0.0.1:8001');
+        $restaurantPanel = env('RESTAURANT_PANEL_URL');
         $url = $restaurantPanel . '/login/impersonate?key=' . $result['key'];
 
         return response()->json([

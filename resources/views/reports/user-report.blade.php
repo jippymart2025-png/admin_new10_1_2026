@@ -67,6 +67,8 @@
                                 <th>Email</th>
                                 <th>Phone</th>
                                 <th>Zone</th>
+                                <th>Address</th>
+                                <th>Order Count</th>
                                 <th>Last Order Date</th>
                             </tr>
                             </thead>
@@ -180,6 +182,8 @@
                         '<td>' + (user.email || '-') + '</td>' +
                         '<td>' + (user.phone || '-') + '</td>' +
                         '<td>' + (user.zone || '-') + '</td>' +
+                        '<td>' + (user.address || '-') + '</td>' +
+                        '<td>' + (user.count || '-') + '</td>' +
                         '<td>' + formatDate(user.last_order_date) + '</td>' +
                         '</tr>';
                 });
@@ -197,21 +201,16 @@
             }
 
             userReportDataTable = $('#userReportTable').DataTable({
-                processing: true,
-                serverSide: true,
                 pageLength: 30,
                 lengthMenu: [[10, 25, 30, 50, 100], [10, 25, 30, 50, 100]],
                 responsive: true,
-                order: [[6, 'desc']],
-                columnDefs: [
-                    { orderable: false, targets: [0] }
-                ],
+                processing: true,
+                serverSide: true,
                 ajax: {
                     url: '{{ route("reports.userdata") }}',
                     type: 'GET',
                     data: function (d) {
                         d.zone_id = selectedZoneFilter;
-                        d.search = searchTerm;
                     }
                 },
                 columns: [
@@ -226,6 +225,8 @@
                     { data: 'email', defaultContent: '-' },
                     { data: 'phone', defaultContent: '-' },
                     { data: 'zone', defaultContent: '-' },
+                    { data: 'address', defaultContent: '-' },
+                    { data: 'count', defaultContent: '-' },
                     {
                         data: 'last_order_date',
                         render: function (data) {
@@ -233,17 +234,42 @@
                         }
                     }
                 ],
+                order: [[6, 'desc']],
+                columnDefs: [
+                    { orderable: false, targets: [0] }
+                ],
                 language: {
                     zeroRecords: "No users found",
                     emptyTable: "No users available",
                     processing: "Loading..."
-                }
+                },
+                dom: 'lfrtipB',
+                buttons: [
+                    {
+                        extend: 'collection',
+                        text: '<i class="mdi mdi-cloud-download"></i> Export as',
+                        className: 'btn btn-info',
+                        buttons: [
+                            {
+                                text: 'Export CSV',
+                                action: function () {
+                                    exportUsers('csv');
+                                }
+                            },
+                            {
+                                text: 'Export EXCEL',
+                                action: function () {
+                                    exportUsers('excel');
+                                }
+                            },
+                        ]
+                    }
+                ],
             });
-            // ✅ UPDATE USER COUNT
-            userReportTable.on('xhr', function () {
-                let json = userReportTable.ajax.json();
-                let total = json?.recordsFiltered ?? json?.recordsTotal ?? 0;
-                $('.total_count').text(`(${total})`);
+            userReportDataTable.on('xhr', function () {
+                let json = userReportDataTable.ajax.json();
+                let total = json?.recordsFiltered ?? 0;
+                $('.total_count').text(`${total}`);
             });
         }
 
@@ -277,9 +303,8 @@
         // Zone filter change
         $(document).on('change', '#zone_filter', function() {
             var val = $(this).val();
+            userReportDataTable.ajax.reload();
             selectedZoneFilter = val ? val.toString() : '';
-            console.log('🔍 Zone filter changed:', selectedZoneFilter);
-            updateClearFiltersButton();
             loadUserReport();
         });
 
@@ -311,5 +336,17 @@
                 loadUserReport();
             }
         });
+        function exportUsers(type) {
+            const selectedZoneId = $('.zone_selector').val();
+            console.log('🌍 Export - Zone filter value:', selectedZoneId);
+
+            let params = {
+                search: $('.dataTables_filter input').val(),
+                zoneId: selectedZoneId,
+                type: type
+            };
+
+            window.location.href = '/reports/user/export?' + $.param(params);
+        }
     </script>
 @endsection

@@ -23,7 +23,7 @@
                             <div class="d-flex top-title-right align-self-center">
                                 <div class="card-header-right">
                                     <a href="javascript:void(0)" data-toggle="modal" data-target="#addWalletModal"
-                                       class="btn-primary btn rounded-full add-wallate"><i
+                                       class="btn-primary btn rounded-full add-wallet"><i
                                             class="mdi mdi-plus mr-2"></i>{{trans('lang.add_wallet_amount')}}</a>
                                 </div>
                             </div>
@@ -362,7 +362,7 @@
                                         <label
                                             class="mb-1 font-wi font-semibold text-dark-2">{{trans('lang.friday')}}</label>
                                     </div>
-                                    <div class="col-md-3 Satuarday_working_hours">
+                                    <div class="col-md-3 Saturday_working_hours">
                                         <label
                                             class="mb-1 font-wi font-semibold text-dark-2">{{trans('lang.Saturday')}}</label>
                                     </div>
@@ -748,42 +748,42 @@
             }
         });
 
-        // Load admin commission settings from SQL
-        $.ajax({
-            url: '{{url("/api/settings/AdminCommission")}}',
-            type: 'GET',
-            success: function (response) {
-                if (response.success && response.data) {
-                    var commissionSetting = response.data;
-                    if (commissionSetting.isEnabled == true) {
-                        commisionModel = true;
-                    }
-                    if (commissionSetting.commissionType == "Percent") {
-                        AdminCommission = commissionSetting.fix_commission + '%';
-                    } else {
-                        if (currencyAtRight) {
-                            AdminCommission = parseFloat(commissionSetting.fix_commission).toFixed(decimal_degits) + currentCurrency;
-                        } else {
-                            AdminCommission = currentCurrency + parseFloat(commissionSetting.fix_commission).toFixed(decimal_degits);
-                        }
-                    }
-                }
-            }
-        });
+        {{--// Load admin commission settings from SQL--}}
+        {{--$.ajax({--}}
+        {{--    url: '{{url("/api/settings/AdminCommission")}}',--}}
+        {{--    type: 'GET',--}}
+        {{--    success: function (response) {--}}
+        {{--        if (response.success && response.data) {--}}
+        {{--            var commissionSetting = response.data;--}}
+        {{--            if (commissionSetting.isEnabled == true) {--}}
+        {{--                commisionModel = true;--}}
+        {{--            }--}}
+        {{--            if (commissionSetting.commissionType == "Percent") {--}}
+        {{--                AdminCommission = commissionSetting.fix_commission + '%';--}}
+        {{--            } else {--}}
+        {{--                if (currencyAtRight) {--}}
+        {{--                    AdminCommission = parseFloat(commissionSetting.fix_commission).toFixed(decimal_degits) + currentCurrency;--}}
+        {{--                } else {--}}
+        {{--                    AdminCommission = currentCurrency + parseFloat(commissionSetting.fix_commission).toFixed(decimal_degits);--}}
+        {{--                }--}}
+        {{--            }--}}
+        {{--        }--}}
+        {{--    }--}}
+        {{--});--}}
 
-        // Load business model settings from SQL
-        $.ajax({
-            url: '{{url("/api/settings/restaurant")}}',
-            type: 'GET',
-            success: function (response) {
-                if (response.success && response.data) {
-                    var businessModelSettings = response.data;
-                    if (businessModelSettings.subscription_model == true) {
-                        subscriptionModel = true;
-                    }
-                }
-            }
-        });
+        {{--// Load business model settings from SQL--}}
+        {{--$.ajax({--}}
+        {{--    url: '{{url("/api/settings/restaurant")}}',--}}
+        {{--    type: 'GET',--}}
+        {{--    success: function (response) {--}}
+        {{--        if (response.success && response.data) {--}}
+        {{--            var businessModelSettings = response.data;--}}
+        {{--            if (businessModelSettings.subscription_model == true) {--}}
+        {{--                subscriptionModel = true;--}}
+        {{--            }--}}
+        {{--        }--}}
+        {{--    }--}}
+        {{--});--}}
         var emailTemplatesData = null;
 
         // Load email template from SQL
@@ -857,7 +857,7 @@
                     }
                 },
                 error: function () {
-                    $('#user_account_not_found_error').text('{{trans("lang.error_adding_wallet_amount")}}');
+                    $('#user_account_not_found_error').text("error adding wallet amount");
                 }
             });
         });
@@ -1245,24 +1245,24 @@
                         photo = restaurant.photo;
                         restaurantOwnerId = restaurant.author;
 
-                        // Load user data from SQL
                         $.ajax({
                             url: '/api/users/' + restaurant.author,
                             type: 'GET',
                             success: function (userResponse) {
-                                if (userResponse.success && userResponse.user) {
-                                    var user = userResponse.user;
-                                    $(".vendor_name").html(user.firstName + " " + user.lastName);
-                                    if (user.email != "" && user.email != null) {
-                                        $(".vendor_email").html(shortEmail(user.email));
-                                    } else {
-                                        $(".vendor_email").html("");
-                                    }
-                                    if (user.phoneNumber != "" && user.phoneNumber != null) {
-                                        $(".vendor_phoneNumber").html(shortEditNumber(user.phoneNumber));
-                                    } else {
-                                        $(".vendor_phoneNumber").html("");
-                                    }
+                                if (userResponse.success && userResponse.data) {
+                                    var user = userResponse.data;
+
+                                    $(".vendor_name").text(
+                                        (user.firstName || '') + ' ' + (user.lastName || '')
+                                    );
+
+                                    $(".vendor_email").text(
+                                        user.email ? shortEmail(user.email) : ''
+                                    );
+
+                                    $(".vendor_phoneNumber").text(
+                                        user.phone ? shortEditNumber(user.phone) : ''
+                                    );
                                 }
                             }
                         });

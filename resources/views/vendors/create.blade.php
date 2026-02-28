@@ -121,10 +121,8 @@ foreach ($countries as $keycountry => $valuecountry) {
                                 <label class="col-3 control-label">{{trans('lang.restaurant_image')}}</label>
                                 <input type="file" onChange="handleFileSelectowner(event)" class="col-7">
                                 <div id="uploding_image_owner"></div>
-                                <div class="uploaded_image_owner" style="display:none;"><img id="uploaded_image_owner"
-                                        src="" width="150px" height="150px;"></div>
+                                <div class="uploaded_image_owner" style="display:none;"><img id="uploaded_image_owner" src="" width="150px" height="150px;"></div>
                             </div>
-
                         </fieldset>
                         <fieldset>
                             <legend>{{ trans('lang.subscription_details') }}</legend>
@@ -138,9 +136,8 @@ foreach ($countries as $keycountry => $valuecountry) {
                             </div>
                         </fieldset>
                         <fieldset>
-                            <legend>{{trans('restaurant')}} {{trans('lang.active_deactive')}}</legend>
+                            <legend>{{trans('restaurant')}} {{trans('lang.active_deactivate')}}</legend>
                             <div class="form-group row">
-
                                 <div class="form-group row width-50">
                                     <div class="form-check width-100">
                                         <input type="checkbox" id="is_active">
@@ -148,7 +145,6 @@ foreach ($countries as $keycountry => $valuecountry) {
                                             for="is_active">{{trans('lang.active')}}</label>
                                     </div>
                                 </div>
-
                             </div>
                         </fieldset>
                     </div>
@@ -161,18 +157,11 @@ foreach ($countries as $keycountry => $valuecountry) {
                 <a href="{!! route('vendors') !!}" class="btn btn-default"><i
                         class="fa fa-undo"></i>{{trans('lang.cancel')}}</a>
             </div>
-
         </div>
     </div>
 </div>
-
 @endsection
-
 @section('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/compressorjs/1.1.1/compressor.min.js"
-    integrity="sha512-VaRptAfSxXFAv+vx33XixtIVT9A/9unb1Q8fp63y1ljF+Sbka+eMJWoDAArdm7jOYuLQHVx5v60TQ+t3EA8weA=="
-    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
 <script>
     var photo="";
     var ownerphoto='';

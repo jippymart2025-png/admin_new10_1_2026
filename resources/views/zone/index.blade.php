@@ -88,7 +88,7 @@
 
         $(document).ready(function () {
             jQuery("#data-table_processing").show();
-            
+
             // Fetch zones data from SQL database
             $.ajax({
                 url: "{{ route('zone.data') }}",
@@ -100,14 +100,14 @@
                     if (response.success && response.data) {
                         var zones = response.data;
                         $('.zone_count').text(zones.length);
-                        
+
                         var html = '';
                         zones.forEach(function(zone) {
                             html += buildHTML(zone);
                         });
-                        
+
                         $('#append_list1').html(html);
-                        
+
                         // Initialize DataTable
                         if (checkDeletePermission) {
                             $('#example24').DataTable({
@@ -150,25 +150,25 @@
             html += '<tr>';
             var route1 = '{{route("zone.edit",":id")}}';
             route1 = route1.replace(':id', zone.id);
-            
+
             if (checkDeletePermission) {
                 html += '<td class="delete-all"><input type="checkbox" id="is_open_' + zone.id + '" class="is_open" dataId="' + zone.id + '"><label class="col-3 control-label" for="is_open_' + zone.id + '" ></label></td>';
             }
-            
+
             html += '<td><a href="' + route1 + '">' + zone.name + '</a></td>';
-            
+
             if (zone.publish) {
                 html += '<td><label class="switch"><input type="checkbox" checked id="' + zone.id + '" name="isSwitch"><span class="slider round"></span></label></td>';
             } else {
                 html += '<td><label class="switch"><input type="checkbox" id="' + zone.id + '" name="isSwitch"><span class="slider round"></span></label></td>';
             }
-            
+
             html += '<td class="action-btn"><a href="' + route1 + '"><i class="mdi mdi-lead-pencil" title="Edit"></i></a>';
-            
+
             if (checkDeletePermission) {
                 html += '<a id="' + zone.id + '" name="zone-delete" class="delete-btn" href="javascript:void(0)"><i class="mdi mdi-delete"></i></a>';
             }
-            
+
             html += '</td>';
             html += '</tr>';
             return html;
@@ -182,12 +182,12 @@
             if ($('#example24 .is_open:checked').length) {
                 if (confirm("{{trans('lang.selected_delete_alert')}}")) {
                     jQuery("#overlay").show();
-                    
+
                     var ids = [];
                     $('#example24 .is_open:checked').each(function () {
                         ids.push($(this).attr('dataId'));
                     });
-                    
+
                     $.ajax({
                         url: "{{ route('zone.delete-multiple') }}",
                         type: 'POST',
@@ -221,14 +221,14 @@
             var id = this.id;
             var $checkbox = $(this);
             var originalState = !ischeck;
-            
+
             // Disable checkbox during request
             $checkbox.prop('disabled', true);
-            
+
             // Build URL using route helper
             var url = "{{ route('zone.toggle-status', ':id') }}";
             url = url.replace(':id', id);
-            
+
             $.ajax({
                 url: url,
                 type: 'POST',
@@ -264,10 +264,10 @@
             if (!confirm("{{trans('lang.delete_alert')}}")) {
                 return;
             }
-            
+
             var id = this.id;
             jQuery("#overlay").show();
-            
+
             $.ajax({
                 url: "{{ url('/zone') }}/" + id,
                 type: 'DELETE',
