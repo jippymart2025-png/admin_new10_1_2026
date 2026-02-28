@@ -985,6 +985,7 @@ Route::middleware(['permission:users,users.view'])->group(function () {
 Route::get('/users/data/{id}', [App\Http\Controllers\UserController::class, 'getUserData'])->name('users.data');
 Route::post('/users/wallet/{id}', [App\Http\Controllers\UserController::class, 'addWalletAmount'])->name('users.wallet.add');
 
+
 Route::middleware(['permission:admins,admin.users'])->group(function () {
     Route::get('admin-users', [App\Http\Controllers\UserController::class, 'adminUsers'])->name('admin.users');
 });
