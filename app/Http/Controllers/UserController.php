@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 use App\Models\Driver;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class UserController extends Controller
 {
@@ -885,6 +886,21 @@ class UserController extends Controller
             // Extract zoneId from shippingAddress
             $zoneId = self::extractZoneFromShippingAddress($user->shippingAddress);
 
+            // Wallet coins / balance: safe when customer_wallet table does not exist (e.g. production without coins)
+            $walletCoins = 0;
+            $walletCoinsBalance = '0.00';
+            try {
+                if (Schema::hasTable('customer_wallet')) {
+                    $wallet = DB::table('customer_wallet')->where('user_id', $user->id)->first();
+                    if ($wallet) {
+                        $walletCoins = (int) ($wallet->coin_balance ?? 0);
+                        $walletCoinsBalance = number_format((int) ($wallet->money_balance_paise ?? 0) / 100, 2, '.', '');
+                    }
+                }
+            } catch (\Exception $e) {
+                // ignore; keep 0
+            }
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -895,12 +911,15 @@ class UserController extends Controller
                     'phoneNumber' => $user->phoneNumber,
                     'countryCode' => $user->countryCode,
                     'wallet_amount' => $user->wallet_amount ?? 0,
+                    'walletCoins' => $walletCoins,
+                    'walletCoinsBalance' => $walletCoinsBalance,
                     'profilePictureURL' => $user->profilePictureURL,
                     'shippingAddress' => $shippingAddress,
                     'zoneId' => $zoneId,
                     'isActive' => $user->isActive,
                     'createdAt' => $user->createdAt,
                     'totalOrders' => $totalOrders,
+                    'referredBy' => null,
                 ]
             ]);
         } catch (\Exception $e) {
