@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\ActivityLogger;
+use App\Services\FirebaseStorageService;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Illuminate\Support\Facades\Hash;
@@ -21,6 +22,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class RestaurantController extends Controller
 {
+
+    protected FirebaseStorageService $firebaseStorage;
     /**
      * Normalize various truthy/falsy inputs to integer 1/0 for SQL columns.
      */
@@ -39,8 +42,9 @@ class RestaurantController extends Controller
         return in_array($stringValue, ['1', 'true', 'yes', 'on'], true) ? 1 : 0;
     }
 
-    public function __construct()
+    public function __construct(FirebaseStorageService $firebaseStorage)
     {
+        $this->firebaseStorage = $firebaseStorage;
         $this->middleware('auth');
     }
 
@@ -855,7 +859,7 @@ class RestaurantController extends Controller
 
         // Create new restaurant
         do {
-            $newId = 'rest_' . Str::uuid()->toString();
+            $newId = 'rest_' . Str::random(20);
         } while (Vendor::where('id', $newId)->exists());
 
         $vendor = new Vendor();
@@ -2176,6 +2180,24 @@ class RestaurantController extends Controller
                 if (!isset($value)) return json_encode($default);
                 return is_string($value) ? $value : json_encode($value);
             };
+            $photoUrl = null;
+
+            // Multipart upload (not used by current create UI, but kept for compatibility)
+            if ($request->hasFile('photo')) {
+                try {
+                    $photoUrl = $this->firebaseStorage->uploadFile(
+                        $request->file('photo'),
+                        'restaurant/restaurant_' . time() . '.' . $request->file('photo')->getClientOriginalExtension()
+                    );
+                } catch (\Exception $e) {
+                    \Log::error('Photo upload failed (multipart): ' . $e->getMessage());
+                }
+            }
+
+            // JSON-based create flow: frontend sends primary image URL in restaurantData['photo']
+            if (!$photoUrl && !empty($restaurantData['photo'] ?? null)) {
+                $photoUrl = $restaurantData['photo'];
+            }
 
             // Create restaurant record
             $restaurant = new Vendor();
@@ -2185,7 +2207,7 @@ class RestaurantController extends Controller
             $restaurant->latitude = floatval($restaurantData['latitude'] ?? 0);
             $restaurant->longitude = floatval($restaurantData['longitude'] ?? 0);
             $restaurant->location = $restaurantData['location'] ?? '';
-            $restaurant->photo = $restaurantData['photo'] ?? '';
+            $restaurant->photo = $photoUrl;
             $restaurant->photos = $toJson($restaurantData['photos'] ?? null, []);
             $restaurant->phonenumber = $restaurantData['phonenumber'] ?? '';
             $restaurant->countryCode = $restaurantData['countryCode'] ?? '';
@@ -2803,13 +2825,30 @@ class RestaurantController extends Controller
                 return is_string($value) ? $value : json_encode($value);
             };
 
+
             // Update restaurant fields
             if ($request->has('title')) $restaurant->title = $request->title;
             if ($request->has('description')) $restaurant->description = $request->description;
             if ($request->has('location')) $restaurant->location = $request->location;
             if ($request->has('latitude')) $restaurant->latitude = floatval($request->latitude);
             if ($request->has('longitude')) $restaurant->longitude = floatval($request->longitude);
-            if ($request->has('photo')) $restaurant->photo = $request->photo;
+//            if ($request->has('photo')) $restaurant->photo = $request->photo;
+            /* PHOTO UPLOAD */
+            // Start with existing photo so we don't lose it if no new value provided
+            $photoUrl = $restaurant->photo;
+
+            if ($request->hasFile('photo')) {
+                // Multipart upload case (e.g. traditional form submit)
+                $photoUrl = $this->firebaseStorage->uploadFile(
+                    $request->file('photo'),
+                    'restaurant/restaurant_' . time() . '.' . $request->file('photo')->getClientOriginalExtension()
+                );
+            } elseif ($request->has('photo') && is_string($request->photo) && trim($request->photo) !== '') {
+                // JSON payload case (edit page sends already-uploaded URL in `photo`)
+                $photoUrl = $request->photo;
+            }
+
+            $restaurant->photo = $photoUrl;
             if ($request->has('photos')) $restaurant->photos = $toJson($request->photos, []);
             if ($request->has('phonenumber')) $restaurant->phonenumber = $request->phonenumber;
             if ($request->has('zoneId')) $restaurant->zoneId = $request->zoneId;

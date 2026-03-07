@@ -219,6 +219,7 @@
                                             <th style="text-align: center">{{trans('lang.restaurants_payout_amount')}}</th>
                                             {{--                                            <th>{{trans('lang.order_order_status_id')}}</th>--}}
                                             <th style="white-space:normal; max-width:120px;text-align:center">{{trans('lang.order_order_status_id')}}</th>
+                                            <th>Zone</th>
                                             <th style="text-align: center">{{trans('lang.actions')}}</th>
                                         </tr>
                                         </thead>

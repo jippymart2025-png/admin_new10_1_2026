@@ -5,6 +5,33 @@
     use Illuminate\Support\Str;
 
     $returnUrl = request('eid') ? route('restaurants.foods', request('eid')) : route('foods');
+
+$availableTimings = [];
+
+if (!empty($food->available_timings)) {
+    $availableTimings = is_string($food->available_timings)
+        ? json_decode($food->available_timings, true)
+        : $food->available_timings;
+}
+
+$availableDays = [];
+$timingsByDay = [];
+
+if (!empty($availableTimings)) {
+
+    foreach ($availableTimings as $timing) {
+
+        if(isset($timing['day'])){
+
+            $availableDays[] = $timing['day'];
+
+            $timingsByDay[$timing['day']] = $timing['timeslot'] ?? [];
+        }
+    }
+}
+
+$daysOfWeek = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
 @endphp
 
 @section('content')
@@ -186,6 +213,48 @@
                                     <input type="number" name="proteins" value="{{ old('proteins', $food->proteins) }}" class="form-control" min="0">
                                 </div>
                             </div>
+                        </fieldset>
+
+                        <fieldset>
+                            <legend>Available Timings</legend>
+                            <div id="timing-slots" class="px-4">
+                                @if(!empty($timingsByDay))
+                                @foreach($timingsByDay as $day => $slots)
+
+                                    <div class="day-slot mb-3" data-day="{{ $day }}">
+
+                                        <label class="font-weight-bold">{{ $day }}</label>
+
+                                        @foreach($slots as $slot)
+
+                                            <div class="row mb-2">
+
+                                                <div class="col-md-5">
+                                                    <input type="time"
+                                                           name="available_timings[{{ $day }}][][from]"
+                                                           value="{{ $slot['from'] ?? '' }}"
+                                                           class="form-control">
+                                                </div>
+
+                                                <div class="col-md-5">
+                                                    <input type="time"
+                                                           name="available_timings[{{ $day }}][][to]"
+                                                           value="{{ $slot['to'] ?? '' }}"
+                                                           class="form-control">
+                                                </div>
+
+                                            </div>
+
+                                        @endforeach
+
+                                    </div>
+
+                                @endforeach
+                                    @else
+                                        <p class="text-muted text-center">No timings for this item.</p>
+                                    @endif
+                            </div>
+
                         </fieldset>
 
                         <fieldset>

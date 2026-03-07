@@ -144,11 +144,11 @@ class OrderController extends Controller
                 // Author/client
                 $clientName = '';
                 if (!empty($row->user_first_name) || !empty($row->user_last_name)) {
-                    $clientName = trim(($row->user_first_name ?? '') . ' ' . ($row->user_last_name ?? ''));
+                    $clientName = trim(($row->user_first_name ?? '') . ' ' . ($row->user_last_name ?? '') . ' - ' . ($row->phoneNumber ?? ''));
                 }
                 // Always try JSON as fallback (in case join didn't match)
                 if (empty($clientName)) {
-                    $clientName = $this->extractNameFromJson($row->author);
+                    $clientName = $this->extractNameFromJson($row->author, true);
                 }
 
                 if (empty($clientName)) {
@@ -165,6 +165,8 @@ class OrderController extends Controller
                 // Amount
                 $amountValue = $this->resolveAmount($row);
                 $amountText = $this->formatCurrency($amountValue);
+
+                $zone = !empty($row->zoneName) ? $row->zoneName : '-';
 
                 // Date render - Format like "Oct 1, 2025 11:27 PM"
                 $dateText = '';
@@ -277,6 +279,7 @@ class OrderController extends Controller
                     }
                 }
 
+
                 // Date column
                 $rowCells[] = '<span class="dt-time">' . e($dateText) . '</span>';
 
@@ -302,6 +305,8 @@ class OrderController extends Controller
                 // Status column with proper styling
                 $statusClass = $this->getStatusClass($statusText);
                 $rowCells[] = '<span class="' . e($statusClass) . '"><span>' . e($statusText) . '</span></span>';
+
+                $rowCells[] = $zone;
 
                 // Actions column
                 $actionHtml = '<span class="action-btn">';
@@ -1056,17 +1061,44 @@ class OrderController extends Controller
         return $default;
     }
 
-    private function extractNameFromJson($json)
+//    private function extractNameFromJson($json)
+//    {
+//        if (empty($json)) return '';
+//        try {
+//            $data = is_string($json) ? json_decode($json, true) : $json;
+//            if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
+//                $first = (string) ($data['firstName'] ?? '');
+//                $last = (string) ($data['lastName'] ?? '');
+//                $phone = (string) ($data['phoneNumber'] ?? '');
+//                return trim(($first . ' ' . $last . ' ' . $phone));
+//            }
+//        } catch (\Throwable $e) {}
+//        return '';
+//    }
+    private function extractNameFromJson($json, $includePhone = false)
     {
         if (empty($json)) return '';
+
         try {
             $data = is_string($json) ? json_decode($json, true) : $json;
+
             if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
+
                 $first = (string) ($data['firstName'] ?? '');
                 $last = (string) ($data['lastName'] ?? '');
-                return trim(($first . ' ' . $last));
+                $phone = (string) ($data['phoneNumber'] ?? '');
+
+                $name = trim($first . ' ' . $last);
+
+                if ($includePhone && !empty($phone)) {
+                    $name .= ' - ' . $phone;
+                }
+
+                return $name;
             }
+
         } catch (\Throwable $e) {}
+
         return '';
     }
 
@@ -1474,7 +1506,7 @@ class OrderController extends Controller
 
     public function getLatestOrderId()
     {
-        $last = Cache::remember('latest_order_id', 30, function () {
+        $last = Cache::remember('latest_order_id', 1, function () {
             return DB::table('restaurant_orders')
             ->select('id')
             ->orderByRaw('CAST(SUBSTRING(id, 6) AS UNSIGNED) DESC') // from "Jippy30001018"

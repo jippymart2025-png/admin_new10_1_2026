@@ -212,6 +212,7 @@
                                                 <th>{{trans('lang.food_restaurant_id')}}</th>
                                             @endif
                                             <th>{{trans('lang.food_category_id')}}</th>
+                                            <th>Available Days</th>
                                             <th>Options</th>
                                             <th>{{trans('lang.food_publish')}}</th>
                                             <th>Available</th>
@@ -495,6 +496,23 @@
                         data: 'category_name',
                         render: function (data, type, row) {
                             return data || '-';
+                        }
+                    },
+                    {
+                        data: 'available_days',
+                        render: function (data, type, row) {
+
+                            if (!data || data.length === 0) {
+                                return '<span class="badge badge-secondary">No Days</span>';
+                            }
+
+                            let html = '';
+
+                            data.forEach(day => {
+                                html += `<div class="small text-muted">${day}</div>`;
+                            });
+
+                            return html;
                         }
                     },
                     {

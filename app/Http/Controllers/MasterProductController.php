@@ -325,7 +325,7 @@ class MasterProductController extends Controller
                 'mp.has_options',
                 'mp.options',
                 'vc.title as category_name'
-            );
+            )->orderBy('mp.created_at', 'desc');
 
         if ($categoryFilter) {
             $query->where('mp.categoryID', $categoryFilter);

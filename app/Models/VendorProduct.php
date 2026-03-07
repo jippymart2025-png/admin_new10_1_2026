@@ -51,6 +51,7 @@ class VendorProduct extends Model
         'updated_at',
         'categoryTitle',
         'vendorTitle',
+        'available_days',
     ];
 
     protected $casts = [

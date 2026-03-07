@@ -1249,8 +1249,8 @@
                             url: '/api/users/' + restaurant.author,
                             type: 'GET',
                             success: function (userResponse) {
-                                if (userResponse.success && userResponse.data) {
-                                    var user = userResponse.data;
+                                if (userResponse.success && userResponse.user) {
+                                    var user = userResponse.user;
 
                                     $(".vendor_name").text(
                                         (user.firstName || '') + ' ' + (user.lastName || '')
@@ -1261,7 +1261,7 @@
                                     );
 
                                     $(".vendor_phoneNumber").text(
-                                        user.phone ? shortEditNumber(user.phone) : ''
+                                        user.phoneNumber ? shortEditNumber(user.phoneNumber) : ''
                                     );
                                 }
                             }

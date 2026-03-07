@@ -62,6 +62,12 @@ class FoodController extends Controller
                 : $food->options;
         }
 
+        $availableTimings = [];
+        if (!empty($food->available_timings )) {
+            $availableTimings = is_string($food->available_timings )
+                ? json_decode($food->available_timings , true)
+                : $food->available_timings;
+        }
 
         return view('foods.edit', [
             'food' => $food,
@@ -69,6 +75,7 @@ class FoodController extends Controller
             'restaurants' => $restaurants,
             'categories' => $categories,
             'attributes' => $attributes,
+            'availableTimings' => $availableTimings,
         ]);
     }
 
@@ -129,6 +136,7 @@ class FoodController extends Controller
                 'vp.nonveg',
                 'vp.isAvailable',
                 'vp.options',
+                'vp.available_days',
                 'v.title as restaurant_name',
                 'vc.title as category_name'
             );
@@ -198,6 +206,13 @@ class FoodController extends Controller
 
             $optionsCount = count($optionsArray);
 
+            $availableDays = [];
+            if (!empty($food->available_days )) {
+                $availableDays = is_string($food->available_days )
+                    ? json_decode($food->available_days , true)
+                    : $food->available_days;
+            }
+
 
             return [
                 'id' => $food->id,
@@ -216,6 +231,7 @@ class FoodController extends Controller
                 'isAvailable' => (bool)$food->isAvailable,
                 'has_options' => $optionsCount > 0,
                 'options_count' => $optionsCount,
+                'available_days' => $availableDays,
             ];
         });
 

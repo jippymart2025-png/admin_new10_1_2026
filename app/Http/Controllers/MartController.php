@@ -13,7 +13,7 @@ class MartController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth');
+        $this->middleware('auth')->except(['getMartVendors']);
     }
 
     public function index()
@@ -443,7 +443,6 @@ class MartController extends Controller
             $vendors = DB::table('users')
                 ->where('role', 'vendor')
                 ->where('vType', 'mart')
-                ->whereIn('active', ['true', '1', 1, true])
                 ->orderBy('firstName', 'asc')
                 ->get(['id', 'firstName', 'lastName', 'vendorID'])
                 ->map(function($vendor) {
@@ -462,11 +461,34 @@ class MartController extends Controller
                 'data' => $vendors
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error fetching mart vendors: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+    public function destroy($id)
+    {
+        try {
+
+            DB::table('vendors')->where('id', $id)->where('vType', 'mart')->delete();
+
+            DB::table('users')->where('vendorID', $id)->update([
+                'vendorID' => null
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Mart deleted successfully'
+            ]);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ],500);
+
         }
     }
 }

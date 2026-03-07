@@ -621,7 +621,7 @@
 
                                 if (checkDeletePermission) {
                                     row.push(
-                                        '<input type="checkbox" class="is_open" dataId="' + id + '">'
+                                            '<input type="checkbox" id="is_open_' + id + '" class="is_open" dataId="' + id + '"><label class="col-3 control-label" for="is_open_' + id + '"></label>'
                                     );
                                 }
 
@@ -870,7 +870,7 @@
                     type="checkbox"
                     id="order_col_${index}"
                     data-col="${index}"
-                    ${column ? 'checked' : ''}>
+                    ${column.visible() ? 'checked' : ''}>
                 <label class="form-check-label" for="order_col_${index}">
                     ${title}
                 </label>

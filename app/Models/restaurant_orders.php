@@ -38,6 +38,7 @@ class restaurant_orders extends Model
 
         $query = DB::table('restaurant_orders as ro')
             ->leftJoin('vendors as v', 'v.id', '=', 'ro.vendorID')
+            ->leftJoin('zone as z', 'z.id', '=', 'v.zoneId')
             ->leftJoin('users as u_client', 'u_client.id', '=', 'ro.authorID')
             ->leftJoin('users as u_driver', 'u_driver.id', '=', 'ro.driverID')
             ->select(
@@ -54,6 +55,7 @@ class restaurant_orders extends Model
                 'v.title as vendor_title',
                 'v.vType as vendor_type',
                 'v.zoneId as vendor_zone_id',
+                'z.name as zoneName',
                 'u_client.firstName as user_first_name',
                 'u_client.lastName as user_last_name',
                 'u_client.phoneNumber as client_phone',

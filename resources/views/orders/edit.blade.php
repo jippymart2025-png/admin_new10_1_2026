@@ -916,21 +916,38 @@
                 $('#driver_phone').text(shortEditNumber(order.driver.phoneNumber));
                 var zoneName = order.zone_name || (order.driver && order.driver.zone) || '';
                 $("#zone_name").text(zoneName);
-
-                // Hide manual assignment section when driver is already assigned
-                $('#manual_driver_assignment_section').hide();
-                $('#assign_driver_button_section').hide();
             } else {
-                // MySQL-based: populate vendor and product sections even when no driver is assigned
+                // No driver assigned: clear driver details area
                 $('.order_edit-genrl').removeClass('col-md-7').addClass('col-md-7');
                 $('.order_addre-edit').removeClass('col-md-5').addClass('col-md-5');
                 $('.driver_details_hide').empty();
+            }
 
-                // Show manual assignment section when no driver is assigned
+            // Assign/Remove driver section: show until order is completed; when driver assigned show Remove button
+            var orderStatus = (order.status || '').trim();
+            var completedStatuses = ['Order Completed', 'Refund Completed', 'order completed', 'refund completed','Order Canceled'];
+            var isOrderCompleted = completedStatuses.indexOf(orderStatus) >= 0;
+            var hasDriver = (order.driver != '' && order.driver != undefined) && (order.takeAway == false);
+
+            if (isOrderCompleted) {
+                // Hide assign/remove section only when order is completed
+                $('#manual_driver_assignment_section').hide();
+                $('#assign_driver_button_section').hide();
+            } else {
+                // Keep section visible until order is completed; show Remove when driver assigned
                 $('#manual_driver_assignment_section').show();
                 $('#assign_driver_button_section').show();
-                $('#assign_driver_btn').show();
-                $('#remove_driver_btn').hide();
+                if (hasDriver) {
+                    $('#assign_driver_btn').show();
+                    $('#remove_driver_btn').show();
+                    var currentDriverId = order.driverID || order.driver?.id || '';
+                    if (currentDriverId) {
+                        $('#driver_selector').val(currentDriverId);
+                    }
+                } else {
+                    $('#assign_driver_btn').show();
+                    $('#remove_driver_btn').hide();
+                }
             }
 
             // --- MySQL-based: Vendor details fill ---

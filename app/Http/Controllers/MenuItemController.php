@@ -79,13 +79,25 @@ class MenuItemController extends Controller
         $filteredRecords = (clone $q)->count();
         $rows = $q->orderBy('set_order','asc')->orderBy('title','asc')->offset($start)->limit($length)->get();
 
+        // Preload all zones once to avoid changing existing create/update flows
+        $zoneNames = Zone::query()
+            ->select('id', 'name')
+            ->get()
+            ->pluck('name', 'id');
+
         $items = [];
         foreach ($rows as $r) {
+            $zoneTitle = trim((string) ($r->zoneTitle ?? ''));
+            if ($zoneTitle === '' && !empty($r->zoneId)) {
+                // Fallback to zone name from zones table when zoneTitle is not stored
+                $zoneTitle = (string) ($zoneNames[$r->zoneId] ?? 'No Zone');
+            }
+
             $items[] = [
                 'id' => $r->id,
                 'title' => (string) ($r->title ?? ''),
                 'position' => (string) ($r->position ?? ''),
-                'zoneTitle' => (string) ($r->zoneTitle ?? 'No Zone'),
+                'zoneTitle' => $zoneTitle,
                 'is_publish' => (bool) ($r->is_publish ?? 0),
                 'photo' => (string) ($r->photo ?? ''),
             ];

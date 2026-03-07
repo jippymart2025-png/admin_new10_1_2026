@@ -1465,6 +1465,19 @@
                                             </tr>
                                             <tr>
                                                 <td>
+                                                    <strong>Coins</strong>
+                                                </td>
+                                                <td>
+                                                    <input type="checkbox" id="coins"
+                                                           value="coins" name="coins[]"
+                                                           class="permission"
+                                                        {{ in_array('coins', $permissions) ? 'checked' : '' }}>
+                                                    <label class="control-label2"
+                                                           for="coins">{{ trans('lang.update') }}</label>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>
                                                     <strong>{{ trans('lang.documentVerification') }}</strong>
                                                 </td>
                                                 <td>

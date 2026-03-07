@@ -130,142 +130,50 @@
 @endsection
 @section('scripts')
 <script>
-    var database = firebase.firestore();
-    var ref = database.collection('settings').doc('PaytmSettings');
-    var codData = database.collection('settings').doc('CODSettings');
-    var razorpayData = database.collection('settings').doc('razorpaySettings');
-    var stripeData = database.collection('settings').doc('stripeSettings');
-    var paypalData = database.collection('settings').doc('paypalSettings');
-    var walletData = database.collection('settings').doc('walletSettings');
-    var payFastSettings = database.collection('settings').doc('payFastSettings');
-    var payStackSettings = database.collection('settings').doc('payStack');
-    var flutterWaveSettings = database.collection('settings').doc('flutterWave');
-    var MercadopagoSettings = database.collection('settings').doc('MercadoPago');
-    var xenditSettings = database.collection('settings').doc('xendit_settings');
-    var orangePaySettings = database.collection('settings').doc('orange_money_settings');
-    var midtransSettings = database.collection('settings').doc('midtrans_settings');
-    $(document).ready(function () {
-        jQuery("#data-table_processing").show();
-        ref.get().then(async function (snapshots) {
-            var paytm = snapshots.data();
-            if (paytm == undefined) {
-                database.collection('settings').doc('PaytmSettings').set({});
+        $(document).ready(function () {
+
+        // Load Paytm settings from MySQL
+        $.get("{{ url('api/paytm/settings') }}", function (data) {
+
+            if (data.isEnabled) {
+                $(".enable_paytm").prop('checked', true);
+                $(".paytm_active_label span")
+                    .addClass('badge-success')
+                    .text('Active');
             }
-            try {
-                if (paytm.isEnabled) {
-                    $(".enable_paytm").prop('checked', true);
-                    jQuery(".paytm_active_label span").addClass('badge-success');
-                    jQuery(".paytm_active_label span").text('Active');
-                }
-                if (paytm.isSandboxEnabled) {
-                    $('.enable_paytm_sendbox').prop('checked', true);
-                }
-                $('.paytm_merchant_key').val(paytm.PAYTM_MERCHANT_KEY);
-                $('.paytm_id').val(paytm.PaytmMID);
-                codData.get().then(async function (codSnapshots) {
-                    var cod = codSnapshots.data();
-                    if (cod.isEnabled) {
-                        jQuery(".cod_active_label span").addClass('badge-success');
-                        jQuery(".cod_active_label span").text('Active');
-                    }
-                })
-                razorpayData.get().then(async function (razorpaySnapshots) {
-                    var razorPay = razorpaySnapshots.data();
-                    if (razorPay.isEnabled) {
-                        jQuery(".razorpay_active_label span").addClass('badge-success');
-                        jQuery(".razorpay_active_label span").text('Active');
-                    }
-                })
-                stripeData.get().then(async function (stripeSnapshots) {
-                    var stripe = stripeSnapshots.data();
-                    if (stripe.isEnabled) {
-                        jQuery(".stripe_active_label span").addClass('badge-success');
-                        jQuery(".stripe_active_label span").text('Active');
-                    }
-                })
-                paypalData.get().then(async function (paypalSnapshots) {
-                    var paypal = paypalSnapshots.data();
-                    if (paypal.isEnabled) {
-                        jQuery(".paypal_active_label span").addClass('badge-success');
-                        jQuery(".paypal_active_label span").text('Active');
-                    }
-                })
-                walletData.get().then(async function (walletSnapshots) {
-                    var wallet = walletSnapshots.data();
-                    if (wallet.isEnabled) {
-                        jQuery(".wallet_active_label span").addClass('badge-success');
-                        jQuery(".wallet_active_label span").text('Active');
-                    }
-                })
-                payFastSettings.get().then(async function (payFastSnapshots) {
-                    var payFast = payFastSnapshots.data();
-                    if (payFast.isEnable) {
-                        jQuery(".payfast_active_label span").addClass('badge-success');
-                        jQuery(".payfast_active_label span").text('Active');
-                    }
-                })
-                payStackSettings.get().then(async function (payStackSnapshots) {
-                    var payStack = payStackSnapshots.data();
-                    if (payStack.isEnable) {
-                        jQuery(".paystack_active_label span").addClass('badge-success');
-                        jQuery(".paystack_active_label span").text('Active');
-                    }
-                })
-                flutterWaveSettings.get().then(async function (flutterWaveSnapshots) {
-                    var flutterWave = flutterWaveSnapshots.data();
-                    if (flutterWave.isEnable) {
-                        jQuery(".flutterWave_active_label span").addClass('badge-success');
-                        jQuery(".flutterWave_active_label span").text('Active');
-                    }
-                })
-                MercadopagoSettings.get().then(async function (mercadopagoSnapshots) {
-                    var mercadopago = mercadopagoSnapshots.data();
-                    if (mercadopago.isEnabled) {
-                        jQuery(".mercadopago_active_label span").addClass('badge-success');
-                        jQuery(".mercadopago_active_label span").text('Active');
-                    }
-                })
-                xenditSettings.get().then(async function (xenditSnapshots) {
-                    var xendit = xenditSnapshots.data();
-                    if (xendit.enable) {
-                        jQuery(".xendit_active_label span").addClass('badge-success');
-                        jQuery(".xendit_active_label span").text('Active');
-                    }
-                })
-                orangePaySettings.get().then(async function (orangePaySnapshots) {
-                    var orangePay = orangePaySnapshots.data();
-                    if (orangePay.enable) {
-                        jQuery(".orangepay_active_label span").addClass('badge-success');
-                        jQuery(".orangepay_active_label span").text('Active');
-                    }
-                })
-                midtransSettings.get().then(async function (midtransSnapshots) {
-                    var midtrans = midtransSnapshots.data();
-                    if (midtrans.enable) {
-                        jQuery(".midtrans_active_label span").addClass('badge-success');
-                        jQuery(".midtrans_active_label span").text('Active');
-                    }
-                })
-            } catch (error) {
+
+            if (data.isSandboxEnabled) {
+                $(".enable_paytm_sendbox").prop('checked', true);
             }
-            jQuery("#data-table_processing").hide();
-        })
+
+            $(".paytm_merchant_key").val(data.PAYTM_MERCHANT_KEY);
+            $(".paytm_id").val(data.PaytmMID);
+
+        });
+
+        // Save settings
         $(".edit-setting-btn").click(function () {
-            var isenabled = $(".enable_paytm").is(":checked");
-            var paytmId = "";
-            var paytmMerchanty = "";
-            var isSandboxEnabled = $('.enable_paytm_sendbox').is(':checked');
-            var merchantID = $('.paytm_merchant_key').val();
-            var paytmID = $('.paytm_id').val();
-            database.collection('settings').doc("PaytmSettings").update({
-                'isEnabled': isenabled,
-                'PAYTM_MERCHANT_KEY': merchantID,
-                'isSandboxEnabled': isSandboxEnabled,
-                'PaytmMID': paytmID,
-            }).then(function (result) {
-                window.location.href = '{{ url("settings/payment/paytm")}}';
-            });
-        })
-    })
+
+        $.ajax({
+        url: "{{ url('api/paytm/settings') }}",
+        type: "POST",
+        data: {
+        _token: "{{ csrf_token() }}",
+        isEnabled: $(".enable_paytm").is(":checked") ? 1 : 0,
+        isSandboxEnabled: $(".enable_paytm_sendbox").is(":checked") ? 1 : 0,
+        PAYTM_MERCHANT_KEY: $(".paytm_merchant_key").val(),
+        PaytmMID: $(".paytm_id").val()
+    },
+        success: function (res) {
+        if (res.success) {
+        alert("Paytm settings saved successfully");
+        location.reload();
+    }
+    }
+    });
+
+    });
+
+    });
 </script>
 @endsection

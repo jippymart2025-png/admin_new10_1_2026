@@ -68,9 +68,10 @@ Route::middleware(['permission:marts,marts.edit'])->group(function () {
 Route::middleware(['permission:marts,marts.view'])->group(function () {
     Route::get('/marts/view/{id}', [App\Http\Controllers\MartController::class, 'view'])->name('marts.view');
 });
+Route::delete('/marts/{id}', [App\Http\Controllers\MartController::class, 'destroy'])->name('marts.destroy');
 Route::get('/marts/foods/{id}', [App\Http\Controllers\MartController::class, 'foods'])->name('marts.foods');
 Route::get('/marts/orders/{id}', [App\Http\Controllers\MartController::class, 'orders'])->name('marts.orders');
-Route::get('/api/marts/vendors', [App\Http\Controllers\MartController::class, 'getMartVendors'])->name('api.marts.vendors');
+Route::get('/marts/vendors', [App\Http\Controllers\MartController::class, 'getMartVendors'])->name('api.marts.vendors');
 Route::get('/marts/categories', [App\Http\Controllers\MartController::class, 'getCategories'])->name('marts.categories');
 
 // Restaurant Schedule Routes have been removed - auto-schedule functionality disabled
@@ -735,7 +736,6 @@ Route::middleware(['permission:payout-request,payoutRequests.restaurants'])->gro
 Route::get('order_transactions', [App\Http\Controllers\PaymentController::class, 'index'])->name('order_transactions');
 Route::get('/order_transactions/{id}', [App\Http\Controllers\PaymentController::class, 'index'])->name('order_transactions.index');
 
-
 // Activity Log Routes
 Route::middleware(['permission:activity-logs,activity-logs'])->group(function () {
     Route::get('/activity-logs', [App\Http\Controllers\ActivityLogController::class, 'index'])->name('activity-logs');
@@ -1180,6 +1180,8 @@ Route::prefix('cache-test')->group(function () {
     Route::get('/config', [App\Http\Controllers\CacheTestController::class, 'getCacheConfig'])->name('cache-test.config');
 });
 
+Route::get('/settings/zone-payment/data', [App\Http\Controllers\SettingsController::class, 'getZonePaymentSettings'])->name('settings.zone.payment.data');
+Route::post('/settings/zone-payment/update', [App\Http\Controllers\SettingsController::class, 'updateZonePaymentSettings'])->name('settings.zone.payment.update');
 Route::middleware(['permission:payment-method,payment-method'])->group(function () {
     // Payment Gateway SQL API Routes
     Route::get('api/stripe/settings', [App\Http\Controllers\SettingsController::class, 'getStripeSettings'])->name('api.stripe.settings');
@@ -1563,5 +1565,5 @@ Route::prefix('cache-test')->group(function () {
     Route::get('/config', [App\Http\Controllers\CacheTestController::class, 'getCacheConfig'])->name('cache-test.config');
 
 });
-Route::get('/users/data/{id}', [App\Http\Controllers\AdminUserController::class, 'userData']);
+//Route::get('/users/data/{id}', [App\Http\Controllers\AdminUserController::class, 'userData']);
 Route::post('/add/wallet_coins/{id}', [App\Http\Controllers\AdminUserController::class, 'addWalletCoins'])->name('add.wallet.coins');

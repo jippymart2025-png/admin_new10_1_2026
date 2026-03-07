@@ -378,10 +378,45 @@
                     extend: 'collection',
                     text: '<i class="mdi mdi-cloud-download"></i> Export as',
                     className: 'btn btn-info',
+                    // buttons: [
+                    //     { extend: 'excelHtml5', text: 'Export Excel', action: function (e, dt) {
+                    //         exportData(dt, 'excel', fieldConfig);
+                    //     }
+                    //     },
+                    //     { extend: 'pdfHtml5', text: 'Export PDF', action: function (e, dt) {
+                    //         exportData(dt, 'pdf', fieldConfig);
+                    //     }
+                    //     },
+                    //     { extend: 'csvHtml5', text: 'Export CSV', action: function (e, dt) {
+                    //         exportData(dt, 'csv', fieldConfig);
+                    //     }
+                    //     }
+                    // ]
                     buttons: [
-                        { extend: 'excelHtml5', text: 'Export Excel', action: function (e, dt) { exportData(dt, 'excel', fieldConfig); } },
-                        { extend: 'pdfHtml5', text: 'Export PDF', action: function (e, dt) { exportData(dt, 'pdf', fieldConfig); } },
-                        { extend: 'csvHtml5', text: 'Export CSV', action: function (e, dt) { exportData(dt, 'csv', fieldConfig); } }
+                        {
+                            extend: 'excelHtml5',
+                            text: 'Export Excel',
+                            exportOptions: {
+                                columns: ':visible:not(:first-child):not(:last-child)'
+                            },
+                            title: 'mart',
+                        },
+                        {
+                            extend: 'pdfHtml5',
+                            text: 'Export PDF',
+                            exportOptions: {
+                                columns: ':visible:not(:first-child):not(:last-child)'
+                            },
+                            title: 'mart',
+                        },
+                        {
+                            extend: 'csvHtml5',
+                            text: 'Export CSV',
+                            exportOptions: {
+                                columns: ':visible:not(:first-child):not(:last-child)'
+                            },
+                            title: 'mart',
+                        }
                     ]
                 }
             ],
@@ -675,23 +710,55 @@
         var url = $(this).attr('data-url');
         window.location.href = url;
     });
+    {{--$(document).on("click", "a[name='vendor-delete']", function (e) {--}}
+    {{--    var id = this.id;--}}
+    {{--    jQuery("#data-table_processing").show();--}}
+    {{--    var author = $(this).attr('author');--}}
+    {{--    if (confirm("{{trans('lang.selected_delete_alert')}}")) {--}}
+    {{--        deleteDocumentWithImage('vendors', id, "photo", ['restaurantMenuPhotos', 'photos'])--}}
+    {{--        .then(() => {--}}
+    {{--            return deleteStoreData(id);--}}
+    {{--        })--}}
+    {{--        .then(() => {--}}
+    {{--            window.location.reload();--}}
+    {{--        })--}}
+    {{--        .catch((error) => {--}}
+    {{--            console.error('Error deleting document with image or store data:', error);--}}
+    {{--        });--}}
+    {{--    }--}}
+    {{--});--}}
+
     $(document).on("click", "a[name='vendor-delete']", function (e) {
-        var id = this.id;
-        jQuery("#data-table_processing").show();
-        var author = $(this).attr('author');
-        if (confirm("{{trans('lang.selected_delete_alert')}}")) {
-            deleteDocumentWithImage('vendors', id, "photo", ['restaurantMenuPhotos', 'photos'])
-            .then(() => {
-                return deleteStoreData(id);
-            })
-            .then(() => {
-                window.location.reload();
-            })
-            .catch((error) => {
-                console.error('Error deleting document with image or store data:', error);
+
+        e.preventDefault();
+
+        var id = $(this).attr("id");
+
+        if(confirm("Are you sure you want to delete this mart?")){
+
+            $.ajax({
+                url: "/marts/" + id,
+                type: "DELETE",
+                data:{
+                    _token: "{{ csrf_token() }}"
+                },
+                success:function(response){
+
+                    if(response.success){
+                        alert(response.message);
+                        $('#storeTable').DataTable().ajax.reload();
+                    }
+
+                },
+                error:function(){
+                    alert("Delete failed");
+                }
             });
+
         }
+
     });
+
     async function deleteStoreData(storeId) {
         await database.collection('users').where('vendorID', '==', storeId).get().then(async function (userssanpshots) {
             if (userssanpshots.docs.length > 0) {

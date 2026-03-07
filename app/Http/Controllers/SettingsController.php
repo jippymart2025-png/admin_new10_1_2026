@@ -2320,4 +2320,38 @@ class SettingsController extends Controller
             return ['selectedMapType' => 'google'];
         }
     }
+    public function getZonePaymentSettings()
+    {
+        $rec = DB::table('settings')
+            ->where('document_name', 'ZonePaymentSettings')
+            ->first();
+
+        $fields = $rec && $rec->fields ? json_decode($rec->fields, true) : [];
+
+        return response()->json($fields ?: []);
+    }
+    public function updateZonePaymentSettings(Request $request)
+    {
+        $zoneId = $request->zone_id;
+
+        $rec = DB::table('settings')
+            ->where('document_name', 'ZonePaymentSettings')
+            ->first();
+
+        $fields = $rec && $rec->fields ? json_decode($rec->fields, true) : [];
+
+        $fields[$zoneId] = [
+            'cod' => $request->boolean('cod'),
+            'razorpay' => $request->boolean('razorpay')
+        ];
+
+        DB::table('settings')->updateOrInsert(
+            ['document_name' => 'ZonePaymentSettings'],
+            [
+                'fields' => json_encode($fields, JSON_UNESCAPED_UNICODE)
+            ]
+        );
+
+        return response()->json(['success' => true]);
+    }
 }

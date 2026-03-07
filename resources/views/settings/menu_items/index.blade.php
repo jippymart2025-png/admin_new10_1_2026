@@ -26,7 +26,6 @@
                     </div>
                     <div class="d-flex top-title-right align-self-center">
                         <div class="select-box pl-3">
-
                         </div>
                     </div>
                 </div>

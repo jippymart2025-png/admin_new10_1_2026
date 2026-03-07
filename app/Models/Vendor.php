@@ -27,6 +27,7 @@ class Vendor extends Model
         'categoryPhoto',
         'zoneID',
         'photos',
+        'photo',
         'createdAt',
         'location',
         'isOpen',

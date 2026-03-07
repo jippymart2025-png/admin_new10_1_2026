@@ -875,7 +875,8 @@ class UserController extends Controller
     public function getUserData($id)
     {
         try {
-            $user = User::where('firebase_id', $id)
+            $user = User::with(['referredBy'])
+                 ->where('firebase_id', $id)
                 ->orWhere('id', $id)
                 ->orWhere('_id', $id)
                 ->first();
@@ -918,6 +919,14 @@ class UserController extends Controller
                 \Log::debug('User data: wallet skipped: ' . $e->getMessage());
             }
 
+            $referredBy = null;
+            if ($user->referredBy) {
+                $referredBy = [
+                    'name'  => trim(($user->referredBy->firstName ?? '') . ' ' . ($user->referredBy->lastName ?? '')),
+                    'email' => $user->referredBy->email ?? '',
+                ];
+            }
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -936,7 +945,7 @@ class UserController extends Controller
                     'isActive' => $user->isActive ?? false,
                     'createdAt' => $user->createdAt ?? null,
                     'totalOrders' => $totalOrders,
-                    'referredBy' => null,
+                    'referredBy' => $referredBy,
                 ]
             ]);
         } catch (\Throwable $e) {
@@ -1212,17 +1221,27 @@ class UserController extends Controller
 
     public function getUserById($id)
     {
-        $user = AppUser::where('role', 'vendor')
-                ->where('firebase_id', $id)
+        $user = User::where('role', 'vendor')
+//                ->where('firebase_id', $id)
+//            ->where('id', $id) // ✅ FIXED HERE
+            ->where(function ($query) use ($id) {
+                $query->where('id', $id)
+                    ->orWhere('firebase_id', $id);
+            })
             ->select(
                 'firebase_id',
                 'id',
                 'email',
                 'firstName',
                 'lastName',
-                'phoneNumber'
+                'phoneNumber',
+                'subscriptionPlanId',
+                'subscription_plan',
+                'subscriptionExpiryDate',
+                'profilePictureURL'
             )
             ->first();
+
 
         if (!$user) {
             return response()->json([
@@ -1236,4 +1255,5 @@ class UserController extends Controller
             'user' => $user
         ]);
     }
+
 }

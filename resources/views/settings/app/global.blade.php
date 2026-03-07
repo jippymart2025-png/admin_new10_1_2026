@@ -266,6 +266,46 @@
                         </div>
 
                     </fieldset>
+
+                    <fieldset>
+                        <legend><i class="mr-3 mdi mdi-account-location"></i>Zone Payment Settings</legend>
+
+                        <!-- Zone Select -->
+                        <div class="form-group row width-100">
+                            <label class="col-3 control-label">Select Zone</label>
+                            <div class="col-7">
+                                <select id="zone_id" class="form-control">
+                                    <option value="">Select Zone</option>
+
+                                    @foreach(DB::table('zone')->where('publish',1)->orderBy('name')->get() as $zone)
+                                        <option value="{{ $zone->id }}">{{ $zone->name }}</option>
+                                    @endforeach
+
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- COD -->
+                        <div class="form-group row width-100">
+                            <div class="form-check width-100">
+                                <input type="checkbox" class="form-check-inline" id="zone_cod">
+                                <label class="col-5 control-label" for="zone_cod">
+                                    Enable COD
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Razorpay -->
+                        <div class="form-group row width-100">
+                            <div class="form-check width-100">
+                                <input type="checkbox" class="form-check-inline" id="zone_razorpay">
+                                <label class="col-5 control-label" for="zone_razorpay">
+                                    Enable Razorpay
+                                </label>
+                            </div>
+                        </div>
+
+                    </fieldset>
                     <fieldset>
                         <legend><i class="mr-3 mdi mdi-music-box"></i>{{ trans('lang.order_ringtone_setting') }}</legend>
                         <div class="form-group row width-100">
@@ -1278,6 +1318,72 @@
             }).fail(function() {
                 console.error('Failed to load map settings');
             });
+        });
+
+        $(document).ready(function(){
+
+            let zoneSettings={};
+
+            loadZoneSettings();
+
+            function loadZoneSettings(){
+
+                $.get('/settings/zone-payment/data',function(res){
+
+                    zoneSettings=res;
+
+                });
+
+            }
+
+            $("#zone_id").change(function(){
+
+                let zone=$(this).val();
+
+                if(zoneSettings[zone]){
+
+                    $("#zone_cod").prop("checked",zoneSettings[zone].cod);
+
+                    $("#zone_razorpay").prop("checked",zoneSettings[zone].razorpay);
+
+                }else{
+
+                    $("#zone_cod").prop("checked",false);
+                    $("#zone_razorpay").prop("checked",false);
+
+                }
+
+            });
+
+            $(".edit-setting-btn").click(function(){
+
+                let zone=$("#zone_id").val();
+
+                // if(!zone){
+                //     alert("Select zone");
+                //     return;
+                // }
+
+                $.post('/settings/zone-payment/update',{
+
+                    _token:"{{csrf_token()}}",
+
+                    zone_id:zone,
+
+                    cod:$("#zone_cod").is(":checked")?1:0,
+
+                    razorpay:$("#zone_razorpay").is(":checked")?1:0
+
+                },function(){
+
+                    alert("Zone cod and razorpay Saved successfully");
+
+                    loadZoneSettings();
+
+                });
+
+            });
+
         });
     </script>
 @endsection
