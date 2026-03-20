@@ -167,6 +167,7 @@
 
     var zoneIdToName = {};
     var zonesLoaded = false;
+    var allZoneIds = [];
 
 
     var loadZonesPromise = new Promise(function (resolve) {
@@ -179,9 +180,17 @@
                 console.log('📊 Zones API response:', response);
 
                 $('#zone-checkbox-container').empty();
+                allZoneIds = [];
 
                 if (response.data && response.data.length > 0) {
+                    var allZonesHtml = '<div class="form-check mb-2 border-bottom pb-2">' +
+                        '<input class="form-check-input" type="checkbox" id="zone_all">' +
+                        '<label class="form-check-label font-weight-bold" for="zone_all">All Zones</label>' +
+                        '</div>';
+                    $('#zone-checkbox-container').append(allZonesHtml);
+
                     response.data.forEach(function (zone) {
+                        allZoneIds.push(String(zone.id));
                         zoneIdToName[zone.id] = zone.name;
 
                         var checkboxHtml = '<div class="form-check mb-2">' +
@@ -212,7 +221,11 @@
     });
     function updateZoneCount() {
         let count = $('.zone-checkbox:checked').length;
-        $('#zone-count').text(count + ' zones selected');
+        if ($('#zone_all').is(':checked')) {
+            $('#zone-count').text('All zones selected');
+        } else {
+            $('#zone-count').text(count + ' zones selected');
+        }
     }
 
 
@@ -282,10 +295,14 @@
 
             if (c.zone) {
                 try {
-                    couponZones = JSON.parse(c.zone);
+                    if (c.zone === 'all') {
+                        couponZones = 'all';
+                    } else {
+                        couponZones = JSON.parse(c.zone);
 
-                    if (typeof couponZones === "string") {
-                        couponZones = JSON.parse(couponZones);
+                        if (typeof couponZones === "string") {
+                            couponZones = JSON.parse(couponZones);
+                        }
                     }
 
                     console.log('📦 Coupon Zones:', couponZones);
@@ -295,6 +312,14 @@
             }
 
             loadZonesPromise.then(function () {
+                if (couponZones === 'all') {
+                    $('#zone_all').prop('checked', true);
+                    $('.zone-checkbox').prop('checked', true);
+                    updateZoneCount();
+                    loadRestaurantsByZones(allZoneIds, c.resturant_id);
+                    return;
+                }
+
                 $('.zone-checkbox').each(function () {
                     let zoneId = $(this).val();
 
@@ -326,6 +351,7 @@
         });
 
         $('#select-all-zones').click(function () {
+            $('#zone_all').prop('checked', true);
             $('.zone-checkbox').prop('checked', true);
             updateZoneCount();
             var sel = $('.zone-checkbox:checked').map(function(){ return $(this).val(); }).get();
@@ -335,12 +361,18 @@
         });
 
         $('#deselect-all-zones').click(function () {
+            $('#zone_all').prop('checked', false);
             $('.zone-checkbox').prop('checked', false);
             updateZoneCount();
             loadRestaurantsByZones([], null);
         });
 
         $(document).on('change', '.zone-checkbox', function () {
+            if (!$(this).is(':checked')) {
+                $('#zone_all').prop('checked', false);
+            } else if ($('.zone-checkbox').length > 0 && $('.zone-checkbox:checked').length === $('.zone-checkbox').length) {
+                $('#zone_all').prop('checked', true);
+            }
             var selectedZones = $('.zone-checkbox:checked').map(function(){ return $(this).val(); }).get();
             console.log('📍 Selected Zones:', selectedZones);
             if (selectedZones.length === 0) {
@@ -350,6 +382,18 @@
                 return;
             }
             loadRestaurantsByZones(selectedZones, $('#vendor_restaurant_select').val());
+        });
+
+        $(document).on('change', '#zone_all', function () {
+            var isChecked = $(this).is(':checked');
+            $('.zone-checkbox').prop('checked', isChecked);
+            updateZoneCount();
+
+            if (!isChecked) {
+                loadRestaurantsByZones([], null);
+                return;
+            }
+            loadRestaurantsByZones(allZoneIds, $('#vendor_restaurant_select').val());
         });
 
         $(".edit-form-btn").click(function(){
@@ -413,6 +457,8 @@
             $('.zone-checkbox:checked').each(function () {
                 selectedZones.push($(this).val());
             });
+            var isAllZonesSelected = $('#zone_all').is(':checked') ||
+                (allZoneIds.length > 0 && selectedZones.length === allZoneIds.length);
 
             if (selectedZones.length === 0) {
                 $(".error_top").show().html('<p>Please select at least one zone</p>');
@@ -435,7 +481,7 @@
             fd.append('expiresAt', expiresAt);
             fd.append('cType', couponType);
             fd.append('resturant_id', selectedVendor);
-            fd.append('zone', JSON.stringify(selectedZones));
+            fd.append('zone', isAllZonesSelected ? 'ALL' : JSON.stringify(selectedZones));
             fd.append('isPublic', $(".coupon_public").is(":checked") ? 1 : 0);
             fd.append('isEnabled', $(".coupon_enabled").is(":checked") ? 1 : 0);
             var f = document.querySelector('input[type=file]')?.files?.[0];
