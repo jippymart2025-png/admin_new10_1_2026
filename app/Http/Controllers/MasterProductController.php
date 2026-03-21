@@ -401,8 +401,6 @@ class MasterProductController extends Controller
                 'is_recommended' => (bool)$product->is_recommended,
                 'isAvailable' => (bool)($product->isAvailable ?? false),
                 'publish' => (bool)($product->publish ?? false),
-                // 🔴 ADD THESE ⬇⬇⬇
-                // ✅ ADD THESE
                 'has_options'   => (bool)$product->has_options,
                 'options_count' => count($options),
 //                'options'       => !empty($product->options)

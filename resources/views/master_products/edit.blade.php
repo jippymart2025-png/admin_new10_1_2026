@@ -239,6 +239,11 @@
                                         <input type="number" class="form-control option-original-price" min="0">
                                     </div>
 
+                                    <div class="col-md-4">
+                                        <label>Original Price 2(₹)</label>
+                                        <input type="number" class="form-control option-merchant-price" min="0">
+                                    </div>
+
                                     <div class="col-md-4 d-flex align-items-center mt-4">
                                         <div class="form-check mr-3">
                                             <input type="checkbox" class="form-check-input option-available" checked>
@@ -323,6 +328,7 @@
                 tpl.find('.option-subtitle').val(option.subtitle || '');
                 tpl.find('.option-price').val(option.price || 0);
                 tpl.find('.option-original-price').val(option.original_price || 0);
+                tpl.find('.option-merchant-price').val(option.merchant_price || 0);
                 tpl.find('.option-available').prop('checked', option.is_available);
                 tpl.find('.option-featured').prop('checked', option.is_featured);
 
@@ -350,6 +356,7 @@
                 subtitle: '',
                 price: 0,
                 original_price: 0,
+                merchant_price: 0,
                 is_available: true,
                 is_featured: false
             });
@@ -375,6 +382,7 @@
             el.find('.option-subtitle').on('input', e => optionsList[idx].subtitle = e.target.value);
             el.find('.option-price').on('input', e => optionsList[idx].price = parseFloat(e.target.value) || 0);
             el.find('.option-original-price').on('input', e => optionsList[idx].original_price = parseFloat(e.target.value) || 0);
+            el.find('.option-merchant-price').on('input', e => optionsList[idx].merchant_price = parseFloat(e.target.value) || 0);
             el.find('.option-available').on('change', e => optionsList[idx].is_available = e.target.checked);
 
             el.find('.option-featured').on('change', function () {

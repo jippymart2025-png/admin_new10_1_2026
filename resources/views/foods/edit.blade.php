@@ -299,6 +299,14 @@ $daysOfWeek = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Su
                                                        value="{{ old("options.$index.original_price", $option['original_price'] ?? 0) }}">
                                             </div>
 
+                                            <div class="col-md-4">
+                                                <label>Original Price 2(₹)</label>
+                                                <input type="number"
+                                                       name="options[{{ $index }}][merchant_price]"
+                                                       class="form-control"
+                                                       value="{{ old("options.$index.merchant_price", $option['merchant_price'] ?? 0) }}">
+                                            </div>
+
                                             <div class="col-md-4 d-flex align-items-center mt-4">
                                                 <div class="form-check mr-3">
                                                     <input type="checkbox"

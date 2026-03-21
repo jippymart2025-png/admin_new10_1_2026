@@ -1316,26 +1316,122 @@ class FoodController extends Controller
             $discountAmount = ($basePrice * $discount) / 100;
             $newPrice = $basePrice + $discountAmount;
 
+//            $options = [];
+//
+//            if (!empty($food->options)) {
+//                $options = is_string($food->options)
+//                    ? json_decode($food->options, true)
+//                    : $food->options;
+//
+//                foreach ($options as &$opt) {
+//
+//                    $optBase = $opt['original_price'] ?? $opt['price'];
+//
+//                    // save original
+//                    if (empty($opt['original_price']) || $opt['original_price'] == 0) {
+//                        $opt['original_price'] = $opt['price'];
+//                    }
+//
+//                    $optDiscount = ($optBase * $discount) / 100;
+//
+//                    // 👉 APPLY INCREASE (your logic)
+//                    $opt['price'] = round($optBase + $optDiscount, 2);
+//                }
+//            }
+            $options = [];
+
+            if (!empty($food->options)) {
+                $options = is_array($food->options)
+                    ? $food->options
+                    : json_decode($food->options, true);
+
+                foreach ($options as &$opt) {
+
+                    $optBase = (!empty($opt['merchant_price']) && $opt['merchant_price'] > 0)
+                        ? $opt['merchant_price']
+                        : $opt['price'];
+
+                    if (empty($opt['merchant_price']) || $opt['merchant_price'] == 0) {
+                        $opt['merchant_price'] = $opt['price'];
+                    }
+
+                    $optDiscount = ($optBase * $discount) / 100;
+                    $opt['price'] = round($optBase + $optDiscount, 2);
+                }
+            }
+
+// ✅ IMPORTANT: assign directly
+            $food->options = $options;
+
+            $food->price = round($newPrice, 2);
+            $food->original_price = $basePrice;
+
+            $food->save();
+
+
             $food->update([
                 'price' => round($newPrice, 2),
-                'original_price' => $basePrice
+                'merchant_price' => $basePrice,
+                'options' => json_encode($options)
+
             ]);
         }
 
         return back()->with('success', 'Discount applied successfully!');
     }
+//    public function resetDiscount($restaurantId)
+//    {
+//        $foods = VendorProduct::where('vendorID', $restaurantId)->get();
+//
+//        foreach ($foods as $food) {
+//            if ($food->original_price) {
+//                $food->update([
+//                    'price' => $food->original_price
+//                ]);
+//            }
+//        }
+//
+//        return back()->with('success', 'Discount removed and original price restored!');
+//    }
     public function resetDiscount($restaurantId)
     {
         $foods = VendorProduct::where('vendorID', $restaurantId)->get();
 
         foreach ($foods as $food) {
-            if ($food->original_price) {
-                $food->update([
-                    'price' => $food->original_price
-                ]);
+
+            // =========================
+            // ✅ RESET OPTIONS
+            // =========================
+            $options = [];
+
+            if (!empty($food->options)) {
+                $options = is_array($food->options)
+                    ? $food->options
+                    : json_decode($food->options, true);
+
+                foreach ($options as &$opt) {
+
+                    // restore original option price
+                    if (!empty($opt['merchant_price']) && $opt['merchant_price'] > 0) {
+                        $opt['price'] = $opt['merchant_price'];
+                    }
+                }
             }
+
+            // =========================
+            // ✅ RESET MAIN PRICE
+            // =========================
+            if (!empty($food->original_price)) {
+                $food->price = $food->original_price;
+            }
+
+            // =========================
+            // ✅ SAVE BOTH
+            // =========================
+            $food->options = $options;
+            $food->save();
         }
 
-        return back()->with('success', 'Discount removed and original price restored!');
+        return back()->with('success', 'Discount removed and original price restored (including options)!');
     }
 }
