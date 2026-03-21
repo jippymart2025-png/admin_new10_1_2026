@@ -126,8 +126,8 @@ Route::middleware(['permission:foods,foods'])->group(function () {
     Route::get('/foods/json/{id}', [App\Http\Controllers\FoodController::class, 'showJson'])->name('foods.json');
 });
 Route::get('/foods/export', [App\Http\Controllers\FoodController::class, 'export']);
-Route::post('/foods/{id}/apply-discount', [App\Http\Controllers\FoodController::class, 'applyDiscount'])->name('foods.applyDiscount');
-Route::post('/foods/{Id}/reset-discount', [App\Http\Controllers\FoodController::class, 'resetDiscount'])->name('foods.resetDiscount');
+//Route::post('/foods/{id}/apply-discount', [App\Http\Controllers\FoodController::class, 'applyDiscount'])->name('foods.applyDiscount');
+//Route::post('/foods/{Id}/reset-discount', [App\Http\Controllers\FoodController::class, 'resetDiscount'])->name('foods.resetDiscount');
 
 Route::middleware(['permission:foods,foods'])->group(function () {
     Route::get('/foods/{id}', [App\Http\Controllers\FoodController::class, 'index'])->name('restaurants.foods');

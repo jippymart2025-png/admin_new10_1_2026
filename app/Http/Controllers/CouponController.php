@@ -260,13 +260,13 @@ class CouponController extends Controller
             'image'=>'nullable|image',
         ]);
 
-        // ✅ CUSTOM RULE: item_value must be greater than discount
-        if ((float)$request->item_value <= (float)$request->discount) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Item value must be greater than discount value'
-            ], 422);
-        }
+//        // ✅ CUSTOM RULE: item_value must be greater than discount
+//        if ((float)$request->item_value <= (float)$request->discount) {
+//            return response()->json([
+//                'success' => false,
+//                'message' => 'Item value must be greater than discount value'
+//            ], 422);
+//        }
 
 
         $id = (string) Str::uuid();

@@ -1204,58 +1204,58 @@ class FoodController extends Controller
             $applyGst = !$vendor->gst;
 
             // ---------- UPDATE PRICES ----------
-//            $updated = DB::table('vendor_products')
-//                ->where('vendorID', $vendor->id)
-//                ->update([
-//                    'price' => DB::raw("
-//                    CASE
-//                        WHEN MOD(
-//                            merchant_price
-//                            + " . ($applyGst ? "(merchant_price * $gstPercent / 100)" : "0") . "
-//                            + (merchant_price * $commission / 100),
-//                            1
-//                        ) = 0.5
-//                        THEN FLOOR(
-//                            merchant_price
-//                            + " . ($applyGst ? "(merchant_price * $gstPercent / 100)" : "0") . "
-//                            + (merchant_price * $commission / 100)
-//                        )
-//                        ELSE ROUND(
-//                            merchant_price
-//                            + " . ($applyGst ? "(merchant_price * $gstPercent / 100)" : "0") . "
-//                            + (merchant_price * $commission / 100)
-//                        )
-//                    END
-//                ")
-//                ]);
-            $formula = "
-    CASE
-        WHEN MOD(
-            merchant_price
-            + " . ($applyGst ? "(merchant_price * $gstPercent / 100)" : "0") . "
-            + (merchant_price * $commission / 100),
-            1
-        ) = 0.5
-        THEN FLOOR(
-            merchant_price
-            + " . ($applyGst ? "(merchant_price * $gstPercent / 100)" : "0") . "
-            + (merchant_price * $commission / 100)
-        )
-        ELSE ROUND(
-            merchant_price
-            + " . ($applyGst ? "(merchant_price * $gstPercent / 100)" : "0") . "
-            + (merchant_price * $commission / 100)
-        )
-    END
-";
-
             $updated = DB::table('vendor_products')
                 ->where('vendorID', $vendor->id)
                 ->update([
-                    'price' => DB::raw($formula),
-                    'original_price' => DB::raw($formula), // ✅ reuse
+                    'price' => DB::raw("
+                    CASE
+                        WHEN MOD(
+                            merchant_price
+                            + " . ($applyGst ? "(merchant_price * $gstPercent / 100)" : "0") . "
+                            + (merchant_price * $commission / 100),
+                            1
+                        ) = 0.5
+                        THEN FLOOR(
+                            merchant_price
+                            + " . ($applyGst ? "(merchant_price * $gstPercent / 100)" : "0") . "
+                            + (merchant_price * $commission / 100)
+                        )
+                        ELSE ROUND(
+                            merchant_price
+                            + " . ($applyGst ? "(merchant_price * $gstPercent / 100)" : "0") . "
+                            + (merchant_price * $commission / 100)
+                        )
+                    END
+                ")
                 ]);
+//            $formula = "
+//    CASE
+//        WHEN MOD(
+//            merchant_price
+//            + " . ($applyGst ? "(merchant_price * $gstPercent / 100)" : "0") . "
+//            + (merchant_price * $commission / 100),
+//            1
+//        ) = 0.5
+//        THEN FLOOR(
+//            merchant_price
+//            + " . ($applyGst ? "(merchant_price * $gstPercent / 100)" : "0") . "
+//            + (merchant_price * $commission / 100)
+//        )
+//        ELSE ROUND(
+//            merchant_price
+//            + " . ($applyGst ? "(merchant_price * $gstPercent / 100)" : "0") . "
+//            + (merchant_price * $commission / 100)
+//        )
+//    END
+//";
 
+//            $updated = DB::table('vendor_products')
+//                ->where('vendorID', $vendor->id)
+//                ->update([
+//                    'price' => DB::raw($formula),
+//                    'original_price' => DB::raw($formula), // ✅ reuse
+//                ]);
+//
             return $updated; // ✅ number of products updated
 
         } catch (\Throwable $e) {
@@ -1292,93 +1292,71 @@ class FoodController extends Controller
 //
 //        return back()->with('success', 'Discount applied directly to price!');
 //    }
-    public function applyDiscount(Request $request, $restaurantId)
-    {
-        $request->validate([
-            'discount' => 'required|numeric|max:100',
-        ]);
-
-        $discount = $request->discount;
-
-        $foods = VendorProduct::where('vendorID', $restaurantId)->get();
-
-        foreach ($foods as $food) {
-
-            // ✅ use original price always
-            $basePrice = $food->original_price ?? $food->price;
-
-            // save original if empty
-            if (!$food->original_price) {
-                $food->original_price = $food->price;
-            }
-
-            // calculate
-            $discountAmount = ($basePrice * $discount) / 100;
-            $newPrice = $basePrice + $discountAmount;
-
+//    public function applyDiscount(Request $request, $restaurantId)
+//    {
+//        $request->validate([
+//            'discount' => 'required|numeric|max:100',
+//        ]);
+//
+//        $discount = $request->discount;
+//
+//        $foods = VendorProduct::where('vendorID', $restaurantId)->get();
+//
+//        foreach ($foods as $food) {
+//
+//            // ✅ use original price always
+//            $basePrice = $food->original_price ?? $food->price;
+//
+//            // save original if empty
+//            if (!$food->original_price) {
+//                $food->original_price = $food->price;
+//            }
+//
+//            // calculate
+//            $discountAmount = ($basePrice * $discount) / 100;
+//            $newPrice = round($basePrice + $discountAmount);
+//
 //            $options = [];
 //
 //            if (!empty($food->options)) {
-//                $options = is_string($food->options)
-//                    ? json_decode($food->options, true)
-//                    : $food->options;
+//                $options = is_array($food->options)
+//                    ? $food->options
+//                    : json_decode($food->options, true);
 //
 //                foreach ($options as &$opt) {
 //
-//                    $optBase = $opt['original_price'] ?? $opt['price'];
+//                    $optBase = (!empty($opt['merchant_price']) && $opt['merchant_price'] > 0)
+//                        ? $opt['merchant_price']
+//                        : $opt['price'];
 //
-//                    // save original
-//                    if (empty($opt['original_price']) || $opt['original_price'] == 0) {
-//                        $opt['original_price'] = $opt['price'];
+//                    if (empty($opt['merchant_price']) || $opt['merchant_price'] == 0) {
+//                        $opt['merchant_price'] = $opt['price'];
 //                    }
 //
 //                    $optDiscount = ($optBase * $discount) / 100;
-//
-//                    // 👉 APPLY INCREASE (your logic)
 //                    $opt['price'] = round($optBase + $optDiscount, 2);
 //                }
 //            }
-            $options = [];
-
-            if (!empty($food->options)) {
-                $options = is_array($food->options)
-                    ? $food->options
-                    : json_decode($food->options, true);
-
-                foreach ($options as &$opt) {
-
-                    $optBase = (!empty($opt['merchant_price']) && $opt['merchant_price'] > 0)
-                        ? $opt['merchant_price']
-                        : $opt['price'];
-
-                    if (empty($opt['merchant_price']) || $opt['merchant_price'] == 0) {
-                        $opt['merchant_price'] = $opt['price'];
-                    }
-
-                    $optDiscount = ($optBase * $discount) / 100;
-                    $opt['price'] = round($optBase + $optDiscount, 2);
-                }
-            }
-
-// ✅ IMPORTANT: assign directly
-            $food->options = $options;
-
-            $food->price = round($newPrice, 2);
-            $food->original_price = $basePrice;
-
-            $food->save();
-
-
-            $food->update([
-                'price' => round($newPrice, 2),
-                'merchant_price' => $basePrice,
-                'options' => json_encode($options)
-
-            ]);
-        }
-
-        return back()->with('success', 'Discount applied successfully!');
-    }
+//
+//// ✅ IMPORTANT: assign directly
+//            $food->options = $options;
+//
+//            $food->price = round($newPrice, 2);
+//            $food->original_price = $basePrice;
+//
+//            $food->save();
+//
+//
+//            $food->update([
+//                'price' => round($newPrice, 2),
+//                'merchant_price' => $basePrice,
+//                'options' => json_encode($options)
+//
+//            ]);
+//        }
+//
+//        return back()->with('success', 'Discount applied successfully!');
+//    }
 //    public function resetDiscount($restaurantId)
 //    {
 //        $foods = VendorProduct::where('vendorID', $restaurantId)->get();
@@ -1393,45 +1371,110 @@ class FoodController extends Controller
 //
 //        return back()->with('success', 'Discount removed and original price restored!');
 //    }
-    public function resetDiscount($restaurantId)
-    {
-        $foods = VendorProduct::where('vendorID', $restaurantId)->get();
 
-        foreach ($foods as $food) {
-
-            // =========================
-            // ✅ RESET OPTIONS
-            // =========================
-            $options = [];
-
-            if (!empty($food->options)) {
-                $options = is_array($food->options)
-                    ? $food->options
-                    : json_decode($food->options, true);
-
-                foreach ($options as &$opt) {
-
-                    // restore original option price
-                    if (!empty($opt['merchant_price']) && $opt['merchant_price'] > 0) {
-                        $opt['price'] = $opt['merchant_price'];
-                    }
-                }
-            }
-
-            // =========================
-            // ✅ RESET MAIN PRICE
-            // =========================
-            if (!empty($food->original_price)) {
-                $food->price = $food->original_price;
-            }
-
-            // =========================
-            // ✅ SAVE BOTH
-            // =========================
-            $food->options = $options;
-            $food->save();
-        }
-
-        return back()->with('success', 'Discount removed and original price restored (including options)!');
-    }
+//    public function applyDiscount(Request $request, $restaurantId)
+//    {
+//        $request->validate([
+//            'discount' => 'required|numeric|max:100',
+//        ]);
+//
+//        $discount = $request->discount;
+//
+//        $foods = VendorProduct::where('vendorID', $restaurantId)->get();
+//
+//        foreach ($foods as $food) {
+//
+//            // ✅ Base price
+//            $basePrice = (!empty($food->original_price) && $food->original_price > 0)
+//                ? $food->original_price
+//                : $food->price;
+//
+//            // Save original only once
+//            if (empty($food->original_price)) {
+//                $food->original_price = $food->price;
+//            }
+//
+//            // ✅ Apply discount
+//            $discountAmount = ($basePrice * $discount) / 100;
+//            $newPrice = round($basePrice + $discountAmount);
+//
+//            // =========================
+//            // ✅ OPTIONS
+//            // =========================
+//            $options = [];
+//
+//            if (!empty($food->options)) {
+//                $options = is_array($food->options)
+//                    ? $food->options
+//                    : json_decode($food->options, true);
+//
+//                foreach ($options as &$opt) {
+//
+//                    $optBase = (!empty($opt['original_price']) && $opt['original_price'] > 0)
+//                        ? $opt['original_price']
+//                        : $opt['price'];
+//
+//                    if (empty($opt['original_price']) || $opt['original_price'] == 0) {
+//                        $opt['original_price'] = $opt['price'];
+//                    }
+//
+//                    $optDiscount = ($optBase * $discount) / 100;
+//
+//                    $opt['price'] = round($optBase + $optDiscount);
+//                }
+//            }
+//
+//            // =========================
+//            // ✅ SAVE ONLY REQUIRED FIELDS
+//            // =========================
+//            $food->price = $newPrice;
+//            $food->options = $options;
+//
+//            $food->save();
+//        }
+//
+//        return back()->with('success', 'Discount applied successfully!');
+//    }
+//
+//    public function resetDiscount($restaurantId)
+//    {
+//        $foods = VendorProduct::where('vendorID', $restaurantId)->get();
+//
+//        foreach ($foods as $food) {
+//
+//            // =========================
+//            // ✅ RESET OPTIONS
+//            // =========================
+//            $options = [];
+//
+//            if (!empty($food->options)) {
+//                $options = is_array($food->options)
+//                    ? $food->options
+//                    : json_decode($food->options, true);
+//
+//                foreach ($options as &$opt) {
+//
+//                    // restore original option price
+//                    if (!empty($opt['merchant_price']) && $opt['merchant_price'] > 0) {
+//                        $opt['price'] = $opt['merchant_price'];
+//                    }
+//                }
+//            }
+//
+//            // =========================
+//            // ✅ RESET MAIN PRICE
+//            // =========================
+//            if (!empty($food->original_price)) {
+//                $food->price = $food->original_price;
+//            }
+//
+//            // =========================
+//            // ✅ SAVE BOTH
+//            // =========================
+//            $food->options = $options;
+//            $food->save();
+//        }
+//
+//        return back()->with('success', 'Discount removed and original price restored (including options)!');
+//    }
 }

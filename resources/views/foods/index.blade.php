@@ -167,24 +167,24 @@
                                         <div class="d-flex align-items-end" style="gap: 20px; flex-wrap: wrap;">
 
                                             <!-- LEFT: DISCOUNT FORM -->
-                                            <div style="min-width: 300px;">
-                                                <h5>Apply Discount</h5>
-                                                <form action="{{ route('foods.applyDiscount', $restaurantId) }}" method="POST">
-                                                    @csrf
+{{--                                            <div style="min-width: 300px;">--}}
+{{--                                                <h5>Apply Discount</h5>--}}
+{{--                                                <form action="{{ route('foods.applyDiscount', $restaurantId) }}" method="POST">--}}
+{{--                                                    @csrf--}}
 
-                                                    <input type="number" name="discount" class="form-control mb-2" placeholder="Discount %" required>
+{{--                                                    <input type="number" name="discount" class="form-control mb-2" placeholder="Discount %" required>--}}
 
-                                                    <button class="btn btn-primary btn-sm">Apply</button>
-                                                </form>
-                                            </div>
+{{--                                                    <button class="btn btn-primary btn-sm">Apply</button>--}}
+{{--                                                </form>--}}
+{{--                                            </div>--}}
 
                                             <!-- RIGHT: BUTTONS -->
                                             <div class="d-flex align-items-center">
 
-                                                <form action="{{ route('foods.resetDiscount', $restaurantId) }}" method="POST" class="mt-1">
-                                                    @csrf
-                                                    <button class="btn btn-outline-danger btn-sm rounded-full mr-1">Reset Price</button>
-                                                </form>
+{{--                                                <form action="{{ route('foods.resetDiscount', $restaurantId) }}" method="POST" class="mt-1">--}}
+{{--                                                    @csrf--}}
+{{--                                                    <button class="btn btn-outline-danger btn-sm rounded-full mr-1">Reset Price</button>--}}
+{{--                                                </form>--}}
 
                                                     <button class="btn btn-outline-secondary dropdown-toggle rounded-full mr-1" type="button"
                                                             id="columnToggleMenu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
