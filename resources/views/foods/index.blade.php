@@ -794,6 +794,79 @@
                 $this.addClass('text-info');
                 $this.text('Updating...');
 
+            {{--    // Send AJAX request to backend for proper validation and data consistency--}}
+            {{--    $.ajax({--}}
+            {{--        url: '{{ route("foods.inlineUpdate", ":id") }}'.replace(':id', id),--}}
+            {{--        method: 'PATCH',--}}
+            {{--        data: {--}}
+            {{--            field: field,--}}
+            {{--            value: newValue,--}}
+            {{--            _token: '{{ csrf_token() }}'--}}
+            {{--        },--}}
+            {{--        success: function (response) {--}}
+            {{--            if (response.success) {--}}
+            {{--                // Update the data attribute--}}
+            {{--                $this.data('value', newValue);--}}
+
+            {{--                // Update the display--}}
+            {{--                var displayValue = newValue.toFixed(decimal_degits);--}}
+            {{--                if (currencyAtRight) {--}}
+            {{--                    $this.text(displayValue + currentCurrency);--}}
+            {{--                } else {--}}
+            {{--                    $this.text(currentCurrency + displayValue);--}}
+            {{--                }--}}
+
+            {{--                // Show success indicator--}}
+            {{--                $this.removeClass('text-info').addClass('text-success');--}}
+            {{--                setTimeout(function () {--}}
+            {{--                    $this.removeClass('text-success');--}}
+            {{--                }, 1000);--}}
+
+            {{--                // If there's a message about discount price being reset, show it--}}
+            {{--                if (response.message && response.message.includes('discount price was reset')) {--}}
+            {{--                    // Find and update the discount price cell if it exists--}}
+            {{--                    var discountCell = $this.closest('tr').find('.editable-price[data-field="disPrice"]');--}}
+            {{--                    if (discountCell.length > 0) {--}}
+            {{--                        discountCell.data('value', 0);--}}
+            {{--                        discountCell.text('-');--}}
+            {{--                        discountCell.removeClass('text-green').addClass('text-muted');--}}
+            {{--                    }--}}
+            {{--                }--}}
+            {{--            } else {--}}
+            {{--                // Show error message--}}
+            {{--                alert('Update failed: ' + response.message);--}}
+            {{--                // Revert to original value--}}
+            {{--                var originalValue = currentValue;--}}
+            {{--                var displayValue = originalValue.toFixed(decimal_degits);--}}
+            {{--                if (currencyAtRight) {--}}
+            {{--                    $this.text(displayValue + currentCurrency);--}}
+            {{--                } else {--}}
+            {{--                    $this.text(currentCurrency + displayValue);--}}
+            {{--                }--}}
+            {{--                $this.removeClass('text-info');--}}
+            {{--            }--}}
+            {{--        },--}}
+            {{--        error: function (xhr) {--}}
+            {{--            var errorMessage = 'Update failed';--}}
+            {{--            if (xhr.responseJSON && xhr.responseJSON.message) {--}}
+            {{--                errorMessage = xhr.responseJSON.message;--}}
+            {{--            }--}}
+            {{--            alert(errorMessage);--}}
+
+            {{--            // Revert to original value--}}
+            {{--            var originalValue = currentValue;--}}
+            {{--            var displayValue = originalValue.toFixed(decimal_degits);--}}
+            {{--            if (currencyAtRight) {--}}
+            {{--                $this.text(displayValue + currentCurrency);--}}
+            {{--            } else {--}}
+            {{--                $this.text(currentCurrency + displayValue);--}}
+            {{--            }--}}
+            {{--            $this.removeClass('text-info');--}}
+            {{--        }--}}
+            {{--    });--}}
+
+            {{--}--}}
+
                 // Send AJAX request to backend for proper validation and data consistency
                 $.ajax({
                     url: '{{ route("foods.inlineUpdate", ":id") }}'.replace(':id', id),

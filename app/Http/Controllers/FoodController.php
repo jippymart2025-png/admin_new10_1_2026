@@ -529,6 +529,125 @@ class FoodController extends Controller
     /**
      * Inline update for food price fields
      */
+//    public function inlineUpdate(Request $request, $id, ActivityLogger $logger)
+//    {
+//        try {
+//            $food = VendorProduct::find($id);
+//
+//            if (!$food) {
+//                return response()->json([
+//                    'success' => false,
+//                    'message' => 'Food item not found'
+//                ], 404);
+//            }
+//
+//            $field = $request->input('field');
+//            $value = $request->input('value', 0);
+//
+//            // Allowed fields
+//            if (!in_array($field, ['price', 'merchant_price', 'disPrice'], true)) {
+//                return response()->json([
+//                    'success' => false,
+//                    'message' => 'Invalid field'
+//                ], 400);
+//            }
+//
+//            // Normalize value (remove commas)
+//            $value = str_replace(',', '', $value);
+//
+//            // Validate value
+//            if (!is_numeric($value) || $value < 0) {
+//                return response()->json([
+//                    'success' => false,
+//                    'message' => 'Invalid value'
+//                ], 400);
+//            }
+//
+//            $value = (int)$value;
+//            $message = ucfirst(str_replace('_', ' ', $field)) . ' updated successfully';
+//
+//            // =============================
+//            // FIELD LOGIC
+//            // =============================
+//
+//            // 1️⃣ Regular Price
+//            if ($field === 'price') {
+//                $food->price = $value;
+//
+//                $food->original_price = $value;
+//
+//                // Reset discount if greater than price
+//                if ($food->disPrice && $food->disPrice > $value) {
+//                    $food->disPrice = null;
+//                    $message = 'Price updated. Discount price was reset because it exceeded the new price.';
+//                }
+//
+//                // Reset merchant price if greater than price
+//                if ($food->merchant_price && $food->merchant_price > $value) {
+//                    $food->merchant_price = $value;
+//                }
+//            } // 2️⃣ Merchant Price
+//            elseif ($field === 'merchant_price') {
+//
+//                // Merchant price cannot exceed main price
+//                if ($food->price && $value > $food->price) {
+//                    return response()->json([
+//                        'success' => false,
+//                        'message' => 'Merchant price cannot be greater than regular price'
+//                    ], 400);
+//                }
+//
+//                $food->merchant_price = $value;
+//            } // 3️⃣ Discount Price
+//            elseif ($field === 'disPrice') {
+//
+//                // Reset discount
+//                if ($value === 0) {
+//                    $food->disPrice = null;
+//                    $message = 'Discount price removed';
+//                } // Discount cannot exceed price
+//                elseif ($food->price && $value > $food->price) {
+//                    return response()->json([
+//                        'success' => false,
+//                        'message' => 'Discount price cannot be greater than regular price'
+//                    ], 400);
+//                } else {
+//                    $food->disPrice = $value;
+//                }
+//            }
+//
+//            // Update timestamp
+//            $food->updatedAt = now()->toIso8601String();
+//            $food->save();
+//
+//            // Log activity
+//            $logger->log(
+//                auth()->user(),
+//                'foods',
+//                'inline_updated',
+//                'Inline updated ' . $field . ' for food: ' . $food->name,
+//                $request
+//            );
+//
+//            return response()->json([
+//                'success' => true,
+//                'message' => $message,
+//                'data' => [
+//                    'price' => $food->price,
+//                    'merchant_price' => $food->merchant_price,
+//                    'disPrice' => $food->disPrice,
+//                ]
+//            ]);
+//
+//        } catch (\Exception $e) {
+//            \Log::error('Error in food inlineUpdate: ' . $e->getMessage());
+//
+//            return response()->json([
+//                'success' => false,
+//                'message' => 'Failed to update price'
+//            ], 500);
+//        }
+//    }
     public function inlineUpdate(Request $request, $id, ActivityLogger $logger)
     {
         try {
@@ -573,8 +692,6 @@ class FoodController extends Controller
             // 1️⃣ Regular Price
             if ($field === 'price') {
                 $food->price = $value;
-
-                $food->original_price = $value;
 
                 // Reset discount if greater than price
                 if ($food->disPrice && $food->disPrice > $value) {
