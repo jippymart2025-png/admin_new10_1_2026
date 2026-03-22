@@ -4800,12 +4800,42 @@ class RestaurantController extends Controller
             default => abort(404),
         };
     }
+//    public function getByZones(Request $request)
+//    {
+//        try {
+//            $zones = $request->input('zones', []);
+//            $type  = $request->input('type');
+//
+//
+//            if (empty($zones)) {
+//                return response()->json(['data' => []]);
+//            }
+//
+//            $vendors = Vendor::where(function ($q) use ($zones) {
+//                foreach ($zones as $zone) {
+//                    $q->orWhereJsonContains('zoneId', $zone) // JSON array
+//                    ->orWhere('zoneId', $zone);            // plain string
+//                }
+//            })
+//                ->when($type, function ($q) use ($type) {
+//                    $q->where('vType', $type); // 👈 FILTER HERE
+//                })
+//                ->get(['id', 'title', 'vType']);
+////            ->get(['id', 'title']);
+//
+//            return response()->json(['data' => $vendors]);
+//
+//        } catch (\Exception $e) {
+//            return response()->json([
+//                'error' => $e->getMessage()
+//            ], 500);
+//        }
+//    }
     public function getByZones(Request $request)
     {
         try {
             $zones = $request->input('zones', []);
             $type  = $request->input('type');
-
 
             if (empty($zones)) {
                 return response()->json(['data' => []]);
@@ -4813,15 +4843,18 @@ class RestaurantController extends Controller
 
             $vendors = Vendor::where(function ($q) use ($zones) {
                 foreach ($zones as $zone) {
-                    $q->orWhereJsonContains('zoneId', $zone) // JSON array
-                    ->orWhere('zoneId', $zone);            // plain string
+
+                    $q->orWhere(function ($sub) use ($zone) {
+                        $sub->whereRaw('JSON_VALID(zoneId)')
+                            ->whereRaw('JSON_CONTAINS(zoneId, ?)', [json_encode($zone)]);
+                    })
+                        ->orWhere('zoneId', $zone); // fallback
                 }
             })
                 ->when($type, function ($q) use ($type) {
-                    $q->where('vType', $type); // 👈 FILTER HERE
+                    $q->where('vType', $type);
                 })
                 ->get(['id', 'title', 'vType']);
-//            ->get(['id', 'title']);
 
             return response()->json(['data' => $vendors]);
 
