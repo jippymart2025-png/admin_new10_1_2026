@@ -469,7 +469,7 @@
                 }
             });
         });
-        $(document).on("click","input[name='isDocumentVerify']",async function(e) {
+        $(document).on("click","input[name='isActive']",async function(e) {
             jQuery("#data-table_processing").show();
             var ischeck=$(this).is(':checked');
             var id=this.id;
