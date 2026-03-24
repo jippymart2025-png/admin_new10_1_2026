@@ -7,6 +7,7 @@ use App\Models\restaurant_orders;
 use App\Models\AppUser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class MapController extends Controller
 {
@@ -382,8 +383,27 @@ class MapController extends Controller
             return null;
         }
     }
-    public function getRestaurantMap(){
-        return view('map.restaurantMap');
+    public function getRestaurantMap()
+    {
+        try {
+            Log::info('Entering getRestaurantMap method');
+
+            return view('map.restaurantMap');
+
+        } catch (\Exception $e) {
+
+            Log::error('Error in getRestaurantMap', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong'
+            ], 500);
+        }
     }
     /**
      * Get live restaurant locations (latitude & longitude based)
@@ -395,8 +415,9 @@ class MapController extends Controller
 
             $restaurants = Cache::remember($cacheKey, 10, function () {
 
+                Log::info('Cache miss → fetching from DB');
+
                 return DB::table('vendors')
-//                    ->where('publish', 1)
                     ->whereNotNull('latitude')
                     ->whereNotNull('longitude')
                     ->select(

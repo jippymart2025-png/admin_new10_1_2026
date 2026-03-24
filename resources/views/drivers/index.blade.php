@@ -457,7 +457,8 @@
                 url: '/drivers/' + id,
                 type: 'PUT',
                 data: {
-                    isDocumentVerify: ischeck,
+                    isActive: ischeck,
+                    isDocumentVerify: 1,
                     _token: '{{csrf_token()}}'
                 },
                 success: function(response) {

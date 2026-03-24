@@ -320,7 +320,7 @@
         var decimal_degits =<?php echo config("app.currency_decimal_digits", 2); ?>;
         var user_permissions = '<?php echo @session("user_permissions") ?>';
         let ordersTable;
-        const ORDER_COLUMN_STORAGE_KEY = 'order_column_visibility_v1';
+        const ORDER_COLUMN_STORAGE_KEY = 'order_column_visibility_v2';
         user_permissions = Object.values(JSON.parse(user_permissions));
         var checkDeletePermission = false;
         if ($.inArray('orders.delete', user_permissions) >= 0) {
@@ -609,6 +609,40 @@
             console.log('📡 Initializing Orders DataTable...');
 
             $(document).ready(function (){
+                // Build column indexes from the actual table layout for this page context.
+                // This avoids DataTables target/index mismatch (bVisible undefined) across
+                // vendor/user/driver contexts and with/without delete permission.
+                var hasDeleteCol = !!checkDeletePermission;
+                var hasRestaurantCol = (getId == '');
+                var isUserContext = !!userID;
+                var isDriverContext = !!driverID;
+
+                var col = 0;
+                var idxCheckbox = hasDeleteCol ? col++ : null;
+                var idxOrderId = col++;
+                var idxRestaurant = hasRestaurantCol ? col++ : null;
+                var idxDriver = null;
+                var idxUser = null;
+
+                if (isUserContext) {
+                    idxDriver = col++;
+                } else if (isDriverContext) {
+                    idxUser = col++;
+                } else {
+                    idxDriver = col++;
+                    idxUser = col++;
+                }
+
+                var idxDate = col++;
+                var idxAmount = col++;
+                var idxStatus = col++;
+                var idxZone = col++;
+                var idxActions = col++;
+
+                var nonOrderableTargets = [];
+                if (idxCheckbox !== null) nonOrderableTargets.push(idxCheckbox);
+                if (idxStatus !== null) nonOrderableTargets.push(idxStatus);
+                if (idxActions !== null) nonOrderableTargets.push(idxActions);
 
                 ordersTable = $('#orderTable').DataTable({
                     pageLength: 30,
@@ -729,10 +763,10 @@
                             $('#data-table_processing').hide();
                         }
                     },
-                    order: (getId != '' || driverID || userID && checkDeletePermission) ? [[4, 'desc']] : (getId != '' || driverID || userID) ? ((checkDeletePermission) ? [[4, 'desc']] : [[3, 'desc']]) : ((checkDeletePermission) ? [[5, 'desc']] : [[4, 'desc']]),
+                    order: [[idxDate, 'desc']],
                     columnDefs: [
                         {
-                            targets: (getId != '' || driverID || userID && checkDeletePermission) ? 4 : (getId != '' || driverID || userID) ? ((checkDeletePermission) ? 4 : 3) : ((checkDeletePermission) ? 5 : 4),
+                            targets: idxDate,
                             type: 'date',
                             render: function (data) {
                                 return data;
@@ -740,23 +774,23 @@
                         },
                         {
                             orderable: false,
-                            targets: (getId != '' || driverID || userID && checkDeletePermission) ? [0, 7] : (getId != '' || driverID || userID) ? ((checkDeletePermission) ? [0, 7] : [6]) : (checkDeletePermission) ? [0, 8] : [7]
+                            targets: nonOrderableTargets
                         },
                         {
                             // ✅ CENTER AMOUNT COLUMN
-                            targets: (checkDeletePermission ? 6 : 5),
+                            targets: idxAmount,
                             className: 'text-center'
                         },
                         {
                             // ✅ Restaurant Wrap Column
-                            targets: (checkDeletePermission ? 2 : 1),
+                            targets: (idxRestaurant !== null ? idxRestaurant : idxOrderId),
                             render: function (data) {
                                 return `<div style="white-space:normal; max-width:150px; word-break:break-word;">${data}</div>`;
                             }
                         },
                         {
                             // ✅ Wrap Order Status Column
-                            targets: (checkDeletePermission ? 7 : 6),
+                            targets: idxStatus,
                             render: function (data) {
                                 return `<div style="white-space:normal; max-width:120px; word-break:break-word; text-align:center;font-size:10px;">${data}</div>`;
                             }
@@ -982,12 +1016,24 @@
             const savedState = localStorage.getItem(ORDER_COLUMN_STORAGE_KEY);
             if (!savedState) return;
 
-            const state = JSON.parse(savedState);
+            let state;
+            try {
+                state = JSON.parse(savedState);
+            } catch (e) {
+                localStorage.removeItem(ORDER_COLUMN_STORAGE_KEY);
+                return;
+            }
+
+            if (!state || typeof state !== 'object') return;
+
+            const colCount = ordersTable.columns().count();
 
             Object.entries(state).forEach(([index, visible]) => {
-                if (ordersTable.column(index).length) {
-                    ordersTable.column(index).visible(visible);
+                const colIndex = parseInt(index, 10);
+                if (Number.isNaN(colIndex) || colIndex < 0 || colIndex >= colCount) {
+                    return;
                 }
+                ordersTable.column(colIndex).visible(!!visible);
             });
         }
 

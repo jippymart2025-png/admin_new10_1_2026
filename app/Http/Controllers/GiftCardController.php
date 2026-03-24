@@ -80,7 +80,16 @@ class GiftCardController extends Controller
         $filteredRecords = (clone $q)->count();
         $rows = $q->orderBy('g.title','asc')->offset($start)->limit($length)->get();
 
-        $canDelete = in_array('gift-card.delete', json_decode(@session('user_permissions'), true) ?: []);
+        $rawPermissions = session('user_permissions');
+        if (is_string($rawPermissions)) {
+            $permissions = json_decode($rawPermissions, true);
+        } elseif (is_array($rawPermissions)) {
+            $permissions = $rawPermissions;
+        } else {
+            $permissions = [];
+        }
+        $permissions = is_array($permissions) ? $permissions : [];
+        $canDelete = in_array('gift-card.delete', array_values($permissions), true);
         $placeholder = $this->getPlaceholderImage();
 
         $data = [];
