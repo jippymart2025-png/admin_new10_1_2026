@@ -73,9 +73,55 @@
                     </fieldset>
                 </div>
             </div>
+            <div class="row restaurant_payout_create mt-3">
+                <div class="restaurant_payout_create-inner">
+                    <fieldset>
+                        <legend>Driver Delivery Charge</legend>
+                        <p class="text-muted col-12 mb-3">Stored in settings as <code>driver_total_charges</code>.</p>
+                        <div class="form-group row width-100">
+                            <label class="col-4 control-label">Pickup (₹ per km)</label>
+                            <div class="col-7">
+                                <input type="number" class="form-control" id="driver_pickup_rs_per_km" min="0" step="1">
+                            </div>
+                        </div>
+                        <div class="form-group row width-100">
+                            <label class="col-4 control-label">Delivery first slab (km)</label>
+                            <div class="col-7">
+                                <input type="number" class="form-control" id="driver_delivery_first_slab_km" min="0" step="1">
+                            </div>
+                        </div>
+                        <div class="form-group row width-100">
+                            <label class="col-4 control-label">Delivery ₹ per km (first slab)</label>
+                            <div class="col-7">
+                                <input type="number" class="form-control" id="driver_delivery_rs_per_km_first_slab" min="0" step="1">
+                            </div>
+                        </div>
+                        <div class="form-group row width-100">
+                            <label class="col-4 control-label">Delivery ₹ per km (beyond first slab)</label>
+                            <div class="col-7">
+                                <input type="number" class="form-control" id="driver_delivery_rs_per_km_beyond" min="0" step="1">
+                            </div>
+                        </div>
+                        <div class="form-group row width-100">
+                            <label class="col-4 control-label">Short trip max distance (km)</label>
+                            <div class="col-7">
+                                <input type="number" class="form-control" id="driver_delivery_short_trip_max_km" min="0" step="1">
+                            </div>
+                        </div>
+                        <div class="form-group row width-100">
+                            <label class="col-4 control-label">Short trip base charge (₹)</label>
+                            <div class="col-7">
+                                <input type="number" class="form-control" id="driver_delivery_short_trip_base_charge" min="0" step="1">
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
+            </div>
             <div class="form-group col-12 text-center">
                 <button type="button" class="btn btn-primary edit-setting-btn"><i class="fa fa-save"></i>
                     {{trans('lang.save')}}</button>
+                <button type="button" class="btn btn-primary save-driver-delivery-btn"><i class="fa fa-save"></i>
+                    Save driver delivery charge</button>
                 <a href="{{url('/dashboard')}}" class="btn btn-default"><i class="fa fa-undo"></i>{{trans('lang.cancel')}}</a>
             </div>
         </div>
@@ -84,9 +130,29 @@
             <script>
                 const deliveryGetUrl = "{{ route('api.deliveryCharge.settings') }}";
                 const deliveryPostUrl = "{{ route('api.deliveryCharge.update') }}";
+                const driverDeliveryGetUrl = "{{ route('api.driverDeliveryCharge.settings') }}";
+                const driverDeliveryPostUrl = "{{ route('api.driverDeliveryCharge.update') }}";
+
+                function fillDriverDeliveryFields(s) {
+                    if (!s) return;
+                    $("#driver_pickup_rs_per_km").val(s.pickup_rs_per_km);
+                    $("#driver_delivery_first_slab_km").val(s.delivery_first_slab_km);
+                    $("#driver_delivery_rs_per_km_first_slab").val(s.delivery_rs_per_km_first_slab);
+                    $("#driver_delivery_rs_per_km_beyond").val(s.delivery_rs_per_km_beyond);
+                    $("#driver_delivery_short_trip_max_km").val(s.delivery_short_trip_max_km);
+                    $("#driver_delivery_short_trip_base_charge").val(s.delivery_short_trip_base_charge);
+                }
 
                 $(document).ready(function() {
                     jQuery("#data-table_processing").show();
+
+                    $.get(driverDeliveryGetUrl, function (driverSettings) {
+                        try {
+                            fillDriverDeliveryFields(driverSettings);
+                        } catch (e) {
+                            console.error('Error loading driver delivery charge settings:', e);
+                        }
+                    });
 
                     $.get(deliveryGetUrl, function(deliveryChargeSettings){
                         jQuery("#data-table_processing").hide();
@@ -180,6 +246,29 @@
                             $(".error_top").html("");
                             $(".error_top").append("<p>Error updating settings. Please try again.</p>");
                             window.scrollTo(0,0);
+                        });
+                    });
+
+                    $(".save-driver-delivery-btn").click(function () {
+                        var data = {
+                            pickup_rs_per_km: parseInt($("#driver_pickup_rs_per_km").val(), 10) || 0,
+                            delivery_first_slab_km: parseInt($("#driver_delivery_first_slab_km").val(), 10) || 0,
+                            delivery_rs_per_km_first_slab: parseInt($("#driver_delivery_rs_per_km_first_slab").val(), 10) || 0,
+                            delivery_rs_per_km_beyond: parseInt($("#driver_delivery_rs_per_km_beyond").val(), 10) || 0,
+                            delivery_short_trip_max_km: parseInt($("#driver_delivery_short_trip_max_km").val(), 10) || 0,
+                            delivery_short_trip_base_charge: parseInt($("#driver_delivery_short_trip_base_charge").val(), 10) || 0
+                        };
+                        $.post({
+                            url: driverDeliveryPostUrl,
+                            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                            data: data
+                        }).done(function () {
+                            window.location.href = '{{ url("settings/app/deliveryCharge")}}';
+                        }).fail(function () {
+                            $(".error_top").show();
+                            $(".error_top").html("");
+                            $(".error_top").append("<p>Error updating driver delivery charge settings. Please try again.</p>");
+                            window.scrollTo(0, 0);
                         });
                     });
                 });

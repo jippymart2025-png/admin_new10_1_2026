@@ -1011,6 +1011,18 @@ class UserController extends Controller
                 'date' => now(),
             ]);
 
+            // Keep SQL driver wallet history in delivery_wallet_record.
+            DB::table('delivery_wallet_record')->insert([
+                'firebase_id' => null,
+                'bonus' => null,
+                'bonusAmount' => null,
+                'date' => now(),
+                'driverId' => $driver->firebase_id,
+                'totalEarnings' =>  $amount,
+                'type' => 'cod',
+                'zoneId' => null,
+            ]);
+
             DB::commit();
 
             return response()->json([

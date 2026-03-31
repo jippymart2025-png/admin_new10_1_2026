@@ -631,6 +631,8 @@ Route::prefix('settings')->group(function () {
     });
     Route::get('api/delivery-charge/settings', [App\Http\Controllers\SettingsController::class, 'getDeliveryChargeSettings'])->name('api.deliveryCharge.settings');
     Route::post('api/delivery-charge/settings', [App\Http\Controllers\SettingsController::class, 'updateDeliveryChargeSettings'])->name('api.deliveryCharge.update');
+    Route::get('api/driver-delivery-charge/settings', [App\Http\Controllers\SettingsController::class, 'getDriverTotalChargesSettings'])->name('api.driverDeliveryCharge.settings');
+    Route::post('api/driver-delivery-charge/settings', [App\Http\Controllers\SettingsController::class, 'updateDriverTotalChargesSettings'])->name('api.driverDeliveryCharge.update');
 
     Route::middleware(['permission:mart-settings,settings.app.martSettings'])->group(function () {
         Route::get('app/martSettings', [App\Http\Controllers\SettingsController::class, 'martSettings'])->name('settings.app.martSettings');

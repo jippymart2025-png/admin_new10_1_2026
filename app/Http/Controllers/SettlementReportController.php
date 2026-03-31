@@ -2133,7 +2133,7 @@ END
 
             // Set payment_date and verified_by if status is Settled
             if ($paymentStatus === 'settled') {
-                $settlementData['payment_date'] = now()->toDateString();
+                $settlementData['payment_date'] = $endDate->toDateString();
             }
 
             // Update or create driver settlement

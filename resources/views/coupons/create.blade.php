@@ -57,11 +57,14 @@
                                     <div class="form-text text-muted">Minimum order value required to use this coupon (e.g., 299 for FLAT100, 30 for SAVE30)</div>
                                 </div>
                             </div>
-                            <div class="form-group row width-50" style="display: none;">
+                            <div class="form-group row width-50">
                                 <label class="col-3 control-label">Usage Limit</label>
                                 <div class="col-7">
-                                    <input type="number" class="form-control usage_limit" min="0" placeholder="0 for unlimited" value="0">
-                                    <div class="form-text text-muted">Maximum number of users who can use this coupon (e.g., 100 for "First-100"). Leave empty or 0 for unlimited usage.</div>
+                                    <select class="form-control usage_limit">
+                                        <option value="0" selected>0</option>
+                                        <option value="1">1</option>
+                                    </select>
+                                    <div class="form-text text-muted">Set usage limit to 0 or 1.</div>
                                 </div>
                             </div>
                             <div class="form-group row width-50">

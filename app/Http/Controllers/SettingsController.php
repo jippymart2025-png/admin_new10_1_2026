@@ -1822,28 +1822,68 @@ class SettingsController extends Controller
     }
 
     /**
-     * Driver Total Charges Settings
+     * Driver total charges (`settings.document_name` = driver_total_charges).
      */
+    private static function driverTotalChargesDefaultFields(): array
+    {
+        return [
+            'pickup_rs_per_km' => 3,
+            'delivery_first_slab_km' => 4,
+            'delivery_rs_per_km_first_slab' => 8,
+            'delivery_rs_per_km_beyond' => 10,
+            'delivery_short_trip_max_km' => 2,
+            'delivery_short_trip_base_charge' => 21,
+        ];
+    }
+
     public function getDriverTotalChargesSettings()
     {
         $rec = DB::table('settings')->where('document_name', 'driver_total_charges')->first();
-        $fields = $rec && $rec->fields ? json_decode($rec->fields, true) : [];
-        return response()->json($fields ?: [
-            'pickup_charges' => '3',
-            'user_delivery_charge' => '10'
-        ]);
+        $existing = $rec && $rec->fields ? json_decode($rec->fields, true) : [];
+        if (! is_array($existing)) {
+            $existing = [];
+        }
+
+        $defaults = self::driverTotalChargesDefaultFields();
+        $out = array_merge($defaults, array_intersect_key($existing, $defaults));
+
+        if (! isset($existing['pickup_rs_per_km']) && isset($existing['pickup_charges'])) {
+            $out['pickup_rs_per_km'] = (int) $existing['pickup_charges'];
+        }
+
+        return response()->json($out);
     }
 
     public function updateDriverTotalChargesSettings(Request $request)
     {
-        $fields = [
-            'pickup_charges' => $request->input('pickup_charges', '3'),
-            'user_delivery_charge' => $request->input('user_delivery_charge', '10')
-        ];
+        $rec = DB::table('settings')->where('document_name', 'driver_total_charges')->first();
+        $existing = $rec && $rec->fields ? json_decode($rec->fields, true) : [];
+        if (! is_array($existing)) {
+            $existing = [];
+        }
+
+        $defaults = self::driverTotalChargesDefaultFields();
+        $merged = $existing;
+
+        foreach ($defaults as $key => $defaultVal) {
+            if (! array_key_exists($key, $merged)) {
+                $merged[$key] = $defaultVal;
+            }
+        }
+
+        $payload = $request->all();
+        $numericKeys = array_keys($defaults);
+        foreach ($numericKeys as $key) {
+            if (array_key_exists($key, $payload) && $payload[$key] !== '' && $payload[$key] !== null) {
+                $merged[$key] = (int) $payload[$key];
+            }
+        }
+
         DB::table('settings')->updateOrInsert(
             ['document_name' => 'driver_total_charges'],
-            ['document_name' => 'driver_total_charges', 'fields' => json_encode($fields, JSON_UNESCAPED_UNICODE)]
+            ['document_name' => 'driver_total_charges', 'fields' => json_encode($merged, JSON_UNESCAPED_UNICODE)]
         );
+
         return response()->json(['success' => true]);
     }
 
